@@ -2915,3 +2915,54 @@ console.log(
 console.log(
     "System Status: ONLINE"
 );
+
+/* =====================================================
+   PRAKRITI HELP BUTTONS
+   ===================================================== */
+
+document
+    .querySelectorAll(".prakriti-help-btn")
+    .forEach(button => {
+
+        button.addEventListener(
+            "click",
+            function () {
+
+                const explanation =
+                    this.dataset.help;
+
+                openWorkspace(
+                    "Prakriti Help",
+                    "Simple explanation of the Ayurvedic term.",
+                    "fa-solid fa-circle-question"
+                );
+
+                const helpContent =
+                    document.getElementById(
+                        "workspaceContent"
+                    );
+
+                helpContent.innerHTML = `
+
+                    <div class="workspace-box">
+
+                        <strong>
+                            What does this term mean?
+                        </strong>
+
+                        <span style="
+                            font-size:13px;
+                            line-height:1.7;
+                            margin-top:10px;
+                        ">
+                            ${escapeHTML(explanation)}
+                        </span>
+
+                    </div>
+
+                `;
+
+            }
+        );
+
+    });
