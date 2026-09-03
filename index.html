@@ -1,853 +1,666 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <title>AYURCASE | AYUSH Patient Case Taking</title>
+    <!-- Favicons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="manifest" href="/site.webmanifest" />
 
     <!-- Google Font -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
 
     <!-- Icons -->
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
 
     <!-- CSS -->
-    <link rel="stylesheet" href="style.css">
-</head>
+    <link rel="stylesheet" href="style.css" />
+  </head>
 
-<body>
+  <body>
+    <div class="app">
+      <!-- ================= SIDEBAR ================= -->
 
-<div class="app">
-
-    <!-- ================= SIDEBAR ================= -->
-
-    <aside class="sidebar">
-
+      <aside class="sidebar">
         <div class="brand">
-            <div class="brand-icon">
-                <i class="fa-solid fa-leaf"></i>
-            </div>
+          <div class="brand-icon">
+            <i class="fa-solid fa-leaf"></i>
+          </div>
 
-            <div>
-                <h2>AYUR<span>CASE</span></h2>
-                <small>AYUSH CARE PLATFORM</small>
-            </div>
+          <div>
+            <h2>AYUR<span>CASE</span></h2>
+            <small>AYUSH CARE PLATFORM</small>
+          </div>
         </div>
 
         <div class="menu-title">MAIN MENU</div>
 
         <nav>
+          <a href="#" class="nav-item active" data-page="dashboard">
+            <i class="fa-solid fa-grid-2"></i>
+            <span>Dashboard</span>
+          </a>
 
-            <a href="#" class="nav-item active" data-page="dashboard">
-                <i class="fa-solid fa-grid-2"></i>
-                <span>Dashboard</span>
-            </a>
+          <a href="#" class="nav-item" data-page="patients">
+            <i class="fa-solid fa-users"></i>
+            <span>Patients</span>
+          </a>
 
-            <a href="#" class="nav-item" data-page="patients">
-                <i class="fa-solid fa-users"></i>
-                <span>Patients</span>
-            </a>
+          <a href="#" class="nav-item" data-page="case">
+            <i class="fa-solid fa-file-medical"></i>
+            <span>New Case</span>
+          </a>
 
-            <a href="#" class="nav-item" data-page="case">
-                <i class="fa-solid fa-file-medical"></i>
-                <span>New Case</span>
-            </a>
+          <a href="#" class="nav-item" data-page="history">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <span>Case History</span>
+          </a>
 
-            <a href="#" class="nav-item" data-page="history">
-                <i class="fa-solid fa-clock-rotate-left"></i>
-                <span>Case History</span>
-            </a>
+          <a href="#" class="nav-item" data-page="prakriti">
+            <i class="fa-solid fa-spa"></i>
+            <span>Prakriti</span>
+          </a>
 
-            <a href="#" class="nav-item" data-page="prakriti">
-                <i class="fa-solid fa-spa"></i>
-                <span>Prakriti</span>
-            </a>
+          <a href="#" class="nav-item" data-page="ai">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <span>AI Assistant</span>
+            <b class="new-badge">NEW</b>
+          </a>
 
-            <a href="#" class="nav-item" data-page="ai">
-                <i class="fa-solid fa-wand-magic-sparkles"></i>
-                <span>AI Assistant</span>
-                <b class="new-badge">NEW</b>
-            </a>
+          <div class="menu-title second">MANAGEMENT</div>
 
-            <div class="menu-title second">MANAGEMENT</div>
+          <a href="#" class="nav-item">
+            <i class="fa-solid fa-chart-line"></i>
+            <span>Analytics</span>
+          </a>
 
-            <a href="#" class="nav-item">
-                <i class="fa-solid fa-chart-line"></i>
-                <span>Analytics</span>
-            </a>
-
-            <a href="#" class="nav-item">
-                <i class="fa-solid fa-gear"></i>
-                <span>Settings</span>
-            </a>
-
+          <a href="#" class="nav-item">
+            <i class="fa-solid fa-gear"></i>
+            <span>Settings</span>
+          </a>
         </nav>
 
         <div class="sidebar-bottom">
-
-            <div class="help-card">
-                <div class="help-icon">
-                    <i class="fa-solid fa-circle-question"></i>
-                </div>
-
-                <div>
-                    <strong>Need Help?</strong>
-                    <p>View documentation</p>
-                </div>
-
-                <i class="fa-solid fa-arrow-right"></i>
+          <div class="help-card">
+            <div class="help-icon">
+              <i class="fa-solid fa-circle-question"></i>
             </div>
 
-            <div class="doctor-mini">
-
-                <div class="doctor-avatar">
-                    AS
-                </div>
-
-                <div class="doctor-info">
-                    <strong>Dr. Arindam Sen</strong>
-                    <span>AYUSH Practitioner</span>
-                </div>
-
-                <i class="fa-solid fa-ellipsis"></i>
-
+            <div>
+              <strong>Need Help?</strong>
+              <p>View documentation</p>
             </div>
 
+            <i class="fa-solid fa-arrow-right"></i>
+          </div>
+
+          <div class="doctor-mini">
+            <div class="doctor-avatar">AS</div>
+
+            <div class="doctor-info">
+              <strong>Dr. Arindam Sen</strong>
+              <span>AYUSH Practitioner</span>
+            </div>
+
+            <i class="fa-solid fa-ellipsis"></i>
+          </div>
         </div>
+      </aside>
 
-    </aside>
+      <!-- ================= MAIN ================= -->
 
-
-    <!-- ================= MAIN ================= -->
-
-    <main class="main">
-
+      <main class="main">
         <!-- TOPBAR -->
 
         <header class="topbar">
+          <div class="mobile-menu">
+            <i class="fa-solid fa-bars"></i>
+          </div>
 
-            <div class="mobile-menu">
-                <i class="fa-solid fa-bars"></i>
+          <div class="breadcrumb">
+            <span>AYURCASE</span>
+            <i class="fa-solid fa-chevron-right"></i>
+            <strong>Dashboard</strong>
+          </div>
+
+          <div class="top-actions">
+            <button class="icon-btn theme-btn" title="Toggle Theme">
+              <i class="fa-solid fa-moon"></i>
+            </button>
+
+            <button class="icon-btn notification-btn">
+              <i class="fa-regular fa-bell"></i>
+              <span></span>
+            </button>
+
+            <div class="top-doctor">
+              <div class="doctor-avatar small">AS</div>
+
+              <div>
+                <strong>Dr. Arindam Sen</strong>
+                <small>Practitioner</small>
+              </div>
+
+              <i class="fa-solid fa-chevron-down"></i>
             </div>
-
-            <div class="breadcrumb">
-                <span>AYURCASE</span>
-                <i class="fa-solid fa-chevron-right"></i>
-                <strong>Dashboard</strong>
-            </div>
-
-            <div class="top-actions">
-
-                <button class="icon-btn theme-btn" title="Toggle Theme">
-                    <i class="fa-solid fa-moon"></i>
-                </button>
-
-                <button class="icon-btn notification-btn">
-                    <i class="fa-regular fa-bell"></i>
-                    <span></span>
-                </button>
-
-                <div class="top-doctor">
-                    <div class="doctor-avatar small">
-                        AS
-                    </div>
-
-                    <div>
-                        <strong>Dr. Arindam Sen</strong>
-                        <small>Practitioner</small>
-                    </div>
-
-                    <i class="fa-solid fa-chevron-down"></i>
-                </div>
-
-            </div>
-
+          </div>
         </header>
-
 
         <!-- ================= CONTENT ================= -->
 
         <section class="content">
+          <!-- HERO -->
 
-            <!-- HERO -->
+          <div class="hero">
+            <div>
+              <div class="welcome">
+                <span class="status-dot"></span>
+                SYSTEM ONLINE
+              </div>
 
-            <div class="hero">
+              <h1>Good Morning, <span>Doctor.</span></h1>
+
+              <p>
+                Here's your clinical overview for today. Let's make every
+                patient interaction meaningful.
+              </p>
+            </div>
+
+            <button class="primary-btn new-case-btn">
+              <i class="fa-solid fa-plus"></i>
+              Start New Case
+            </button>
+          </div>
+
+          <!-- ================= STAT CARDS ================= -->
+
+          <div class="stats">
+            <div class="stat-card">
+              <div class="stat-top">
+                <div class="stat-icon green">
+                  <i class="fa-solid fa-users"></i>
+                </div>
+
+                <span class="trend positive">
+                  <i class="fa-solid fa-arrow-up"></i> 12.5%
+                </span>
+              </div>
+
+              <span class="stat-label">TOTAL PATIENTS</span>
+
+              <h2>1,284</h2>
+
+              <p>Compared to last month</p>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-top">
+                <div class="stat-icon blue">
+                  <i class="fa-solid fa-calendar-day"></i>
+                </div>
+
+                <span class="trend positive">
+                  <i class="fa-solid fa-arrow-up"></i> 8.2%
+                </span>
+              </div>
+
+              <span class="stat-label">TODAY'S CASES</span>
+
+              <h2>24</h2>
+
+              <p>8 cases remaining</p>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-top">
+                <div class="stat-icon orange">
+                  <i class="fa-solid fa-rotate"></i>
+                </div>
+
+                <span class="trend positive">
+                  <i class="fa-solid fa-arrow-up"></i> 4.6%
+                </span>
+              </div>
+
+              <span class="stat-label">FOLLOW-UPS</span>
+
+              <h2>17</h2>
+
+              <p>Due this week</p>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-top">
+                <div class="stat-icon purple">
+                  <i class="fa-solid fa-brain"></i>
+                </div>
+
+                <span class="ai-pill"> AI </span>
+              </div>
+
+              <span class="stat-label">AI CASES ANALYZED</span>
+
+              <h2>436</h2>
+
+              <p>Clinical documentation</p>
+            </div>
+          </div>
+
+          <!-- ================= GRID ================= -->
+
+          <div class="dashboard-grid">
+            <!-- RECENT PATIENTS -->
+
+            <div class="panel patients-panel">
+              <div class="panel-header">
+                <div>
+                  <span class="section-kicker"> PATIENT MANAGEMENT </span>
+
+                  <h3>Recent Patients</h3>
+                </div>
+
+                <button class="text-btn">
+                  View all
+                  <i class="fa-solid fa-arrow-right"></i>
+                </button>
+              </div>
+
+              <div class="patient-list">
+                <div class="patient-row">
+                  <div class="patient-avatar avatar-1">RS</div>
+
+                  <div class="patient-info">
+                    <strong>Rahul Sharma</strong>
+                    <span>32 years • Male</span>
+                  </div>
+
+                  <div class="patient-complaint">
+                    <span>Primary complaint</span>
+                    <strong>Chronic headache</strong>
+                  </div>
+
+                  <div class="patient-status">
+                    <span class="status active-status"> Active </span>
+                  </div>
+
+                  <button class="more-btn">
+                    <i class="fa-solid fa-ellipsis"></i>
+                  </button>
+                </div>
+
+                <div class="patient-row">
+                  <div class="patient-avatar avatar-2">PD</div>
+
+                  <div class="patient-info">
+                    <strong>Priya Das</strong>
+                    <span>27 years • Female</span>
+                  </div>
+
+                  <div class="patient-complaint">
+                    <span>Primary complaint</span>
+                    <strong>Digestive discomfort</strong>
+                  </div>
+
+                  <div class="patient-status">
+                    <span class="status follow-status"> Follow-up </span>
+                  </div>
+
+                  <button class="more-btn">
+                    <i class="fa-solid fa-ellipsis"></i>
+                  </button>
+                </div>
+
+                <div class="patient-row">
+                  <div class="patient-avatar avatar-3">AR</div>
+
+                  <div class="patient-info">
+                    <strong>Ankit Roy</strong>
+                    <span>41 years • Male</span>
+                  </div>
+
+                  <div class="patient-complaint">
+                    <span>Primary complaint</span>
+                    <strong>Sleep disturbance</strong>
+                  </div>
+
+                  <div class="patient-status">
+                    <span class="status new-status"> New </span>
+                  </div>
+
+                  <button class="more-btn">
+                    <i class="fa-solid fa-ellipsis"></i>
+                  </button>
+                </div>
+
+                <div class="patient-row">
+                  <div class="patient-avatar avatar-4">SM</div>
+
+                  <div class="patient-info">
+                    <strong>Sneha Mukherjee</strong>
+                    <span>36 years • Female</span>
+                  </div>
+
+                  <div class="patient-complaint">
+                    <span>Primary complaint</span>
+                    <strong>Joint discomfort</strong>
+                  </div>
+
+                  <div class="patient-status">
+                    <span class="status active-status"> Active </span>
+                  </div>
+
+                  <button class="more-btn">
+                    <i class="fa-solid fa-ellipsis"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- AI ASSISTANT -->
+
+            <div class="ai-card">
+              <div class="ai-glow"></div>
+
+              <div class="ai-header">
+                <div class="ai-title">
+                  <div class="ai-icon">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                  </div>
+
+                  <div>
+                    <span>AYURCASE</span>
+                    <h3>AI Assistant</h3>
+                  </div>
+                </div>
+
+                <span class="live-pill">
+                  <span></span>
+                  LIVE
+                </span>
+              </div>
+
+              <div class="ai-content">
+                <div class="ai-orb">
+                  <div class="orb-ring ring-one"></div>
+                  <div class="orb-ring ring-two"></div>
+
+                  <i class="fa-solid fa-brain"></i>
+                </div>
+
+                <h3>
+                  Intelligent Clinical<br />
+                  Documentation
+                </h3>
+
+                <p>
+                  Analyze patient cases, summarize clinical information and
+                  organize observations faster.
+                </p>
+
+                <button class="ai-button">
+                  <i class="fa-solid fa-sparkles"></i>
+                  Analyze a Case
+                </button>
+              </div>
+
+              <div class="ai-footer">
+                <div>
+                  <i class="fa-solid fa-shield-halved"></i>
+                  Practitioner controlled
+                </div>
 
                 <div>
-
-                    <div class="welcome">
-                        <span class="status-dot"></span>
-                        SYSTEM ONLINE
-                    </div>
-
-                    <h1>
-                        Good Morning, <span>Doctor.</span>
-                    </h1>
-
-                    <p>
-                        Here's your clinical overview for today.
-                        Let's make every patient interaction meaningful.
-                    </p>
-
+                  <i class="fa-solid fa-lock"></i>
+                  Secure
                 </div>
+              </div>
+            </div>
+          </div>
 
-                <button class="primary-btn new-case-btn">
-                    <i class="fa-solid fa-plus"></i>
-                    Start New Case
+          <!-- ================= LOWER SECTION ================= -->
+
+          <div class="lower-grid">
+            <!-- QUICK ACTIONS -->
+
+            <div class="panel">
+              <div class="panel-header">
+                <div>
+                  <span class="section-kicker"> WORKSPACE </span>
+
+                  <h3>Quick Actions</h3>
+                </div>
+              </div>
+
+              <div class="quick-actions">
+                <button class="quick-card case-action">
+                  <div class="quick-icon">
+                    <i class="fa-solid fa-file-circle-plus"></i>
+                  </div>
+
+                  <div>
+                    <strong>New Case</strong>
+                    <span>Create patient case</span>
+                  </div>
+
+                  <i class="fa-solid fa-arrow-up-right-from-square"></i>
                 </button>
 
+                <button class="quick-card">
+                  <div class="quick-icon blue-icon">
+                    <i class="fa-solid fa-user-plus"></i>
+                  </div>
+
+                  <div>
+                    <strong>Add Patient</strong>
+                    <span>Register new patient</span>
+                  </div>
+
+                  <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </button>
+
+                <button class="quick-card">
+                  <div class="quick-icon purple-icon">
+                    <i class="fa-solid fa-spa"></i>
+                  </div>
+
+                  <div>
+                    <strong>Prakriti Test</strong>
+                    <span>Start assessment</span>
+                  </div>
+
+                  <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </button>
+              </div>
             </div>
 
+            <!-- UPCOMING -->
 
-            <!-- ================= STAT CARDS ================= -->
+            <div class="panel upcoming">
+              <div class="panel-header">
+                <div>
+                  <span class="section-kicker"> SCHEDULE </span>
 
-            <div class="stats">
-
-                <div class="stat-card">
-
-                    <div class="stat-top">
-                        <div class="stat-icon green">
-                            <i class="fa-solid fa-users"></i>
-                        </div>
-
-                        <span class="trend positive">
-                            <i class="fa-solid fa-arrow-up"></i> 12.5%
-                        </span>
-                    </div>
-
-                    <span class="stat-label">TOTAL PATIENTS</span>
-
-                    <h2>1,284</h2>
-
-                    <p>Compared to last month</p>
-
+                  <h3>Upcoming Follow-ups</h3>
                 </div>
 
+                <button class="calendar-btn">
+                  <i class="fa-regular fa-calendar"></i>
+                </button>
+              </div>
 
-                <div class="stat-card">
-
-                    <div class="stat-top">
-                        <div class="stat-icon blue">
-                            <i class="fa-solid fa-calendar-day"></i>
-                        </div>
-
-                        <span class="trend positive">
-                            <i class="fa-solid fa-arrow-up"></i> 8.2%
-                        </span>
-                    </div>
-
-                    <span class="stat-label">TODAY'S CASES</span>
-
-                    <h2>24</h2>
-
-                    <p>8 cases remaining</p>
-
+              <div class="appointment">
+                <div class="date-box">
+                  <strong>31</strong>
+                  <span>AUG</span>
                 </div>
 
-
-                <div class="stat-card">
-
-                    <div class="stat-top">
-                        <div class="stat-icon orange">
-                            <i class="fa-solid fa-rotate"></i>
-                        </div>
-
-                        <span class="trend positive">
-                            <i class="fa-solid fa-arrow-up"></i> 4.6%
-                        </span>
-                    </div>
-
-                    <span class="stat-label">FOLLOW-UPS</span>
-
-                    <h2>17</h2>
-
-                    <p>Due this week</p>
-
+                <div class="appointment-info">
+                  <strong>Rahul Sharma</strong>
+                  <span>Follow-up consultation</span>
                 </div>
 
+                <span class="appointment-time"> 10:30 AM </span>
+              </div>
 
-                <div class="stat-card">
-
-                    <div class="stat-top">
-                        <div class="stat-icon purple">
-                            <i class="fa-solid fa-brain"></i>
-                        </div>
-
-                        <span class="ai-pill">
-                            AI
-                        </span>
-                    </div>
-
-                    <span class="stat-label">AI CASES ANALYZED</span>
-
-                    <h2>436</h2>
-
-                    <p>Clinical documentation</p>
-
+              <div class="appointment">
+                <div class="date-box">
+                  <strong>01</strong>
+                  <span>SEP</span>
                 </div>
 
+                <div class="appointment-info">
+                  <strong>Priya Das</strong>
+                  <span>Progress assessment</span>
+                </div>
+
+                <span class="appointment-time"> 11:15 AM </span>
+              </div>
+
+              <div class="appointment">
+                <div class="date-box">
+                  <strong>03</strong>
+                  <span>SEP</span>
+                </div>
+
+                <div class="appointment-info">
+                  <strong>Sneha Mukherjee</strong>
+                  <span>Case review</span>
+                </div>
+
+                <span class="appointment-time"> 04:00 PM </span>
+              </div>
             </div>
+          </div>
 
+          <!-- FOOTER -->
 
-            <!-- ================= GRID ================= -->
+          <footer>
+            <span> © 2026 AYURCASE </span>
 
-            <div class="dashboard-grid">
+            <span> Digital Patient Case-Taking Platform </span>
 
-
-                <!-- RECENT PATIENTS -->
-
-                <div class="panel patients-panel">
-
-                    <div class="panel-header">
-
-                        <div>
-                            <span class="section-kicker">
-                                PATIENT MANAGEMENT
-                            </span>
-
-                            <h3>Recent Patients</h3>
-                        </div>
-
-                        <button class="text-btn">
-                            View all
-                            <i class="fa-solid fa-arrow-right"></i>
-                        </button>
-
-                    </div>
-
-
-                    <div class="patient-list">
-
-
-                        <div class="patient-row">
-
-                            <div class="patient-avatar avatar-1">
-                                RS
-                            </div>
-
-                            <div class="patient-info">
-                                <strong>Rahul Sharma</strong>
-                                <span>32 years • Male</span>
-                            </div>
-
-                            <div class="patient-complaint">
-                                <span>Primary complaint</span>
-                                <strong>Chronic headache</strong>
-                            </div>
-
-                            <div class="patient-status">
-                                <span class="status active-status">
-                                    Active
-                                </span>
-                            </div>
-
-                            <button class="more-btn">
-                                <i class="fa-solid fa-ellipsis"></i>
-                            </button>
-
-                        </div>
-
-
-                        <div class="patient-row">
-
-                            <div class="patient-avatar avatar-2">
-                                PD
-                            </div>
-
-                            <div class="patient-info">
-                                <strong>Priya Das</strong>
-                                <span>27 years • Female</span>
-                            </div>
-
-                            <div class="patient-complaint">
-                                <span>Primary complaint</span>
-                                <strong>Digestive discomfort</strong>
-                            </div>
-
-                            <div class="patient-status">
-                                <span class="status follow-status">
-                                    Follow-up
-                                </span>
-                            </div>
-
-                            <button class="more-btn">
-                                <i class="fa-solid fa-ellipsis"></i>
-                            </button>
-
-                        </div>
-
-
-                        <div class="patient-row">
-
-                            <div class="patient-avatar avatar-3">
-                                AR
-                            </div>
-
-                            <div class="patient-info">
-                                <strong>Ankit Roy</strong>
-                                <span>41 years • Male</span>
-                            </div>
-
-                            <div class="patient-complaint">
-                                <span>Primary complaint</span>
-                                <strong>Sleep disturbance</strong>
-                            </div>
-
-                            <div class="patient-status">
-                                <span class="status new-status">
-                                    New
-                                </span>
-                            </div>
-
-                            <button class="more-btn">
-                                <i class="fa-solid fa-ellipsis"></i>
-                            </button>
-
-                        </div>
-
-
-                        <div class="patient-row">
-
-                            <div class="patient-avatar avatar-4">
-                                SM
-                            </div>
-
-                            <div class="patient-info">
-                                <strong>Sneha Mukherjee</strong>
-                                <span>36 years • Female</span>
-                            </div>
-
-                            <div class="patient-complaint">
-                                <span>Primary complaint</span>
-                                <strong>Joint discomfort</strong>
-                            </div>
-
-                            <div class="patient-status">
-                                <span class="status active-status">
-                                    Active
-                                </span>
-                            </div>
-
-                            <button class="more-btn">
-                                <i class="fa-solid fa-ellipsis"></i>
-                            </button>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <!-- AI ASSISTANT -->
-
-                <div class="ai-card">
-
-                    <div class="ai-glow"></div>
-
-                    <div class="ai-header">
-
-                        <div class="ai-title">
-
-                            <div class="ai-icon">
-                                <i class="fa-solid fa-wand-magic-sparkles"></i>
-                            </div>
-
-                            <div>
-                                <span>AYURCASE</span>
-                                <h3>AI Assistant</h3>
-                            </div>
-
-                        </div>
-
-                        <span class="live-pill">
-                            <span></span>
-                            LIVE
-                        </span>
-
-                    </div>
-
-
-                    <div class="ai-content">
-
-                        <div class="ai-orb">
-
-                            <div class="orb-ring ring-one"></div>
-                            <div class="orb-ring ring-two"></div>
-
-                            <i class="fa-solid fa-brain"></i>
-
-                        </div>
-
-                        <h3>
-                            Intelligent Clinical<br>
-                            Documentation
-                        </h3>
-
-                        <p>
-                            Analyze patient cases, summarize clinical
-                            information and organize observations faster.
-                        </p>
-
-                        <button class="ai-button">
-                            <i class="fa-solid fa-sparkles"></i>
-                            Analyze a Case
-                        </button>
-
-                    </div>
-
-
-                    <div class="ai-footer">
-
-                        <div>
-                            <i class="fa-solid fa-shield-halved"></i>
-                            Practitioner controlled
-                        </div>
-
-                        <div>
-                            <i class="fa-solid fa-lock"></i>
-                            Secure
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- ================= LOWER SECTION ================= -->
-
-            <div class="lower-grid">
-
-
-                <!-- QUICK ACTIONS -->
-
-                <div class="panel">
-
-                    <div class="panel-header">
-
-                        <div>
-                            <span class="section-kicker">
-                                WORKSPACE
-                            </span>
-
-                            <h3>Quick Actions</h3>
-                        </div>
-
-                    </div>
-
-
-                    <div class="quick-actions">
-
-                        <button class="quick-card case-action">
-
-                            <div class="quick-icon">
-                                <i class="fa-solid fa-file-circle-plus"></i>
-                            </div>
-
-                            <div>
-                                <strong>New Case</strong>
-                                <span>Create patient case</span>
-                            </div>
-
-                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
-
-                        </button>
-
-
-                        <button class="quick-card">
-
-                            <div class="quick-icon blue-icon">
-                                <i class="fa-solid fa-user-plus"></i>
-                            </div>
-
-                            <div>
-                                <strong>Add Patient</strong>
-                                <span>Register new patient</span>
-                            </div>
-
-                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
-
-                        </button>
-
-
-                        <button class="quick-card">
-
-                            <div class="quick-icon purple-icon">
-                                <i class="fa-solid fa-spa"></i>
-                            </div>
-
-                            <div>
-                                <strong>Prakriti Test</strong>
-                                <span>Start assessment</span>
-                            </div>
-
-                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
-
-                        </button>
-
-                    </div>
-
-                </div>
-
-
-                <!-- UPCOMING -->
-
-                <div class="panel upcoming">
-
-                    <div class="panel-header">
-
-                        <div>
-                            <span class="section-kicker">
-                                SCHEDULE
-                            </span>
-
-                            <h3>Upcoming Follow-ups</h3>
-                        </div>
-
-                        <button class="calendar-btn">
-                            <i class="fa-regular fa-calendar"></i>
-                        </button>
-
-                    </div>
-
-
-                    <div class="appointment">
-
-                        <div class="date-box">
-                            <strong>31</strong>
-                            <span>AUG</span>
-                        </div>
-
-                        <div class="appointment-info">
-                            <strong>Rahul Sharma</strong>
-                            <span>Follow-up consultation</span>
-                        </div>
-
-                        <span class="appointment-time">
-                            10:30 AM
-                        </span>
-
-                    </div>
-
-
-                    <div class="appointment">
-
-                        <div class="date-box">
-                            <strong>01</strong>
-                            <span>SEP</span>
-                        </div>
-
-                        <div class="appointment-info">
-                            <strong>Priya Das</strong>
-                            <span>Progress assessment</span>
-                        </div>
-
-                        <span class="appointment-time">
-                            11:15 AM
-                        </span>
-
-                    </div>
-
-
-                    <div class="appointment">
-
-                        <div class="date-box">
-                            <strong>03</strong>
-                            <span>SEP</span>
-                        </div>
-
-                        <div class="appointment-info">
-                            <strong>Sneha Mukherjee</strong>
-                            <span>Case review</span>
-                        </div>
-
-                        <span class="appointment-time">
-                            04:00 PM
-                        </span>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- FOOTER -->
-
-            <footer>
-
-                <span>
-                    © 2026 AYURCASE
-                </span>
-
-                <span>
-                    Digital Patient Case-Taking Platform
-                </span>
-
-                <span>
-                    <i class="fa-solid fa-circle"></i>
-                    All systems operational
-                </span>
-
-            </footer>
-
+            <span>
+              <i class="fa-solid fa-circle"></i>
+              All systems operational
+            </span>
+          </footer>
         </section>
+      </main>
+    </div>
 
-    </main>
+    <!-- ================= NEW CASE MODAL ================= -->
 
-</div>
-
-
-<!-- ================= NEW CASE MODAL ================= -->
-
-<div class="modal-overlay" id="caseModal">
-
-    <div class="case-modal">
-
+    <div class="modal-overlay" id="caseModal">
+      <div class="case-modal">
         <button class="close-modal" id="closeModal">
-            <i class="fa-solid fa-xmark"></i>
+          <i class="fa-solid fa-xmark"></i>
         </button>
 
         <div class="modal-header">
+          <div class="modal-icon">
+            <i class="fa-solid fa-file-medical"></i>
+          </div>
 
-            <div class="modal-icon">
-                <i class="fa-solid fa-file-medical"></i>
-            </div>
-
-            <div>
-                <span>AYURCASE</span>
-                <h2>New Patient Case</h2>
-            </div>
-
+          <div>
+            <span>AYURCASE</span>
+            <h2>New Patient Case</h2>
+          </div>
         </div>
-
 
         <div class="progress">
+          <div class="progress-step active">
+            <span>01</span>
+            Patient
+          </div>
 
-            <div class="progress-step active">
-                <span>01</span>
-                Patient
-            </div>
+          <div class="line active-line"></div>
 
-            <div class="line active-line"></div>
+          <div class="progress-step">
+            <span>02</span>
+            Complaints
+          </div>
 
-            <div class="progress-step">
-                <span>02</span>
-                Complaints
-            </div>
+          <div class="line"></div>
 
-            <div class="line"></div>
-
-            <div class="progress-step">
-                <span>03</span>
-                Assessment
-            </div>
-
+          <div class="progress-step">
+            <span>03</span>
+            Assessment
+          </div>
         </div>
 
-
         <form id="caseForm">
-
-            <div class="form-grid">
-
-                <div class="form-group full">
-                    <label>Patient Full Name</label>
-                    <input
-                        type="text"
-                        placeholder="Enter patient's name"
-                        required
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label>Age</label>
-                    <input
-                        type="number"
-                        placeholder="Age"
-                        required
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label>Gender</label>
-
-                    <select required>
-                        <option value="">Select gender</option>
-                        <option>Male</option>
-                        <option>Female</option>
-                        <option>Other</option>
-                    </select>
-
-                </div>
-
-                <div class="form-group full">
-
-                    <label>Chief Complaint</label>
-
-                    <textarea
-                        placeholder="Describe the patient's primary complaint..."
-                        rows="4"
-                        required
-                    ></textarea>
-
-                </div>
-
+          <div class="form-grid">
+            <div class="form-group full">
+              <label>Patient Full Name</label>
+              <input type="text" placeholder="Enter patient's name" required />
             </div>
 
-
-            <div class="modal-footer">
-
-                <button
-                    type="button"
-                    class="secondary-btn"
-                    id="cancelModal"
-                >
-                    Cancel
-                </button>
-
-                <button
-                    type="submit"
-                    class="primary-btn"
-                >
-                    Continue
-                    <i class="fa-solid fa-arrow-right"></i>
-                </button>
-
+            <div class="form-group">
+              <label>Age</label>
+              <input type="number" placeholder="Age" required />
             </div>
 
+            <div class="form-group">
+              <label>Gender</label>
+
+              <select required>
+                <option value="">Select gender</option>
+                <option>Male</option>
+                <option>Female</option>
+                <option>Other</option>
+              </select>
+            </div>
+
+            <div class="form-group full">
+              <label>Chief Complaint</label>
+
+              <textarea
+                placeholder="Describe the patient's primary complaint..."
+                rows="4"
+                required
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="secondary-btn" id="cancelModal">
+              Cancel
+            </button>
+
+            <button type="submit" class="primary-btn">
+              Continue
+              <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
         </form>
-
+      </div>
     </div>
 
-</div>
+    <!-- ================= TOAST ================= -->
 
-
-<!-- ================= TOAST ================= -->
-
-<div class="toast" id="toast">
-
-    <div class="toast-icon">
+    <div class="toast" id="toast">
+      <div class="toast-icon">
         <i class="fa-solid fa-check"></i>
-    </div>
+      </div>
 
-    <div>
+      <div>
         <strong>Success</strong>
-        <span id="toastMessage">
-            Action completed successfully.
-        </span>
+        <span id="toastMessage"> Action completed successfully. </span>
+      </div>
     </div>
 
-</div>
-
-
-<script src="script.js"></script>
-
-</body>
+    <script src="script.js"></script>
+  </body>
 </html>
