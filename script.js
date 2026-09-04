@@ -360,6 +360,9 @@ function openWorkspace(
     icon
 ) {
 
+    document.getElementById("learnWishlistView")?.remove();
+    document.getElementById("learnCompletedView")?.remove();
+
     let workspace =
         document.getElementById(
             "ayurcaseWorkspace"
@@ -983,6 +986,15 @@ navItems.forEach(item => {
 
             }
 
+
+            if (page === "learn") {
+
+                openLearnWorkspace();
+
+                return;
+
+            }
+
         }
     );
 
@@ -1017,6 +1029,8 @@ function updateBreadcrumb(page) {
         prakriti: "Prakriti",
 
         ai: "AI Assistant",
+
+        learn: "Learn",
 
         analytics: "Analytics",
 
@@ -1583,6 +1597,180 @@ function openAIWorkspace() {
             }
         );
 
+}
+
+
+/* =====================================================
+   LEARN LIBRARY
+   ===================================================== */
+
+function openLearnWorkspace() {
+
+    const content = openWorkspace(
+        "Learn",
+        "Evidence-led reading for thoughtful, up-to-date clinical care.",
+        "fa-solid fa-book-open-reader"
+    );
+
+    const articles = window.learnArticles || [];
+
+    const categories = [
+        ["All", "fa-solid fa-border-all"], ["Mental Wellness", "fa-solid fa-brain"],
+        ["Nutrition", "fa-solid fa-apple-whole"], ["Sleep", "fa-solid fa-moon"],
+        ["Fitness", "fa-solid fa-person-running"], ["Cancer", "fa-solid fa-ribbon"],
+        ["Clotting", "fa-solid fa-droplet"], ["Research", "fa-solid fa-flask"],
+        ["Prevention", "fa-solid fa-shield-heart"]
+    ];
+    let selectedCategory = "All";
+    let searchTerm = "";
+    let wishOnly = false;
+    let completedOnly = false;
+    const progressKey = "ayurcaseLearnProgress";
+    const wishKey = "ayurcaseLearnWishlist";
+    const completedKey = "ayurcaseLearnCompleted";
+    let progress = {};
+    let wish = [];
+    let completed = [];
+
+    try { progress = JSON.parse(localStorage.getItem(progressKey)) || {}; }
+    catch (error) { progress = {}; }
+    try { wish = JSON.parse(localStorage.getItem(wishKey)) || []; }
+    catch (error) { wish = []; }
+    try { completed = JSON.parse(localStorage.getItem(completedKey)) || []; }
+    catch (error) { completed = []; }
+
+    content.innerHTML = `
+        <section class="learn-library" aria-label="Clinical learning library">
+            <label class="learn-search" for="learnSearch"><i class="fa-solid fa-magnifying-glass"></i><input id="learnSearch" type="search" placeholder="Search articles, topics, or institutions..." autocomplete="off"></label>
+            <div class="learn-category-row" id="learnCategories" aria-label="Article categories"></div>
+            <div class="learn-results-meta" id="learnResultsMeta" aria-live="polite"></div>
+            <div class="learn-article-grid" id="learnArticleGrid"></div>
+        </section>`;
+
+    const searchInput = document.getElementById("learnSearch");
+    const categoryContainer = document.getElementById("learnCategories");
+    const articleGrid = document.getElementById("learnArticleGrid");
+    const resultsMeta = document.getElementById("learnResultsMeta");
+    const wishlistView = document.createElement("button");
+    wishlistView.id = "learnWishlistView";
+    wishlistView.className = "learn-wishlist-toggle learn-title-wishlist";
+    wishlistView.type = "button";
+    wishlistView.innerHTML = '<i class="fa-regular fa-heart"></i> Wishlist <b>0</b>';
+    const workspaceTitle = document.getElementById("workspaceTitle");
+    workspaceTitle.insertAdjacentElement("afterend", wishlistView);
+    wishlistView.style.top = `${workspaceTitle.offsetTop}px`;
+    const completedView = document.createElement("button");
+    completedView.id = "learnCompletedView";
+    completedView.className = "learn-completed-toggle";
+    completedView.type = "button";
+    completedView.setAttribute("aria-label", "Show completed articles");
+    completedView.dataset.tooltip = "Completed articles";
+    completedView.innerHTML = '<i class="fa-solid fa-circle-check"></i> <span>Completed</span>';
+    const workspaceDescription = document.getElementById("workspaceDescription");
+    workspaceDescription.insertAdjacentElement("afterend", completedView);
+    completedView.style.top = `${workspaceDescription.offsetTop}px`;
+
+    function renderCategories() {
+        categoryContainer.innerHTML = categories.map(([name, icon]) => `
+            <button class="learn-category ${name === selectedCategory ? "active" : ""}" type="button" data-category="${name}"><i class="${icon}"></i><span>${name}</span></button>`).join("");
+        categoryContainer.querySelectorAll(".learn-category").forEach(button => button.addEventListener("click", () => {
+            selectedCategory = button.dataset.category;
+            renderCategories();
+            renderArticles();
+        }));
+    }
+
+    function renderArticles() {
+        const query = searchTerm.toLowerCase();
+        const visibleArticles = articles.filter(article => {
+            const matchesCategory = selectedCategory === "All" || article.category === selectedCategory;
+            return matchesCategory && (!wishOnly || wish.includes(article.id)) && (!completedOnly || completed.includes(article.id)) && `${article.title} ${article.source} ${article.category} ${article.excerpt}`.toLowerCase().includes(query);
+        });
+        wishlistView.classList.toggle("active", wishOnly);
+        wishlistView.querySelector("b").textContent = wish.length;
+        wishlistView.querySelector("i").className = wishOnly ? "fa-solid fa-heart" : "fa-regular fa-heart";
+        completedView.classList.toggle("active", completedOnly);
+        resultsMeta.textContent = `${visibleArticles.length} ${visibleArticles.length === 1 ? "article" : "articles"} found${wishOnly ? " in your wishlist" : completedOnly ? " completed" : ""}`;
+        articleGrid.innerHTML = visibleArticles.length ? visibleArticles.map(article => {
+            const savedProgress = progress[article.id];
+            const isStarted = Number.isFinite(savedProgress) && savedProgress > 0;
+            const percentage = isStarted ? Math.min(savedProgress, 100) : 0;
+            return `<article class="learn-article ${isStarted ? "is-started" : ""}">
+                <div class="learn-article-top"><div class="learn-article-icon"><i class="${article.icon}"></i></div><span class="learn-read-time"><i class="fa-regular fa-clock"></i> ${article.minutes} min read</span></div>
+                <div class="learn-source-row"><span class="learn-source">${article.source}</span><button class="wishlist-icon ${wish.includes(article.id) ? "saved" : ""}" type="button" data-id="${article.id}" data-tooltip="${wish.includes(article.id) ? "Remove from wishlist" : "Add to wishlist"}"><i class="${wish.includes(article.id) ? "fa-solid" : "fa-regular"} fa-heart"></i></button></div><h3>${article.title}</h3><p>${article.excerpt}</p>
+                ${isStarted ? `<div class="learn-progress-copy"><span>Continue reading</span></div><div class="learn-progress" aria-label="Reading started"><span style="width:${percentage}%"></span></div>` : ""}
+                <div class="learn-card-bottom"><button class="learn-read-button" type="button" data-article-id="${article.id}">${isStarted ? "Continue reading" : "Start reading"}<i class="fa-solid fa-arrow-right"></i></button><span class="learn-card-status">${completed.includes(article.id) ? '<b class="learn-completed-label"><i class="fa-solid fa-circle-check"></i> Completed</b>' : ""}<span class="learn-published"><i class="fa-regular fa-calendar"></i> ${article.published}</span></span></div>
+            </article>`;
+        }).join("") : `<div class="learn-empty"><i class="fa-solid fa-book-medical"></i><strong>No articles match your search.</strong><span>Try another topic, institution, or category.</span></div>`;
+
+        articleGrid.querySelectorAll(".learn-read-button").forEach(button => button.addEventListener("click", () => {
+            const article = articles.find(item => item.id === button.dataset.articleId);
+            progress[article.id] = progress[article.id] || 18;
+            localStorage.setItem(progressKey, JSON.stringify(progress));
+            renderArticles();
+            openArticlePreview(article);
+        }));
+        articleGrid.querySelectorAll(".wishlist-icon").forEach(button => button.addEventListener("click", () => {
+            const id = button.dataset.id;
+            wish = wish.includes(id) ? wish.filter(saved => saved !== id) : [...wish, id];
+            localStorage.setItem(wishKey, JSON.stringify(wish));
+            renderArticles();
+        }));
+    }
+
+    searchInput.addEventListener("input", event => {
+        searchTerm = event.target.value.trim();
+        renderArticles();
+    });
+    wishlistView.addEventListener("click", () => { wishOnly = !wishOnly; renderArticles(); });
+    completedView.addEventListener("click", () => { completedOnly = !completedOnly; renderArticles(); });
+    window.learnLibraryRefresh = () => {
+        try { completed = JSON.parse(localStorage.getItem(completedKey)) || []; }
+        catch (error) { completed = []; }
+        renderArticles();
+    };
+    renderCategories();
+    renderArticles();
+}
+
+
+function openArticlePreview(article) {
+    let preview = document.getElementById("learnPreview");
+
+    if (!preview) {
+        preview = document.createElement("div");
+        preview.id = "learnPreview";
+        preview.className = "learn-preview-overlay";
+        document.body.appendChild(preview);
+    }
+
+    const completedKey = "ayurcaseLearnCompleted";
+    let completed = [];
+    try { completed = JSON.parse(localStorage.getItem(completedKey)) || []; }
+    catch (error) { completed = []; }
+    const isCompleted = completed.includes(article.id);
+
+    preview.innerHTML = `
+        <section class="learn-preview" role="dialog" aria-modal="true" aria-label="Article summary">
+            <button class="learn-preview-close" type="button" aria-label="Close summary"><i class="fa-solid fa-xmark"></i></button>
+            <span class="learn-source">${article.source}</span>
+            <h2>${article.title}</h2>
+            <div class="learn-preview-meta"><span><i class="fa-regular fa-calendar"></i> ${article.published}</span><span><i class="fa-regular fa-clock"></i> ${article.minutes} min read</span></div>
+            <p>${article.excerpt}</p>
+            <div class="learn-preview-actions"><a class="learn-full-article" href="${article.url}" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-book-open"></i> Read full article</a><button class="learn-complete-button ${isCompleted ? "done" : ""}" type="button"><i class="fa-solid fa-circle-check"></i> Completed reading</button></div>
+        </section>`;
+
+    preview.classList.add("show");
+    preview.querySelector(".learn-preview-close").addEventListener("click", () => preview.classList.remove("show"));
+    preview.onclick = event => {
+        if (event.target === preview) preview.classList.remove("show");
+    };
+    preview.querySelector(".learn-complete-button").addEventListener("click", event => {
+        completed = isCompleted ? completed.filter(id => id !== article.id) : [...completed, article.id];
+        localStorage.setItem(completedKey, JSON.stringify(completed));
+        window.learnLibraryRefresh?.();
+        openArticlePreview(article);
+    });
 }
 
 
