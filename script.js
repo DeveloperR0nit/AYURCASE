@@ -360,6 +360,9 @@ function openWorkspace(
     icon
 ) {
 
+    document.getElementById("learnWishlistView")?.remove();
+    document.getElementById("learnCompletedView")?.remove();
+
     let workspace =
         document.getElementById(
             "ayurcaseWorkspace"
@@ -1609,16 +1612,7 @@ function openLearnWorkspace() {
         "fa-solid fa-book-open-reader"
     );
 
-    const articles = [
-        { id: "mindfulness-burnout", title: "Mindfulness-based care for clinician burnout", source: "Harvard Medical School", category: "Mental Wellness", minutes: 23, excerpt: "A practical look at evidence-informed strategies that support resilience, attention, and sustainable clinical practice.", icon: "fa-solid fa-brain", url: "https://www.health.harvard.edu/mind-and-mood" },
-        { id: "nutrition-precision", title: "Nutrition science: from population guidance to personalised care", source: "Stanford Medicine", category: "Nutrition", minutes: 18, excerpt: "How dietary patterns, context, and emerging research can shape useful conversations with patients.", icon: "fa-solid fa-apple-whole", url: "https://med.stanford.edu/nutrition.html" },
-        { id: "sleep-health", title: "Sleep health and the foundations of recovery", source: "Johns Hopkins Medicine", category: "Sleep", minutes: 16, excerpt: "A clinical refresher on sleep duration, quality, circadian health, and meaningful next questions.", icon: "fa-solid fa-moon", url: "https://www.hopkinsmedicine.org/health/wellness-and-prevention" },
-        { id: "movement-prescription", title: "Making movement a measurable part of treatment", source: "Mayo Clinic", category: "Fitness", minutes: 14, excerpt: "A concise guide to discussing activity safely and turning broad advice into patient-centred plans.", icon: "fa-solid fa-person-running", url: "https://www.mayoclinic.org/healthy-lifestyle/fitness" },
-        { id: "cancer-screening", title: "Screening conversations that respect risk and uncertainty", source: "Memorial Sloan Kettering", category: "Cancer", minutes: 31, excerpt: "A research-guided overview of risk communication, shared decisions, and preventative oncology.", icon: "fa-solid fa-ribbon", url: "https://www.mskcc.org/cancer-care" },
-        { id: "thrombosis-update", title: "Recognising thrombosis risk across everyday practice", source: "Cleveland Clinic", category: "Clotting", minutes: 26, excerpt: "Key considerations for risk factors, warning signs, and timely referral in patients at risk of clots.", icon: "fa-solid fa-droplet", url: "https://my.clevelandclinic.org/health/diseases/17675-blood-clots" },
-        { id: "gut-brain", title: "The gut–brain connection in whole-person care", source: "Yale Medicine", category: "Research", minutes: 20, excerpt: "What current research can and cannot tell us about the interaction between digestive and mental health.", icon: "fa-solid fa-flask", url: "https://www.yalemedicine.org/" },
-        { id: "preventive-care", title: "Preventive care that patients can act on", source: "UCSF Health", category: "Prevention", minutes: 12, excerpt: "A clear framework for prioritising small, evidence-led health actions during limited consultation time.", icon: "fa-solid fa-shield-heart", url: "https://www.ucsfhealth.org/" }
-    ];
+    const articles = window.learnArticles || [];
 
     const categories = [
         ["All", "fa-solid fa-border-all"], ["Mental Wellness", "fa-solid fa-brain"],
@@ -1629,11 +1623,21 @@ function openLearnWorkspace() {
     ];
     let selectedCategory = "All";
     let searchTerm = "";
+    let wishOnly = false;
+    let completedOnly = false;
     const progressKey = "ayurcaseLearnProgress";
+    const wishKey = "ayurcaseLearnWishlist";
+    const completedKey = "ayurcaseLearnCompleted";
     let progress = {};
+    let wish = [];
+    let completed = [];
 
     try { progress = JSON.parse(localStorage.getItem(progressKey)) || {}; }
     catch (error) { progress = {}; }
+    try { wish = JSON.parse(localStorage.getItem(wishKey)) || []; }
+    catch (error) { wish = []; }
+    try { completed = JSON.parse(localStorage.getItem(completedKey)) || []; }
+    catch (error) { completed = []; }
 
     content.innerHTML = `
         <section class="learn-library" aria-label="Clinical learning library">
@@ -1647,6 +1651,24 @@ function openLearnWorkspace() {
     const categoryContainer = document.getElementById("learnCategories");
     const articleGrid = document.getElementById("learnArticleGrid");
     const resultsMeta = document.getElementById("learnResultsMeta");
+    const wishlistView = document.createElement("button");
+    wishlistView.id = "learnWishlistView";
+    wishlistView.className = "learn-wishlist-toggle learn-title-wishlist";
+    wishlistView.type = "button";
+    wishlistView.innerHTML = '<i class="fa-regular fa-heart"></i> Wishlist <b>0</b>';
+    const workspaceTitle = document.getElementById("workspaceTitle");
+    workspaceTitle.insertAdjacentElement("afterend", wishlistView);
+    wishlistView.style.top = `${workspaceTitle.offsetTop}px`;
+    const completedView = document.createElement("button");
+    completedView.id = "learnCompletedView";
+    completedView.className = "learn-completed-toggle";
+    completedView.type = "button";
+    completedView.setAttribute("aria-label", "Show completed articles");
+    completedView.dataset.tooltip = "Completed articles";
+    completedView.innerHTML = '<i class="fa-solid fa-circle-check"></i> <span>Completed</span>';
+    const workspaceDescription = document.getElementById("workspaceDescription");
+    workspaceDescription.insertAdjacentElement("afterend", completedView);
+    completedView.style.top = `${workspaceDescription.offsetTop}px`;
 
     function renderCategories() {
         categoryContainer.innerHTML = categories.map(([name, icon]) => `
@@ -1662,18 +1684,22 @@ function openLearnWorkspace() {
         const query = searchTerm.toLowerCase();
         const visibleArticles = articles.filter(article => {
             const matchesCategory = selectedCategory === "All" || article.category === selectedCategory;
-            return matchesCategory && `${article.title} ${article.source} ${article.category} ${article.excerpt}`.toLowerCase().includes(query);
+            return matchesCategory && (!wishOnly || wish.includes(article.id)) && (!completedOnly || completed.includes(article.id)) && `${article.title} ${article.source} ${article.category} ${article.excerpt}`.toLowerCase().includes(query);
         });
-        resultsMeta.textContent = `${visibleArticles.length} ${visibleArticles.length === 1 ? "article" : "articles"} found`;
+        wishlistView.classList.toggle("active", wishOnly);
+        wishlistView.querySelector("b").textContent = wish.length;
+        wishlistView.querySelector("i").className = wishOnly ? "fa-solid fa-heart" : "fa-regular fa-heart";
+        completedView.classList.toggle("active", completedOnly);
+        resultsMeta.textContent = `${visibleArticles.length} ${visibleArticles.length === 1 ? "article" : "articles"} found${wishOnly ? " in your wishlist" : completedOnly ? " completed" : ""}`;
         articleGrid.innerHTML = visibleArticles.length ? visibleArticles.map(article => {
             const savedProgress = progress[article.id];
             const isStarted = Number.isFinite(savedProgress) && savedProgress > 0;
             const percentage = isStarted ? Math.min(savedProgress, 100) : 0;
             return `<article class="learn-article ${isStarted ? "is-started" : ""}">
                 <div class="learn-article-top"><div class="learn-article-icon"><i class="${article.icon}"></i></div><span class="learn-read-time"><i class="fa-regular fa-clock"></i> ${article.minutes} min read</span></div>
-                <span class="learn-source">${article.source}</span><h3>${article.title}</h3><p>${article.excerpt}</p>
-                ${isStarted ? `<div class="learn-progress-copy"><span>Continue reading</span><span>${percentage}% complete</span></div><div class="learn-progress" aria-label="${percentage}% read"><span style="width:${percentage}%"></span></div>` : ""}
-                <button class="learn-read-button" type="button" data-article-id="${article.id}">${isStarted ? "Continue reading" : "Start reading"}<i class="fa-solid fa-arrow-up-right-from-square"></i></button>
+                <div class="learn-source-row"><span class="learn-source">${article.source}</span><button class="wishlist-icon ${wish.includes(article.id) ? "saved" : ""}" type="button" data-id="${article.id}" data-tooltip="${wish.includes(article.id) ? "Remove from wishlist" : "Add to wishlist"}"><i class="${wish.includes(article.id) ? "fa-solid" : "fa-regular"} fa-heart"></i></button></div><h3>${article.title}</h3><p>${article.excerpt}</p>
+                ${isStarted ? `<div class="learn-progress-copy"><span>Continue reading</span></div><div class="learn-progress" aria-label="Reading started"><span style="width:${percentage}%"></span></div>` : ""}
+                <div class="learn-card-bottom"><button class="learn-read-button" type="button" data-article-id="${article.id}">${isStarted ? "Continue reading" : "Start reading"}<i class="fa-solid fa-arrow-right"></i></button><span class="learn-card-status">${completed.includes(article.id) ? '<b class="learn-completed-label"><i class="fa-solid fa-circle-check"></i> Completed</b>' : ""}<span class="learn-published"><i class="fa-regular fa-calendar"></i> ${article.published}</span></span></div>
             </article>`;
         }).join("") : `<div class="learn-empty"><i class="fa-solid fa-book-medical"></i><strong>No articles match your search.</strong><span>Try another topic, institution, or category.</span></div>`;
 
@@ -1682,7 +1708,13 @@ function openLearnWorkspace() {
             progress[article.id] = progress[article.id] || 18;
             localStorage.setItem(progressKey, JSON.stringify(progress));
             renderArticles();
-            window.open(article.url, "_blank", "noopener,noreferrer");
+            openArticlePreview(article);
+        }));
+        articleGrid.querySelectorAll(".wishlist-icon").forEach(button => button.addEventListener("click", () => {
+            const id = button.dataset.id;
+            wish = wish.includes(id) ? wish.filter(saved => saved !== id) : [...wish, id];
+            localStorage.setItem(wishKey, JSON.stringify(wish));
+            renderArticles();
         }));
     }
 
@@ -1690,8 +1722,55 @@ function openLearnWorkspace() {
         searchTerm = event.target.value.trim();
         renderArticles();
     });
+    wishlistView.addEventListener("click", () => { wishOnly = !wishOnly; renderArticles(); });
+    completedView.addEventListener("click", () => { completedOnly = !completedOnly; renderArticles(); });
+    window.learnLibraryRefresh = () => {
+        try { completed = JSON.parse(localStorage.getItem(completedKey)) || []; }
+        catch (error) { completed = []; }
+        renderArticles();
+    };
     renderCategories();
     renderArticles();
+}
+
+
+function openArticlePreview(article) {
+    let preview = document.getElementById("learnPreview");
+
+    if (!preview) {
+        preview = document.createElement("div");
+        preview.id = "learnPreview";
+        preview.className = "learn-preview-overlay";
+        document.body.appendChild(preview);
+    }
+
+    const completedKey = "ayurcaseLearnCompleted";
+    let completed = [];
+    try { completed = JSON.parse(localStorage.getItem(completedKey)) || []; }
+    catch (error) { completed = []; }
+    const isCompleted = completed.includes(article.id);
+
+    preview.innerHTML = `
+        <section class="learn-preview" role="dialog" aria-modal="true" aria-label="Article summary">
+            <button class="learn-preview-close" type="button" aria-label="Close summary"><i class="fa-solid fa-xmark"></i></button>
+            <span class="learn-source">${article.source}</span>
+            <h2>${article.title}</h2>
+            <div class="learn-preview-meta"><span><i class="fa-regular fa-calendar"></i> ${article.published}</span><span><i class="fa-regular fa-clock"></i> ${article.minutes} min read</span></div>
+            <p>${article.excerpt}</p>
+            <div class="learn-preview-actions"><a class="learn-full-article" href="${article.url}" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-book-open"></i> Read full article</a><button class="learn-complete-button ${isCompleted ? "done" : ""}" type="button"><i class="fa-solid fa-circle-check"></i> Completed reading</button></div>
+        </section>`;
+
+    preview.classList.add("show");
+    preview.querySelector(".learn-preview-close").addEventListener("click", () => preview.classList.remove("show"));
+    preview.onclick = event => {
+        if (event.target === preview) preview.classList.remove("show");
+    };
+    preview.querySelector(".learn-complete-button").addEventListener("click", event => {
+        completed = isCompleted ? completed.filter(id => id !== article.id) : [...completed, article.id];
+        localStorage.setItem(completedKey, JSON.stringify(completed));
+        window.learnLibraryRefresh?.();
+        openArticlePreview(article);
+    });
 }
 
 
