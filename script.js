@@ -983,6 +983,15 @@ navItems.forEach(item => {
 
             }
 
+
+            if (page === "learn") {
+
+                openLearnWorkspace();
+
+                return;
+
+            }
+
         }
     );
 
@@ -1017,6 +1026,8 @@ function updateBreadcrumb(page) {
         prakriti: "Prakriti",
 
         ai: "AI Assistant",
+
+        learn: "Learn",
 
         analytics: "Analytics",
 
@@ -1583,6 +1594,104 @@ function openAIWorkspace() {
             }
         );
 
+}
+
+
+/* =====================================================
+   LEARN LIBRARY
+   ===================================================== */
+
+function openLearnWorkspace() {
+
+    const content = openWorkspace(
+        "Learn",
+        "Evidence-led reading for thoughtful, up-to-date clinical care.",
+        "fa-solid fa-book-open-reader"
+    );
+
+    const articles = [
+        { id: "mindfulness-burnout", title: "Mindfulness-based care for clinician burnout", source: "Harvard Medical School", category: "Mental Wellness", minutes: 23, excerpt: "A practical look at evidence-informed strategies that support resilience, attention, and sustainable clinical practice.", icon: "fa-solid fa-brain", url: "https://www.health.harvard.edu/mind-and-mood" },
+        { id: "nutrition-precision", title: "Nutrition science: from population guidance to personalised care", source: "Stanford Medicine", category: "Nutrition", minutes: 18, excerpt: "How dietary patterns, context, and emerging research can shape useful conversations with patients.", icon: "fa-solid fa-apple-whole", url: "https://med.stanford.edu/nutrition.html" },
+        { id: "sleep-health", title: "Sleep health and the foundations of recovery", source: "Johns Hopkins Medicine", category: "Sleep", minutes: 16, excerpt: "A clinical refresher on sleep duration, quality, circadian health, and meaningful next questions.", icon: "fa-solid fa-moon", url: "https://www.hopkinsmedicine.org/health/wellness-and-prevention" },
+        { id: "movement-prescription", title: "Making movement a measurable part of treatment", source: "Mayo Clinic", category: "Fitness", minutes: 14, excerpt: "A concise guide to discussing activity safely and turning broad advice into patient-centred plans.", icon: "fa-solid fa-person-running", url: "https://www.mayoclinic.org/healthy-lifestyle/fitness" },
+        { id: "cancer-screening", title: "Screening conversations that respect risk and uncertainty", source: "Memorial Sloan Kettering", category: "Cancer", minutes: 31, excerpt: "A research-guided overview of risk communication, shared decisions, and preventative oncology.", icon: "fa-solid fa-ribbon", url: "https://www.mskcc.org/cancer-care" },
+        { id: "thrombosis-update", title: "Recognising thrombosis risk across everyday practice", source: "Cleveland Clinic", category: "Clotting", minutes: 26, excerpt: "Key considerations for risk factors, warning signs, and timely referral in patients at risk of clots.", icon: "fa-solid fa-droplet", url: "https://my.clevelandclinic.org/health/diseases/17675-blood-clots" },
+        { id: "gut-brain", title: "The gut–brain connection in whole-person care", source: "Yale Medicine", category: "Research", minutes: 20, excerpt: "What current research can and cannot tell us about the interaction between digestive and mental health.", icon: "fa-solid fa-flask", url: "https://www.yalemedicine.org/" },
+        { id: "preventive-care", title: "Preventive care that patients can act on", source: "UCSF Health", category: "Prevention", minutes: 12, excerpt: "A clear framework for prioritising small, evidence-led health actions during limited consultation time.", icon: "fa-solid fa-shield-heart", url: "https://www.ucsfhealth.org/" }
+    ];
+
+    const categories = [
+        ["All", "fa-solid fa-border-all"], ["Mental Wellness", "fa-solid fa-brain"],
+        ["Nutrition", "fa-solid fa-apple-whole"], ["Sleep", "fa-solid fa-moon"],
+        ["Fitness", "fa-solid fa-person-running"], ["Cancer", "fa-solid fa-ribbon"],
+        ["Clotting", "fa-solid fa-droplet"], ["Research", "fa-solid fa-flask"],
+        ["Prevention", "fa-solid fa-shield-heart"]
+    ];
+    let selectedCategory = "All";
+    let searchTerm = "";
+    const progressKey = "ayurcaseLearnProgress";
+    let progress = {};
+
+    try { progress = JSON.parse(localStorage.getItem(progressKey)) || {}; }
+    catch (error) { progress = {}; }
+
+    content.innerHTML = `
+        <section class="learn-library" aria-label="Clinical learning library">
+            <label class="learn-search" for="learnSearch"><i class="fa-solid fa-magnifying-glass"></i><input id="learnSearch" type="search" placeholder="Search articles, topics, or institutions..." autocomplete="off"></label>
+            <div class="learn-category-row" id="learnCategories" aria-label="Article categories"></div>
+            <div class="learn-results-meta" id="learnResultsMeta" aria-live="polite"></div>
+            <div class="learn-article-grid" id="learnArticleGrid"></div>
+        </section>`;
+
+    const searchInput = document.getElementById("learnSearch");
+    const categoryContainer = document.getElementById("learnCategories");
+    const articleGrid = document.getElementById("learnArticleGrid");
+    const resultsMeta = document.getElementById("learnResultsMeta");
+
+    function renderCategories() {
+        categoryContainer.innerHTML = categories.map(([name, icon]) => `
+            <button class="learn-category ${name === selectedCategory ? "active" : ""}" type="button" data-category="${name}"><i class="${icon}"></i><span>${name}</span></button>`).join("");
+        categoryContainer.querySelectorAll(".learn-category").forEach(button => button.addEventListener("click", () => {
+            selectedCategory = button.dataset.category;
+            renderCategories();
+            renderArticles();
+        }));
+    }
+
+    function renderArticles() {
+        const query = searchTerm.toLowerCase();
+        const visibleArticles = articles.filter(article => {
+            const matchesCategory = selectedCategory === "All" || article.category === selectedCategory;
+            return matchesCategory && `${article.title} ${article.source} ${article.category} ${article.excerpt}`.toLowerCase().includes(query);
+        });
+        resultsMeta.textContent = `${visibleArticles.length} ${visibleArticles.length === 1 ? "article" : "articles"} found`;
+        articleGrid.innerHTML = visibleArticles.length ? visibleArticles.map(article => {
+            const savedProgress = progress[article.id];
+            const isStarted = Number.isFinite(savedProgress) && savedProgress > 0;
+            const percentage = isStarted ? Math.min(savedProgress, 100) : 0;
+            return `<article class="learn-article ${isStarted ? "is-started" : ""}">
+                <div class="learn-article-top"><div class="learn-article-icon"><i class="${article.icon}"></i></div><span class="learn-read-time"><i class="fa-regular fa-clock"></i> ${article.minutes} min read</span></div>
+                <span class="learn-source">${article.source}</span><h3>${article.title}</h3><p>${article.excerpt}</p>
+                ${isStarted ? `<div class="learn-progress-copy"><span>Continue reading</span><span>${percentage}% complete</span></div><div class="learn-progress" aria-label="${percentage}% read"><span style="width:${percentage}%"></span></div>` : ""}
+                <button class="learn-read-button" type="button" data-article-id="${article.id}">${isStarted ? "Continue reading" : "Start reading"}<i class="fa-solid fa-arrow-up-right-from-square"></i></button>
+            </article>`;
+        }).join("") : `<div class="learn-empty"><i class="fa-solid fa-book-medical"></i><strong>No articles match your search.</strong><span>Try another topic, institution, or category.</span></div>`;
+
+        articleGrid.querySelectorAll(".learn-read-button").forEach(button => button.addEventListener("click", () => {
+            const article = articles.find(item => item.id === button.dataset.articleId);
+            progress[article.id] = progress[article.id] || 18;
+            localStorage.setItem(progressKey, JSON.stringify(progress));
+            renderArticles();
+            window.open(article.url, "_blank", "noopener,noreferrer");
+        }));
+    }
+
+    searchInput.addEventListener("input", event => {
+        searchTerm = event.target.value.trim();
+        renderArticles();
+    });
+    renderCategories();
+    renderArticles();
 }
 
 
