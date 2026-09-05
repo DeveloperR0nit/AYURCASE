@@ -28,6 +28,7 @@
     <!-- CSS -->
     <link rel="stylesheet" href="style.css" />
   </head>
+
   <body>
     <div class="app">
       <!-- ================= SIDEBAR ================= -->
@@ -47,8 +48,8 @@
         <div class="menu-title">MAIN MENU</div>
 
         <nav>
-          <a href="#" class="nav-item active" data-page="dashboard">
-            <i class="fa-solid fa-grid-2"></i>
+          <a href="#body" class="nav-item active" data-page="dashboard">
+            <i class="fa-solid fa-table-cells-large"></i>
             <span>Dashboard</span>
           </a>
 
@@ -164,7 +165,7 @@
 
         <!-- ================= CONTENT ================= -->
 
-        <section class="content">
+        <section class="content" id="content">
           <!-- HERO -->
 
           <div class="hero">
@@ -281,94 +282,7 @@
                 </button>
               </div>
 
-              <div class="patient-list">
-                <div class="patient-row">
-                  <div class="patient-avatar avatar-1">RS</div>
-
-                  <div class="patient-info">
-                    <strong>Rahul Sharma</strong>
-                    <span>32 years • Male</span>
-                  </div>
-
-                  <div class="patient-complaint">
-                    <span>Primary complaint</span>
-                    <strong>Chronic headache</strong>
-                  </div>
-
-                  <div class="patient-status">
-                    <span class="status active-status"> Active </span>
-                  </div>
-
-                  <button class="more-btn">
-                    <i class="fa-solid fa-ellipsis"></i>
-                  </button>
-                </div>
-
-                <div class="patient-row">
-                  <div class="patient-avatar avatar-2">PD</div>
-
-                  <div class="patient-info">
-                    <strong>Priya Das</strong>
-                    <span>27 years • Female</span>
-                  </div>
-
-                  <div class="patient-complaint">
-                    <span>Primary complaint</span>
-                    <strong>Digestive discomfort</strong>
-                  </div>
-
-                  <div class="patient-status">
-                    <span class="status follow-status"> Follow-up </span>
-                  </div>
-
-                  <button class="more-btn">
-                    <i class="fa-solid fa-ellipsis"></i>
-                  </button>
-                </div>
-
-                <div class="patient-row">
-                  <div class="patient-avatar avatar-3">AR</div>
-
-                  <div class="patient-info">
-                    <strong>Ankit Roy</strong>
-                    <span>41 years • Male</span>
-                  </div>
-
-                  <div class="patient-complaint">
-                    <span>Primary complaint</span>
-                    <strong>Sleep disturbance</strong>
-                  </div>
-
-                  <div class="patient-status">
-                    <span class="status new-status"> New </span>
-                  </div>
-
-                  <button class="more-btn">
-                    <i class="fa-solid fa-ellipsis"></i>
-                  </button>
-                </div>
-
-                <div class="patient-row">
-                  <div class="patient-avatar avatar-4">SM</div>
-
-                  <div class="patient-info">
-                    <strong>Sneha Mukherjee</strong>
-                    <span>36 years • Female</span>
-                  </div>
-
-                  <div class="patient-complaint">
-                    <span>Primary complaint</span>
-                    <strong>Joint discomfort</strong>
-                  </div>
-
-                  <div class="patient-status">
-                    <span class="status active-status"> Active </span>
-                  </div>
-
-                  <button class="more-btn">
-                    <i class="fa-solid fa-ellipsis"></i>
-                  </button>
-                </div>
+              <div class="patient-list" id="patient-list">
               </div>
             </div>
 
@@ -666,6 +580,7 @@
     </div>
 
     <script src="learn-data.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="script.js"></script>
   </body>
 </html>

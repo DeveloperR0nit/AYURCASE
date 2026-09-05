@@ -4,16 +4,13 @@
    HTML + CSS UNCHANGED
    ===================================================== */
 
-
 /* =====================================================
    ELEMENTS
    ===================================================== */
 
 const caseModal = document.getElementById("caseModal");
 
-const newCaseButtons = document.querySelectorAll(
-    ".new-case-btn, .case-action"
-);
+const newCaseButtons = document.querySelectorAll(".new-case-btn, .case-action");
 
 const closeModal = document.getElementById("closeModal");
 const cancelModal = document.getElementById("cancelModal");
@@ -28,7 +25,6 @@ const sidebar = document.querySelector(".sidebar");
 
 const navItems = document.querySelectorAll(".nav-item");
 
-
 /* =====================================================
    TOAST
    ===================================================== */
@@ -36,351 +32,272 @@ const navItems = document.querySelectorAll(".nav-item");
 let toastTimer;
 
 function showToast(message) {
+  if (!toast || !toastMessage) return;
 
-    if (!toast || !toastMessage) return;
+  toastMessage.textContent = message;
 
-    toastMessage.textContent = message;
+  toast.classList.add("show");
 
-    toast.classList.add("show");
+  clearTimeout(toastTimer);
 
-    clearTimeout(toastTimer);
-
-    toastTimer = setTimeout(() => {
-
-        toast.classList.remove("show");
-
-    }, 3000);
-
+  toastTimer = setTimeout(() => {
+    toast.classList.remove("show");
+  }, 3000);
 }
-
 
 /* =====================================================
    NEW CASE MODAL
    ===================================================== */
 
 function openCaseModal() {
+  if (!caseModal) return;
 
-    if (!caseModal) return;
+  caseModal.classList.add("show");
 
-    caseModal.classList.add("show");
-
-    document.body.style.overflow = "hidden";
-
+  document.body.style.overflow = "hidden";
 }
-
 
 function closeCaseModal() {
+  if (!caseModal) return;
 
-    if (!caseModal) return;
+  caseModal.classList.remove("show");
 
-    caseModal.classList.remove("show");
-
-    document.body.style.overflow = "";
-
+  document.body.style.overflow = "";
 }
-
 
 /* New Case buttons */
 
-newCaseButtons.forEach(button => {
-
-    button.addEventListener("click", function () {
-
-        openCaseModal();
-
-    });
-
+newCaseButtons.forEach((button) => {
+  button.addEventListener("click", function () {
+    openCaseModal();
+  });
 });
-
 
 /* Close button */
 
 if (closeModal) {
-
-    closeModal.addEventListener(
-        "click",
-        closeCaseModal
-    );
-
+  closeModal.addEventListener("click", closeCaseModal);
 }
-
 
 /* Cancel button */
 
 if (cancelModal) {
-
-    cancelModal.addEventListener(
-        "click",
-        closeCaseModal
-    );
-
+  cancelModal.addEventListener("click", closeCaseModal);
 }
-
 
 /* Click outside modal */
 
 if (caseModal) {
-
-    caseModal.addEventListener(
-        "click",
-        function (event) {
-
-            if (event.target === caseModal) {
-
-                closeCaseModal();
-
-            }
-
-        }
-    );
-
+  caseModal.addEventListener("click", function (event) {
+    if (event.target === caseModal) {
+      closeCaseModal();
+    }
+  });
 }
-
 
 /* Escape key */
 
-document.addEventListener(
-    "keydown",
-    function (event) {
-
-        if (
-            event.key === "Escape" &&
-            caseModal &&
-            caseModal.classList.contains("show")
-        ) {
-
-            closeCaseModal();
-
-        }
-
-    }
-);
-
+document.addEventListener("keydown", function (event) {
+  if (
+    event.key === "Escape" &&
+    caseModal &&
+    caseModal.classList.contains("show")
+  ) {
+    closeCaseModal();
+  }
+});
 
 /* =====================================================
    CASE FORM
    ===================================================== */
 
-if (caseForm) {
+const defaultcases = [
+  {
+    id: 1786743223383,
 
-    caseForm.addEventListener(
-        "submit",
-        function (event) {
+    name: "Rahul Sharma",
 
-            event.preventDefault();
+    age: 32,
 
-            const inputs =
-                caseForm.querySelectorAll(
-                    "input, select, textarea"
-                );
+    gender: "Male",
 
+    complaint: "Chronic headache",
 
-            const patientName =
-                inputs[0]?.value.trim() || "";
+    date: "14/8/2026",
 
-            const age =
-                inputs[1]?.value || "";
+    status: "Active",
+  },
+  {
+    id: 1786870471317,
 
-            const gender =
-                inputs[2]?.value || "";
+    name: "Priya Das",
 
-            const complaint =
-                inputs[3]?.value.trim() || "";
+    age: 27,
 
+    gender: "Female",
 
-            if (
-                !patientName ||
-                !age ||
-                !gender ||
-                !complaint
-            ) {
+    complaint: "Digestive discomfort",
 
-                showToast(
-                    "Please complete all patient details."
-                );
+    date: "16/8/2026",
 
-                return;
+    status: "Follow-up",
+  },
+  {
+    id: 1787577953025,
 
-            }
+    name: "Ankit Roy",
 
+    age: 41,
 
-            const newCase = {
+    gender: "Male",
 
-                id: Date.now(),
+    complaint: "Sleep disturbance",
 
-                name: patientName,
+    date: "24/8/2026",
 
-                age: age,
+    status: "New",
+  },
+  {
+    id: 1787808655052,
 
-                gender: gender,
+    name: "Sneha Mukherjee",
 
-                complaint: complaint,
+    age: 36,
 
-                date:
-                    new Date()
-                        .toLocaleDateString(),
+    gender: "Female",
 
-                status: "New"
+    complaint: "Joint discomfort",
 
-            };
+    date: "27/8/2026",
 
+    status: "Active",
+  },
+];
+let c = JSON.parse(localStorage.getItem("reload")) || false;
 
-            let cases =
-                JSON.parse(
-                    localStorage.getItem(
-                        "ayurcase-cases"
-                    )
-                ) || [];
-
-
-            cases.push(newCase);
-
-
-            localStorage.setItem(
-                "ayurcase-cases",
-                JSON.stringify(cases)
-            );
-
-
-            closeCaseModal();
-
-            caseForm.reset();
-
-
-            showToast(
-                `${patientName}'s case created successfully.`
-            );
-
-        }
-    );
-
+if (c) {
+  localStorage.setItem("ayurcase-cases", JSON.stringify(defaultcases));
+  localStorage.setItem("reload", JSON.stringify([{ value: "true" }]));
 }
+renderPatientsdashboard();
+if (caseForm) {
+  caseForm.addEventListener("submit", function (event) {
+    event.preventDefault();
 
+    const inputs = caseForm.querySelectorAll("input, select, textarea");
+
+    const patientName = inputs[0]?.value.trim() || "";
+
+    const age = inputs[1]?.value || "";
+
+    const gender = inputs[2]?.value || "";
+
+    const complaint = inputs[3]?.value.trim() || "";
+
+    if (!patientName || !age || !gender || !complaint) {
+      showToast("Please complete all patient details.");
+
+      return;
+    }
+
+    const newCase = {
+      id: Date.now(),
+
+      name: patientName,
+
+      age: age,
+
+      gender: gender,
+
+      complaint: complaint,
+
+      date: new Date().toLocaleDateString(),
+
+      status: "New",
+    };
+
+    let cases = JSON.parse(localStorage.getItem("ayurcase-cases")) || [];
+
+    cases.push(newCase);
+
+    localStorage.setItem("ayurcase-cases", JSON.stringify(cases));
+
+    renderPatientsdashboard();
+
+    moreButton();
+
+    closeCaseModal();
+
+    caseForm.reset();
+
+    showToast(`${patientName}'s case created successfully.`);
+  });
+}
 
 /* =====================================================
    THEME
    ===================================================== */
 
-let darkMode =
-    localStorage.getItem(
-        "ayurcase-dark"
-    ) === "true";
-
+let darkMode = localStorage.getItem("ayurcase-dark") === "true";
 
 function updateTheme() {
+  if (!themeButton) return;
 
-    if (!themeButton) return;
+  if (darkMode) {
+    document.body.classList.add("dark");
 
+    themeButton.innerHTML = '<i class="fa-solid fa-sun"></i>';
 
-    if (darkMode) {
+    themeButton.title = "Switch to Light Mode";
+  } else {
+    document.body.classList.remove("dark");
 
-        document.body.classList.add("dark");
+    themeButton.innerHTML = '<i class="fa-solid fa-moon"></i>';
 
-        themeButton.innerHTML =
-            '<i class="fa-solid fa-sun"></i>';
-
-        themeButton.title =
-            "Switch to Light Mode";
-
-    } else {
-
-        document.body.classList.remove("dark");
-
-        themeButton.innerHTML =
-            '<i class="fa-solid fa-moon"></i>';
-
-        themeButton.title =
-            "Switch to Dark Mode";
-
-    }
-
+    themeButton.title = "Switch to Dark Mode";
+  }
 }
-
 
 updateTheme();
 
-
 if (themeButton) {
+  themeButton.addEventListener("click", function () {
+    darkMode = !darkMode;
 
-    themeButton.addEventListener(
-        "click",
-        function () {
+    localStorage.setItem("ayurcase-dark", darkMode);
 
-            darkMode = !darkMode;
+    updateTheme();
 
-
-            localStorage.setItem(
-                "ayurcase-dark",
-                darkMode
-            );
-
-
-            updateTheme();
-
-
-            showToast(
-                darkMode
-                    ? "Dark mode enabled."
-                    : "Light mode enabled."
-            );
-
-        }
-    );
-
+    showToast(darkMode ? "Dark mode enabled." : "Light mode enabled.");
+  });
 }
-
 
 /* =====================================================
    MOBILE SIDEBAR
    ===================================================== */
 
 if (mobileMenu && sidebar) {
-
-    mobileMenu.addEventListener(
-        "click",
-        function () {
-
-            sidebar.classList.toggle(
-                "open"
-            );
-
-        }
-    );
-
+  mobileMenu.addEventListener("click", function () {
+    sidebar.classList.toggle("open");
+  });
 }
-
 
 /* =====================================================
    WORKSPACE SYSTEM
    ===================================================== */
 
-function openWorkspace(
-    title,
-    description,
-    icon
-) {
+function openWorkspace(title, description, icon) {
+  document.getElementById("learnWishlistView")?.remove();
+  document.getElementById("learnCompletedView")?.remove();
 
-    document.getElementById("learnWishlistView")?.remove();
-    document.getElementById("learnCompletedView")?.remove();
+  let workspace = document.getElementById("ayurcaseWorkspace");
 
-    let workspace =
-        document.getElementById(
-            "ayurcaseWorkspace"
-        );
+  if (!workspace) {
+    workspace = document.createElement("div");
 
+    workspace.id = "ayurcaseWorkspace";
 
-    if (!workspace) {
-
-        workspace =
-            document.createElement(
-                "div"
-            );
-
-        workspace.id =
-            "ayurcaseWorkspace";
-
-
-        workspace.innerHTML = `
+    workspace.innerHTML = `
 
             <div class="workspace-inner">
 
@@ -388,7 +305,7 @@ function openWorkspace(
                     class="workspace-close"
                     id="workspaceClose"
                 >
-                    <i class="fa-solid fa-xmark"></i>
+                    <i class="fa-solid fa-xmark close-btn"></i>
                 </button>
 
 
@@ -423,23 +340,26 @@ function openWorkspace(
 
         `;
 
+    workspace.addEventListener("click", (e) => {
+      if (e.target.parentElement.classList.contains("cases-close-btn")) {
+        const targ = e.target
+          .closest(".workspace-box")
+          .firstElementChild.textContent.trim();
+        let patients = JSON.parse(localStorage.getItem("ayurcase-cases"));
+        updatedPatients = patients.filter((p) => p.name !== targ);
+        localStorage.setItem("ayurcase-cases", JSON.stringify(updatedPatients));
+        renderPatientsdashboard();
+        openPatientsWorkspace();
+      }
+    });
 
-        document.body.appendChild(
-            workspace
-        );
+    document.body.appendChild(workspace);
 
+    const style = document.createElement("style");
 
-        const style =
-            document.createElement(
-                "style"
-            );
+    style.id = "workspaceStyles";
 
-
-        style.id =
-            "workspaceStyles";
-
-
-        style.textContent = `
+    style.textContent = `
 
             #ayurcaseWorkspace {
 
@@ -590,6 +510,8 @@ function openWorkspace(
 
                 border-radius:14px;
 
+                position:relative;
+
                 padding:16px;
 
             }
@@ -613,7 +535,7 @@ function openWorkspace(
 
             .workspace-box strong {
 
-                font-size:11px;
+                font-size:15px;
 
             }
 
@@ -624,7 +546,7 @@ function openWorkspace(
 
                 color:var(--muted);
 
-                font-size:9px;
+                font-size:14px;
 
                 margin-top:5px;
 
@@ -803,296 +725,261 @@ function openWorkspace(
                 opacity:.7;
 
             }
+#aiResult h1,
+#aiResult h2,
+#aiResult h3 {
+    margin-top: 20px;
+    margin-bottom: 8px;
+    line-height: 1.3;
+}
 
+#aiResult h1:first-child,
+#aiResult h2:first-child,
+#aiResult h3:first-child {
+    margin-top: 0;
+}
+
+#aiResult p {
+    margin: 10px 0;
+}
+
+#aiResult ul,
+#aiResult ol {
+    margin: 8px 0 12px 20px;
+    padding-left: 15px;
+}
+
+#aiResult li {
+    margin: 5px 0;
+}
+
+#aiResult strong {
+    font-weight: 700;
+}
+
+#aiResult hr {
+    margin: 18px 0;
+    border: 0;
+    border-top: 1px solid var(--border);
+}
+/* From Uiverse.io by adamgiebl */ 
+.dots-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  height: 100%;
+  width: 100%;
+  margin: -5px 0 31px 5px;
+}
+
+.dot {
+  height: 10px;
+  width: 10px;
+  margin-right: 5px;
+  border-radius: 10px;
+  background-color: #b3d4fc;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+.dot:last-child {
+  margin-right: 0;
+}
+
+.dot:nth-child(1) {
+  animation-delay: -0.3s;
+}
+
+.dot:nth-child(2) {
+  animation-delay: -0.1s;
+}
+
+.dot:nth-child(3) {
+  animation-delay: 0.1s;
+}
+
+.ai-res{
+    font-size:20px !important;
+    text-decoration: underline;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.8);
+    background-color: #b3d4fc;
+    box-shadow: 0 0 0 0 rgba(178, 212, 252, 0.7);
+  }
+
+  50% {
+    transform: scale(1.2);
+    background-color: #6793fb;
+    box-shadow: 0 0 0 10px rgba(178, 212, 252, 0);
+  }
+
+  100% {
+    transform: scale(0.8);
+    background-color: #b3d4fc;
+    box-shadow: 0 0 0 0 rgba(178, 212, 252, 0.7);
+  }
+}
         `;
 
-
-        document.head.appendChild(
-            style
-        );
-
-
-        document
-            .getElementById(
-                "workspaceClose"
-            )
-            .addEventListener(
-                "click",
-                closeWorkspace
-            );
-
-    }
-
+    document.head.appendChild(style);
 
     document
-        .getElementById(
-            "workspaceTitle"
-        )
-        .textContent = title;
+      .getElementById("workspaceClose")
+      .addEventListener("click", closeWorkspace);
+  }
 
+  document.getElementById("workspaceTitle").textContent = title;
 
-    document
-        .getElementById(
-            "workspaceDescription"
-        )
-        .textContent = description;
+  document.getElementById("workspaceDescription").textContent = description;
 
+  document.querySelector(".workspace-icon i").className = icon;
 
-    document
-        .querySelector(
-            ".workspace-icon i"
-        )
-        .className = icon;
+  workspace.style.display = "flex";
 
+  document.body.style.overflow = "hidden";
 
-    workspace.style.display =
-        "flex";
-
-
-    document.body.style.overflow =
-        "hidden";
-
-
-    return document.getElementById(
-        "workspaceContent"
-    );
-
+  return document.getElementById("workspaceContent");
 }
-
 
 function closeWorkspace() {
+  const workspace = document.getElementById("ayurcaseWorkspace");
 
-    const workspace =
-        document.getElementById(
-            "ayurcaseWorkspace"
-        );
+  if (workspace) {
+    workspace.style.display = "none";
+  }
 
-
-    if (workspace) {
-
-        workspace.style.display =
-            "none";
-
-    }
-
-
-    document.body.style.overflow =
-        "";
-
+  document.body.style.overflow = "";
 }
-
 
 /* =====================================================
    SIDEBAR NAVIGATION
    ===================================================== */
 
-navItems.forEach(item => {
+navItems.forEach((item) => {
+  item.addEventListener("click", function (event) {
+    event.preventDefault();
 
-    item.addEventListener(
-        "click",
-        function (event) {
+    const page = item.dataset.page;
 
-            event.preventDefault();
+    navItems.forEach((nav) => {
+      nav.classList.remove("active");
+    });
 
+    item.classList.add("active");
 
-            const page =
-                item.dataset.page;
+    updateBreadcrumb(page);
 
+    if (sidebar) {
+      sidebar.classList.remove("open");
+    }
 
-            navItems.forEach(nav => {
+    if (page === "dashboard") {
+      closeWorkspace();
 
-                nav.classList.remove(
-                    "active"
-                );
+      showToast("Dashboard selected.");
 
-            });
+      return;
+    }
 
+    if (page === "case") {
+      closeWorkspace();
 
-            item.classList.add(
-                "active"
-            );
+      openCaseModal();
 
+      return;
+    }
 
-            updateBreadcrumb(
-                page
-            );
+    if (page === "patients") {
+      openPatientsWorkspace();
 
+      return;
+    }
 
-            if (sidebar) {
+    if (page === "history") {
+      openHistoryWorkspace();
 
-                sidebar.classList.remove(
-                    "open"
-                );
+      return;
+    }
 
-            }
+    if (page === "prakriti") {
+      openPrakritiWorkspace();
 
+      return;
+    }
 
-            if (page === "dashboard") {
+    if (page === "ai") {
+      openAIWorkspace();
 
-                closeWorkspace();
+      return;
+    }
 
-                showToast(
-                    "Dashboard selected."
-                );
+    if (page === "learn") {
+      openLearnWorkspace();
 
-                return;
-
-            }
-
-
-            if (page === "case") {
-
-                closeWorkspace();
-
-                openCaseModal();
-
-                return;
-
-            }
-
-
-            if (page === "patients") {
-
-                openPatientsWorkspace();
-
-                return;
-
-            }
-
-
-            if (page === "history") {
-
-                openHistoryWorkspace();
-
-                return;
-
-            }
-
-
-            if (page === "prakriti") {
-
-                openPrakritiWorkspace();
-
-                return;
-
-            }
-
-
-            if (page === "ai") {
-
-                openAIWorkspace();
-
-                return;
-
-            }
-
-
-            if (page === "learn") {
-
-                openLearnWorkspace();
-
-                return;
-
-            }
-
-        }
-    );
-
+      return;
+    }
+  });
 });
-
 
 /* =====================================================
    BREADCRUMB
    ===================================================== */
 
 function updateBreadcrumb(page) {
+  const breadcrumb = document.querySelector(".breadcrumb strong");
 
-    const breadcrumb =
-        document.querySelector(
-            ".breadcrumb strong"
-        );
+  if (!breadcrumb) return;
 
+  const names = {
+    dashboard: "Dashboard",
 
-    if (!breadcrumb) return;
+    patients: "Patients",
 
+    case: "New Case",
 
-    const names = {
+    history: "Case History",
 
-        dashboard: "Dashboard",
+    prakriti: "Prakriti",
 
-        patients: "Patients",
+    ai: "AI Assistant",
 
-        case: "New Case",
+    learn: "Learn",
 
-        history: "Case History",
+    analytics: "Analytics",
 
-        prakriti: "Prakriti",
+    settings: "Settings",
+  };
 
-        ai: "AI Assistant",
-
-        learn: "Learn",
-
-        analytics: "Analytics",
-
-        settings: "Settings"
-
-    };
-
-
-    breadcrumb.textContent =
-        names[page] ||
-        "Dashboard";
-
+  breadcrumb.textContent = names[page] || "Dashboard";
 }
-
 
 function updateBreadcrumbText(text) {
+  const breadcrumb = document.querySelector(".breadcrumb strong");
 
-    const breadcrumb =
-        document.querySelector(
-            ".breadcrumb strong"
-        );
-
-
-    if (breadcrumb) {
-
-        breadcrumb.textContent =
-            text;
-
-    }
-
+  if (breadcrumb) {
+    breadcrumb.textContent = text;
+  }
 }
-
 
 /* =====================================================
    PATIENTS WORKSPACE
    ===================================================== */
 
 function openPatientsWorkspace() {
+  const cases = JSON.parse(localStorage.getItem("ayurcase-cases")) || [];
 
-    const content =
-        openWorkspace(
+  const content = openWorkspace(
+    "Patients",
 
-            "Patients",
+    "Manage and review registered patient cases.",
 
-            "Manage and review registered patient cases.",
+    "fa-solid fa-users",
+  );
 
-            "fa-solid fa-users"
-
-        );
-
-
-    const cases =
-        JSON.parse(
-            localStorage.getItem(
-                "ayurcase-cases"
-            )
-        ) || [];
-
-
-    if (cases.length === 0) {
-
-        content.innerHTML = `
+  if (cases.length === 0) {
+    content.innerHTML = `
 
             <div class="workspace-box">
 
@@ -1115,89 +1002,100 @@ function openPatientsWorkspace() {
 
         `;
 
+    document
+      .getElementById("workspaceNewCase")
+      .addEventListener("click", function () {
+        closeWorkspace();
 
-        document
-            .getElementById(
-                "workspaceNewCase"
-            )
-            .addEventListener(
-                "click",
-                function () {
+        openCaseModal();
+      });
 
-                    closeWorkspace();
+    return;
+  }
 
-                    openCaseModal();
-
-                }
-            );
-
-
-        return;
-
-    }
-
-
-    content.innerHTML =
-        cases.map(patient => `
+  content.innerHTML = cases
+    .map(
+      (patient) => `
 
             <div class="workspace-box">
 
                 <strong>
-                    ${escapeHTML(
-                        patient.name
-                    )}
+                    ${escapeHTML(patient.name)}
                 </strong>
 
                 <span>
-                    ${escapeHTML(
-                        patient.age
-                    )}
+                    ${escapeHTML(patient.age)}
                     years •
-                    ${escapeHTML(
-                        patient.gender
-                    )}
+                    ${escapeHTML(patient.gender)}
                     •
-                    ${escapeHTML(
-                        patient.complaint
-                    )}
+                    ${escapeHTML(patient.complaint)}
                 </span>
+
+                <button class="cases-close-btn">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
 
             </div>
 
-        `).join("");
-
+        `,
+    )
+    .join("");
 }
-
+function renderPatientsdashboard() {
+  const cases = JSON.parse(localStorage.getItem("ayurcase-cases")) || [];
+  document.getElementById("patient-list").innerHTML = cases
+    .map(
+      (patient) => `<div class="patient-row">
+                      <div class="patient-avatar avatar-${Math.floor(Math.random() * 4 + 1)}">
+                        ${getInitials(patient.name)}
+                      </div>
+        
+                      <div class="patient-info">
+                        <strong> ${escapeHTML(patient.name)}</strong>
+                        <span>${escapeHTML(patient.age)} years • ${escapeHTML(patient.gender)}</span>
+                      </div>
+    
+                      <div class="patient-complaint">
+                        <span>Primary complaint</span>
+                        <strong>${escapeHTML(patient.complaint)}</strong>
+                      </div>
+    
+                      <div class="patient-status">
+                        <span class="status ${escapeHTML(patient.status)}-status">${escapeHTML(patient.status)}</span>
+                      </div>
+    
+                      <button class="more-btn">
+                        <i class="fa-solid fa-ellipsis"></i>
+                      </button>
+    </div>`,
+    )
+    .join("");
+}
+function getInitials(name) {
+  let initial = "";
+  name.split(" ").forEach((e) => {
+    initial += e[0];
+  });
+  return initial;
+}
 
 /* =====================================================
    CASE HISTORY
    ===================================================== */
 
 function openHistoryWorkspace() {
+  const content = openWorkspace(
+    "Case History",
 
-    const content =
-        openWorkspace(
+    "Review previously created patient cases.",
 
-            "Case History",
+    "fa-solid fa-clock-rotate-left",
+  );
 
-            "Review previously created patient cases.",
+  const cases = JSON.parse(localStorage.getItem("ayurcase-cases")) || [];
 
-            "fa-solid fa-clock-rotate-left"
-
-        );
-
-
-    const cases =
-        JSON.parse(
-            localStorage.getItem(
-                "ayurcase-cases"
-            )
-        ) || [];
-
-
-    if (cases.length === 0) {
-
-        content.innerHTML = `
+  if (cases.length === 0) {
+    content.innerHTML = `
 
             <div class="workspace-box">
 
@@ -1213,79 +1111,62 @@ function openHistoryWorkspace() {
 
         `;
 
-        return;
+    return;
+  }
 
-    }
-
-
-    content.innerHTML =
-        cases
-            .slice()
-            .reverse()
-            .map(patient => `
+  content.innerHTML = cases
+    .slice()
+    .reverse()
+    .map(
+      (patient) => `
 
                 <div class="workspace-box">
 
                     <strong>
-                        ${escapeHTML(
-                            patient.name
-                        )}
+                        ${escapeHTML(patient.name)}
                     </strong>
 
                     <span>
                         Case created on
-                        ${escapeHTML(
-                            patient.date
-                        )}
+                        ${escapeHTML(patient.date)}
                     </span>
 
                     <span>
                         Complaint:
-                        ${escapeHTML(
-                            patient.complaint
-                        )}
+                        ${escapeHTML(patient.complaint)}
                     </span>
 
                 </div>
 
-            `)
-            .join("");
-
+            `,
+    )
+    .join("");
 }
-
 
 /* =====================================================
    PRAKRITI WORKSPACE
    ===================================================== */
 
 function openPrakritiWorkspace() {
+  const content = openWorkspace(
+    "Prakriti Assessment",
 
-    const content =
-        openWorkspace(
+    "Perform a basic constitutional assessment for the patient.",
 
-            "Prakriti Assessment",
+    "fa-solid fa-spa",
+  );
 
-            "Perform a basic constitutional assessment for the patient.",
+  const questions = [
+    "How is the patient's body structure?",
 
-            "fa-solid fa-spa"
+    "How is the patient's appetite?",
 
-        );
+    "How is the patient's sleep pattern?",
 
+    "How is the patient's energy level?",
+  ];
 
-    const questions = [
-
-        "How is the patient's body structure?",
-
-        "How is the patient's appetite?",
-
-        "How is the patient's sleep pattern?",
-
-        "How is the patient's energy level?"
-
-    ];
-
-
-    content.innerHTML = `
+  content.innerHTML = `
 
         <div class="workspace-box">
 
@@ -1300,7 +1181,8 @@ function openPrakritiWorkspace() {
         </div>
 
 
-        ${questions.map(
+        ${questions
+          .map(
             (question, index) => `
 
                 <div class="workspace-box">
@@ -1341,8 +1223,9 @@ function openPrakritiWorkspace() {
 
                 </div>
 
-            `
-        ).join("")}
+            `,
+          )
+          .join("")}
 
 
         <button
@@ -1354,130 +1237,63 @@ function openPrakritiWorkspace() {
 
     `;
 
-
-    document
-        .getElementById(
-            "calculatePrakriti"
-        )
-        .addEventListener(
-            "click",
-            calculatePrakriti
-        );
-
+  document
+    .getElementById("calculatePrakriti")
+    .addEventListener("click", calculatePrakriti);
 }
-
 
 function calculatePrakriti() {
+  const selections = document.querySelectorAll(".prakriti-select");
 
-    const selections =
-        document.querySelectorAll(
-            ".prakriti-select"
-        );
+  let vata = 0;
+  let pitta = 0;
+  let kapha = 0;
 
-
-    let vata = 0;
-    let pitta = 0;
-    let kapha = 0;
-
-
-    selections.forEach(select => {
-
-        if (
-            select.value.includes(
-                "Vata"
-            )
-        ) {
-
-            vata++;
-
-        }
-
-
-        if (
-            select.value.includes(
-                "Pitta"
-            )
-        ) {
-
-            pitta++;
-
-        }
-
-
-        if (
-            select.value.includes(
-                "Kapha"
-            )
-        ) {
-
-            kapha++;
-
-        }
-
-    });
-
-
-    if (
-        vata +
-        pitta +
-        kapha ===
-        selections.length
-    ) {
-
-        const scores = {
-
-            Vata: vata,
-
-            Pitta: pitta,
-
-            Kapha: kapha
-
-        };
-
-
-        const result =
-            Object.keys(scores)
-                .sort(
-                    (a, b) =>
-                        scores[b] -
-                        scores[a]
-                )[0];
-
-
-        showToast(
-            `Assessment result: ${result} dominant`
-        );
-
-    } else {
-
-        showToast(
-            "Please answer all assessment questions."
-        );
-
+  selections.forEach((select) => {
+    if (select.value.includes("Vata")) {
+      vata++;
     }
 
-}
+    if (select.value.includes("Pitta")) {
+      pitta++;
+    }
 
+    if (select.value.includes("Kapha")) {
+      kapha++;
+    }
+  });
+
+  if (vata + pitta + kapha === selections.length) {
+    const scores = {
+      Vata: vata,
+
+      Pitta: pitta,
+
+      Kapha: kapha,
+    };
+
+    const result = Object.keys(scores).sort((a, b) => scores[b] - scores[a])[0];
+
+    showToast(`Assessment result: ${result} dominant`);
+  } else {
+    showToast("Please answer all assessment questions.");
+  }
+}
 
 /* =====================================================
    AI ASSISTANT
    ===================================================== */
 
 function openAIWorkspace() {
+  const content = openWorkspace(
+    "AI Assistant",
 
-    const content =
-        openWorkspace(
+    "Intelligent clinical documentation and case analysis.",
 
-            "AI Assistant",
+    "fa-solid fa-wand-magic-sparkles",
+  );
 
-            "Intelligent clinical documentation and case analysis.",
-
-            "fa-solid fa-wand-magic-sparkles"
-
-        );
-
-
-    content.innerHTML = `
+  content.innerHTML = `
 
         <div class="workspace-box">
 
@@ -1495,9 +1311,9 @@ function openAIWorkspace() {
                 placeholder="Enter patient observations, symptoms, history..."
                 style="
                     width:100%;
-                    min-height:130px;
+                    min-height:90px;
                     margin-top:12px;
-                    padding:12px;
+                    padding:10px;
                     border:1px solid var(--border);
                     border-radius:10px;
                     resize:vertical;
@@ -1528,118 +1344,90 @@ function openAIWorkspace() {
 
     `;
 
+  ai();
+  document.getElementById("runAI").addEventListener("click", function () {
+    const input = document.getElementById("aiInput").value.trim();
 
-    document
-        .getElementById(
-            "runAI"
-        )
-        .addEventListener(
-            "click",
-            function () {
+    if (!input) {
+      showToast("Please enter clinical information first.");
 
-                const input =
-                    document
-                        .getElementById(
-                            "aiInput"
-                        )
-                        .value
-                        .trim();
+      return;
+    }
 
+    const result = document.getElementById("aiResult");
 
-                if (!input) {
+    result.style.display = "block";
 
-                    showToast(
-                        "Please enter clinical information first."
-                    );
-
-                    return;
-
-                }
-
-
-                const result =
-                    document.getElementById(
-                        "aiResult"
-                    );
-
-
-                result.style.display =
-                    "block";
-
-
-                result.innerHTML = `
-
-                    <strong>
-                        Preliminary Structured Summary
+    result.innerHTML = `
+                    <strong class="ai-res">
+                       AI Response : 
                     </strong>
-
-                    <span>
-                        The information has been organized for practitioner review.
-                    </span>
-
-                    <span>
-                        <b>Clinical Input:</b>
-                        ${escapeHTML(input)}
-                    </span>
-
-                    <span>
-                        <b>Next Step:</b>
-                        Practitioner review and clinical assessment recommended.
-                    </span>
+<section class="dots-container">
+  <div class="dot"></div>
+  <div class="dot"></div>
+  <div class="dot"></div>
+  <div class="dot"></div>
+  <div class="dot"></div>
+</section>
 
                 `;
 
-
-                showToast(
-                    "Case analysis completed."
-                );
-
-            }
-        );
-
+    showToast("Case analysis completed.");
+  });
 }
-
 
 /* =====================================================
    LEARN LIBRARY
    ===================================================== */
 
 function openLearnWorkspace() {
+  const content = openWorkspace(
+    "Learn",
+    "Evidence-led reading for thoughtful, up-to-date clinical care.",
+    "fa-solid fa-book-open-reader",
+  );
 
-    const content = openWorkspace(
-        "Learn",
-        "Evidence-led reading for thoughtful, up-to-date clinical care.",
-        "fa-solid fa-book-open-reader"
-    );
+  const articles = window.learnArticles || [];
 
-    const articles = window.learnArticles || [];
+  const categories = [
+    ["All", "fa-solid fa-border-all"],
+    ["Mental Wellness", "fa-solid fa-brain"],
+    ["Nutrition", "fa-solid fa-apple-whole"],
+    ["Sleep", "fa-solid fa-moon"],
+    ["Fitness", "fa-solid fa-person-running"],
+    ["Cancer", "fa-solid fa-ribbon"],
+    ["Clotting", "fa-solid fa-droplet"],
+    ["Research", "fa-solid fa-flask"],
+    ["Prevention", "fa-solid fa-shield-heart"],
+  ];
+  let selectedCategory = "All";
+  let searchTerm = "";
+  let wishOnly = false;
+  let completedOnly = false;
+  const progressKey = "ayurcaseLearnProgress";
+  const wishKey = "ayurcaseLearnWishlist";
+  const completedKey = "ayurcaseLearnCompleted";
+  let progress = {};
+  let wish = [];
+  let completed = [];
 
-    const categories = [
-        ["All", "fa-solid fa-border-all"], ["Mental Wellness", "fa-solid fa-brain"],
-        ["Nutrition", "fa-solid fa-apple-whole"], ["Sleep", "fa-solid fa-moon"],
-        ["Fitness", "fa-solid fa-person-running"], ["Cancer", "fa-solid fa-ribbon"],
-        ["Clotting", "fa-solid fa-droplet"], ["Research", "fa-solid fa-flask"],
-        ["Prevention", "fa-solid fa-shield-heart"]
-    ];
-    let selectedCategory = "All";
-    let searchTerm = "";
-    let wishOnly = false;
-    let completedOnly = false;
-    const progressKey = "ayurcaseLearnProgress";
-    const wishKey = "ayurcaseLearnWishlist";
-    const completedKey = "ayurcaseLearnCompleted";
-    let progress = {};
-    let wish = [];
-    let completed = [];
+  try {
+    progress = JSON.parse(localStorage.getItem(progressKey)) || {};
+  } catch (error) {
+    progress = {};
+  }
+  try {
+    wish = JSON.parse(localStorage.getItem(wishKey)) || [];
+  } catch (error) {
+    wish = [];
+  }
+  try {
+    completed = JSON.parse(localStorage.getItem(completedKey)) || [];
+  } catch (error) {
+    completed = [];
+  }
 
-    try { progress = JSON.parse(localStorage.getItem(progressKey)) || {}; }
-    catch (error) { progress = {}; }
-    try { wish = JSON.parse(localStorage.getItem(wishKey)) || []; }
-    catch (error) { wish = []; }
-    try { completed = JSON.parse(localStorage.getItem(completedKey)) || []; }
-    catch (error) { completed = []; }
-
-    content.innerHTML = `
+  content.innerHTML = `
         <section class="learn-library" aria-label="Clinical learning library">
             <label class="learn-search" for="learnSearch"><i class="fa-solid fa-magnifying-glass"></i><input id="learnSearch" type="search" placeholder="Search articles, topics, or institutions..." autocomplete="off"></label>
             <div class="learn-category-row" id="learnCategories" aria-label="Article categories"></div>
@@ -1647,53 +1435,74 @@ function openLearnWorkspace() {
             <div class="learn-article-grid" id="learnArticleGrid"></div>
         </section>`;
 
-    const searchInput = document.getElementById("learnSearch");
-    const categoryContainer = document.getElementById("learnCategories");
-    const articleGrid = document.getElementById("learnArticleGrid");
-    const resultsMeta = document.getElementById("learnResultsMeta");
-    const wishlistView = document.createElement("button");
-    wishlistView.id = "learnWishlistView";
-    wishlistView.className = "learn-wishlist-toggle learn-title-wishlist";
-    wishlistView.type = "button";
-    wishlistView.innerHTML = '<i class="fa-regular fa-heart"></i> Wishlist <b>0</b>';
-    const workspaceTitle = document.getElementById("workspaceTitle");
-    workspaceTitle.insertAdjacentElement("afterend", wishlistView);
-    wishlistView.style.top = `${workspaceTitle.offsetTop}px`;
-    const completedView = document.createElement("button");
-    completedView.id = "learnCompletedView";
-    completedView.className = "learn-completed-toggle";
-    completedView.type = "button";
-    completedView.setAttribute("aria-label", "Show completed articles");
-    completedView.dataset.tooltip = "Completed articles";
-    completedView.innerHTML = '<i class="fa-solid fa-circle-check"></i> <span>Completed</span>';
-    const workspaceDescription = document.getElementById("workspaceDescription");
-    workspaceDescription.insertAdjacentElement("afterend", completedView);
-    completedView.style.top = `${workspaceDescription.offsetTop}px`;
+  const searchInput = document.getElementById("learnSearch");
+  const categoryContainer = document.getElementById("learnCategories");
+  const articleGrid = document.getElementById("learnArticleGrid");
+  const resultsMeta = document.getElementById("learnResultsMeta");
+  const wishlistView = document.createElement("button");
+  wishlistView.id = "learnWishlistView";
+  wishlistView.className = "learn-wishlist-toggle learn-title-wishlist";
+  wishlistView.type = "button";
+  wishlistView.innerHTML =
+    '<i class="fa-regular fa-heart"></i> Wishlist <b>0</b>';
+  const workspaceTitle = document.getElementById("workspaceTitle");
+  workspaceTitle.insertAdjacentElement("afterend", wishlistView);
+  wishlistView.style.top = `${workspaceTitle.offsetTop}px`;
+  const completedView = document.createElement("button");
+  completedView.id = "learnCompletedView";
+  completedView.className = "learn-completed-toggle";
+  completedView.type = "button";
+  completedView.setAttribute("aria-label", "Show completed articles");
+  completedView.dataset.tooltip = "Completed articles";
+  completedView.innerHTML =
+    '<i class="fa-solid fa-circle-check"></i> <span>Completed</span>';
+  const workspaceDescription = document.getElementById("workspaceDescription");
+  workspaceDescription.insertAdjacentElement("afterend", completedView);
+  completedView.style.top = `${workspaceDescription.offsetTop}px`;
 
-    function renderCategories() {
-        categoryContainer.innerHTML = categories.map(([name, icon]) => `
-            <button class="learn-category ${name === selectedCategory ? "active" : ""}" type="button" data-category="${name}"><i class="${icon}"></i><span>${name}</span></button>`).join("");
-        categoryContainer.querySelectorAll(".learn-category").forEach(button => button.addEventListener("click", () => {
-            selectedCategory = button.dataset.category;
-            renderCategories();
-            renderArticles();
-        }));
-    }
+  function renderCategories() {
+    categoryContainer.innerHTML = categories
+      .map(
+        ([name, icon]) => `
+            <button class="learn-category ${name === selectedCategory ? "active" : ""}" type="button" data-category="${name}"><i class="${icon}"></i><span>${name}</span></button>`,
+      )
+      .join("");
+    categoryContainer.querySelectorAll(".learn-category").forEach((button) =>
+      button.addEventListener("click", () => {
+        selectedCategory = button.dataset.category;
+        renderCategories();
+        renderArticles();
+      }),
+    );
+  }
 
-    function renderArticles() {
-        const query = searchTerm.toLowerCase();
-        const visibleArticles = articles.filter(article => {
-            const matchesCategory = selectedCategory === "All" || article.category === selectedCategory;
-            return matchesCategory && (!wishOnly || wish.includes(article.id)) && (!completedOnly || completed.includes(article.id)) && `${article.title} ${article.source} ${article.category} ${article.excerpt}`.toLowerCase().includes(query);
-        });
-        wishlistView.classList.toggle("active", wishOnly);
-        wishlistView.querySelector("b").textContent = wish.length;
-        wishlistView.querySelector("i").className = wishOnly ? "fa-solid fa-heart" : "fa-regular fa-heart";
-        completedView.classList.toggle("active", completedOnly);
-        resultsMeta.textContent = `${visibleArticles.length} ${visibleArticles.length === 1 ? "article" : "articles"} found${wishOnly ? " in your wishlist" : completedOnly ? " completed" : ""}`;
-        articleGrid.innerHTML = visibleArticles.length ? visibleArticles.map(article => {
+  function renderArticles() {
+    const query = searchTerm.toLowerCase();
+    const visibleArticles = articles.filter((article) => {
+      const matchesCategory =
+        selectedCategory === "All" || article.category === selectedCategory;
+      return (
+        matchesCategory &&
+        (!wishOnly || wish.includes(article.id)) &&
+        (!completedOnly || completed.includes(article.id)) &&
+        `${article.title} ${article.source} ${article.category} ${article.excerpt}`
+          .toLowerCase()
+          .includes(query)
+      );
+    });
+    wishlistView.classList.toggle("active", wishOnly);
+    wishlistView.querySelector("b").textContent = wish.length;
+    wishlistView.querySelector("i").className = wishOnly
+      ? "fa-solid fa-heart"
+      : "fa-regular fa-heart";
+    completedView.classList.toggle("active", completedOnly);
+    resultsMeta.textContent = `${visibleArticles.length} ${visibleArticles.length === 1 ? "article" : "articles"} found${wishOnly ? " in your wishlist" : completedOnly ? " completed" : ""}`;
+    articleGrid.innerHTML = visibleArticles.length
+      ? visibleArticles
+          .map((article) => {
             const savedProgress = progress[article.id];
-            const isStarted = Number.isFinite(savedProgress) && savedProgress > 0;
+            const isStarted =
+              Number.isFinite(savedProgress) && savedProgress > 0;
             const percentage = isStarted ? Math.min(savedProgress, 100) : 0;
             return `<article class="learn-article ${isStarted ? "is-started" : ""}">
                 <div class="learn-article-top"><div class="learn-article-icon"><i class="${article.icon}"></i></div><span class="learn-read-time"><i class="fa-regular fa-clock"></i> ${article.minutes} min read</span></div>
@@ -1701,56 +1510,77 @@ function openLearnWorkspace() {
                 ${isStarted ? `<div class="learn-progress-copy"><span>Continue reading</span></div><div class="learn-progress" aria-label="Reading started"><span style="width:${percentage}%"></span></div>` : ""}
                 <div class="learn-card-bottom"><button class="learn-read-button" type="button" data-article-id="${article.id}">${isStarted ? "Continue reading" : "Start reading"}<i class="fa-solid fa-arrow-right"></i></button><span class="learn-card-status">${completed.includes(article.id) ? '<b class="learn-completed-label"><i class="fa-solid fa-circle-check"></i> Completed</b>' : ""}<span class="learn-published"><i class="fa-regular fa-calendar"></i> ${article.published}</span></span></div>
             </article>`;
-        }).join("") : `<div class="learn-empty"><i class="fa-solid fa-book-medical"></i><strong>No articles match your search.</strong><span>Try another topic, institution, or category.</span></div>`;
+          })
+          .join("")
+      : `<div class="learn-empty"><i class="fa-solid fa-book-medical"></i><strong>No articles match your search.</strong><span>Try another topic, institution, or category.</span></div>`;
 
-        articleGrid.querySelectorAll(".learn-read-button").forEach(button => button.addEventListener("click", () => {
-            const article = articles.find(item => item.id === button.dataset.articleId);
-            progress[article.id] = progress[article.id] || 18;
-            localStorage.setItem(progressKey, JSON.stringify(progress));
-            renderArticles();
-            openArticlePreview(article);
-        }));
-        articleGrid.querySelectorAll(".wishlist-icon").forEach(button => button.addEventListener("click", () => {
-            const id = button.dataset.id;
-            wish = wish.includes(id) ? wish.filter(saved => saved !== id) : [...wish, id];
-            localStorage.setItem(wishKey, JSON.stringify(wish));
-            renderArticles();
-        }));
-    }
+    articleGrid.querySelectorAll(".learn-read-button").forEach((button) =>
+      button.addEventListener("click", () => {
+        const article = articles.find(
+          (item) => item.id === button.dataset.articleId,
+        );
+        progress[article.id] = progress[article.id] || 18;
+        localStorage.setItem(progressKey, JSON.stringify(progress));
+        renderArticles();
+        openArticlePreview(article);
+      }),
+    );
+    articleGrid.querySelectorAll(".wishlist-icon").forEach((button) =>
+      button.addEventListener("click", () => {
+        const id = button.dataset.id;
+        wish = wish.includes(id)
+          ? wish.filter((saved) => saved !== id)
+          : [...wish, id];
+        localStorage.setItem(wishKey, JSON.stringify(wish));
+        renderArticles();
+      }),
+    );
+  }
 
-    searchInput.addEventListener("input", event => {
-        searchTerm = event.target.value.trim();
-        renderArticles();
-    });
-    wishlistView.addEventListener("click", () => { wishOnly = !wishOnly; renderArticles(); });
-    completedView.addEventListener("click", () => { completedOnly = !completedOnly; renderArticles(); });
-    window.learnLibraryRefresh = () => {
-        try { completed = JSON.parse(localStorage.getItem(completedKey)) || []; }
-        catch (error) { completed = []; }
-        renderArticles();
-    };
-    renderCategories();
+  searchInput.addEventListener("input", (event) => {
+    searchTerm = event.target.value.trim();
     renderArticles();
+  });
+  wishlistView.addEventListener("click", () => {
+    wishOnly = !wishOnly;
+    renderArticles();
+  });
+  completedView.addEventListener("click", () => {
+    completedOnly = !completedOnly;
+    renderArticles();
+  });
+  window.learnLibraryRefresh = () => {
+    try {
+      completed = JSON.parse(localStorage.getItem(completedKey)) || [];
+    } catch (error) {
+      completed = [];
+    }
+    renderArticles();
+  };
+  renderCategories();
+  renderArticles();
 }
 
-
 function openArticlePreview(article) {
-    let preview = document.getElementById("learnPreview");
+  let preview = document.getElementById("learnPreview");
 
-    if (!preview) {
-        preview = document.createElement("div");
-        preview.id = "learnPreview";
-        preview.className = "learn-preview-overlay";
-        document.body.appendChild(preview);
-    }
+  if (!preview) {
+    preview = document.createElement("div");
+    preview.id = "learnPreview";
+    preview.className = "learn-preview-overlay";
+    document.body.appendChild(preview);
+  }
 
-    const completedKey = "ayurcaseLearnCompleted";
-    let completed = [];
-    try { completed = JSON.parse(localStorage.getItem(completedKey)) || []; }
-    catch (error) { completed = []; }
-    const isCompleted = completed.includes(article.id);
+  const completedKey = "ayurcaseLearnCompleted";
+  let completed = [];
+  try {
+    completed = JSON.parse(localStorage.getItem(completedKey)) || [];
+  } catch (error) {
+    completed = [];
+  }
+  const isCompleted = completed.includes(article.id);
 
-    preview.innerHTML = `
+  preview.innerHTML = `
         <section class="learn-preview" role="dialog" aria-modal="true" aria-label="Article summary">
             <button class="learn-preview-close" type="button" aria-label="Close summary"><i class="fa-solid fa-xmark"></i></button>
             <span class="learn-source">${article.source}</span>
@@ -1760,111 +1590,68 @@ function openArticlePreview(article) {
             <div class="learn-preview-actions"><a class="learn-full-article" href="${article.url}" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-book-open"></i> Read full article</a><button class="learn-complete-button ${isCompleted ? "done" : ""}" type="button"><i class="fa-solid fa-circle-check"></i> Completed reading</button></div>
         </section>`;
 
-    preview.classList.add("show");
-    preview.querySelector(".learn-preview-close").addEventListener("click", () => preview.classList.remove("show"));
-    preview.onclick = event => {
-        if (event.target === preview) preview.classList.remove("show");
-    };
-    preview.querySelector(".learn-complete-button").addEventListener("click", event => {
-        completed = isCompleted ? completed.filter(id => id !== article.id) : [...completed, article.id];
-        localStorage.setItem(completedKey, JSON.stringify(completed));
-        window.learnLibraryRefresh?.();
-        openArticlePreview(article);
+  preview.classList.add("show");
+  preview
+    .querySelector(".learn-preview-close")
+    .addEventListener("click", () => preview.classList.remove("show"));
+  preview.onclick = (event) => {
+    if (event.target === preview) preview.classList.remove("show");
+  };
+  preview
+    .querySelector(".learn-complete-button")
+    .addEventListener("click", (event) => {
+      completed = isCompleted
+        ? completed.filter((id) => id !== article.id)
+        : [...completed, article.id];
+      localStorage.setItem(completedKey, JSON.stringify(completed));
+      window.learnLibraryRefresh?.();
+      openArticlePreview(article);
     });
 }
-
 
 /* =====================================================
    AI DASHBOARD BUTTON
    ===================================================== */
 
-const aiButton =
-    document.querySelector(
-        ".ai-button"
-    );
-
+const aiButton = document.querySelector(".ai-button");
 
 if (aiButton) {
-
-    aiButton.addEventListener(
-        "click",
-        function () {
-
-            openAIWorkspace();
-
-        }
-    );
-
+  aiButton.addEventListener("click", function () {
+    openAIWorkspace();
+  });
 }
-
 
 /* =====================================================
    QUICK ACTIONS
    ===================================================== */
 
-const quickCards =
-    document.querySelectorAll(
-        ".quick-card"
-    );
+const quickCards = document.querySelectorAll(".quick-card");
 
+quickCards.forEach((card) => {
+  card.addEventListener("click", function () {
+    if (card.classList.contains("case-action")) {
+      openCaseModal();
 
-quickCards.forEach(card => {
+      return;
+    }
 
-    card.addEventListener(
-        "click",
-        function () {
+    const title = card.querySelector("strong")?.textContent.trim() || "";
 
-            if (
-                card.classList.contains(
-                    "case-action"
-                )
-            ) {
+    if (title === "Add Patient") {
+      openCaseModal();
 
-                openCaseModal();
+      return;
+    }
 
-                return;
+    if (title === "Prakriti Test") {
+      openPrakritiWorkspace();
 
-            }
+      return;
+    }
 
-
-            const title =
-                card.querySelector(
-                    "strong"
-                )?.textContent.trim() ||
-                "";
-
-
-            if (
-                title === "Add Patient"
-            ) {
-
-                openCaseModal();
-
-                return;
-
-            }
-
-
-            if (
-                title === "Prakriti Test"
-            ) {
-
-                openPrakritiWorkspace();
-
-                return;
-
-            }
-
-
-            showToast(
-                `${title} workspace opened.`
-            );
-
-        }
-    );
-
+    showToast(`${title} workspace opened.`);
+  });
 });
-
 
 /* =====================================================
    NOTIFICATION SYSTEM
@@ -1877,27 +1664,18 @@ quickCards.forEach(card => {
    displaying a toast.
 */
 
-const notificationButton =
-    document.querySelector(
-        ".notification-btn"
-    );
-
+const notificationButton = document.querySelector(".notification-btn");
 
 function openNotificationWorkspace() {
+  const content = openWorkspace(
+    "Notifications",
 
-    const content =
-        openWorkspace(
+    "Stay updated with important AYURCASE activities.",
 
-            "Notifications",
+    "fa-solid fa-bell",
+  );
 
-            "Stay updated with important AYURCASE activities.",
-
-            "fa-solid fa-bell"
-
-        );
-
-
-    content.innerHTML = `
+  content.innerHTML = `
 
         <div class="notification-item">
 
@@ -1981,20 +1759,11 @@ function openNotificationWorkspace() {
 
     `;
 
+  const clearButton = document.getElementById("clearNotifications");
 
-    const clearButton =
-        document.getElementById(
-            "clearNotifications"
-        );
-
-
-    if (clearButton) {
-
-        clearButton.addEventListener(
-            "click",
-            function () {
-
-                content.innerHTML = `
+  if (clearButton) {
+    clearButton.addEventListener("click", function () {
+      content.innerHTML = `
 
                     <div class="workspace-box">
 
@@ -2010,40 +1779,24 @@ function openNotificationWorkspace() {
 
                 `;
 
-
-                showToast(
-                    "All notifications marked as read."
-                );
-
-            }
-        );
-
-    }
-
+      showToast("All notifications marked as read.");
+    });
+  }
 }
-
 
 /*
    Attach notification event
 */
 
 if (notificationButton) {
+  notificationButton.addEventListener("click", function (event) {
+    event.preventDefault();
 
-    notificationButton.addEventListener(
-        "click",
-        function (event) {
+    event.stopPropagation();
 
-            event.preventDefault();
-
-            event.stopPropagation();
-
-            openNotificationWorkspace();
-
-        }
-    );
-
+    openNotificationWorkspace();
+  });
 }
-
 
 /* =====================================================
    HELP / NEED HELP SYSTEM
@@ -2061,11 +1814,9 @@ if (notificationButton) {
    the text "Need Help".
 */
 
-let helpElements =
-    document.querySelectorAll(
-        ".help-card, .help-btn, .need-help, .help-button"
-    );
-
+let helpElements = document.querySelectorAll(
+  ".help-card, .help-btn, .need-help, .help-button",
+);
 
 /*
    If the original HTML doesn't have one of the
@@ -2073,66 +1824,35 @@ let helpElements =
 */
 
 if (helpElements.length === 0) {
+  const allElements = document.querySelectorAll("a, button, div, span");
 
-    const allElements =
-        document.querySelectorAll(
-            "a, button, div, span"
-        );
+  const detectedHelpElements = [];
 
+  allElements.forEach((element) => {
+    const text = element.textContent?.trim().toLowerCase();
 
-    const detectedHelpElements = [];
+    if (text === "need help" || text === "help" || text.includes("need help")) {
+      detectedHelpElements.push(element);
+    }
+  });
 
-
-    allElements.forEach(element => {
-
-        const text =
-            element.textContent
-                ?.trim()
-                .toLowerCase();
-
-
-        if (
-            text === "need help" ||
-            text === "help" ||
-            text.includes("need help")
-        ) {
-
-            detectedHelpElements.push(
-                element
-            );
-
-        }
-
-    });
-
-
-    helpElements =
-        detectedHelpElements;
-
+  helpElements = detectedHelpElements;
 }
-
 
 /* Remove duplicate elements */
 
-const uniqueHelpElements =
-    [...new Set(helpElements)];
-
+const uniqueHelpElements = [...new Set(helpElements)];
 
 function openHelpWorkspace() {
+  const content = openWorkspace(
+    "Help & Support",
 
-    const content =
-        openWorkspace(
+    "Get assistance with AYURCASE and learn how to use the platform.",
 
-            "Help & Support",
+    "fa-solid fa-circle-question",
+  );
 
-            "Get assistance with AYURCASE and learn how to use the platform.",
-
-            "fa-solid fa-circle-question"
-
-        );
-
-
-    content.innerHTML = `
+  content.innerHTML = `
 
         <div class="workspace-box help-option">
 
@@ -2273,431 +1993,276 @@ function openHelpWorkspace() {
 
     `;
 
+  const contactSupport = document.getElementById("contactSupport");
 
-    const contactSupport =
-        document.getElementById(
-            "contactSupport"
-        );
-
-
-    if (contactSupport) {
-
-        contactSupport.addEventListener(
-            "click",
-            function () {
-
-                showToast(
-                    "Support request option selected."
-                );
-
-            }
-        );
-
-    }
-
+  if (contactSupport) {
+    contactSupport.addEventListener("click", function () {
+      showToast("Support request option selected.");
+    });
+  }
 }
-
 
 /* Attach Help events */
 
-uniqueHelpElements.forEach(
-    element => {
+uniqueHelpElements.forEach((element) => {
+  element.addEventListener("click", function (event) {
+    event.preventDefault();
 
-        element.addEventListener(
-            "click",
-            function (event) {
+    event.stopPropagation();
 
-                event.preventDefault();
-
-                event.stopPropagation();
-
-                openHelpWorkspace();
-
-            }
-        );
-
-    }
-);
-
+    openHelpWorkspace();
+  });
+});
 
 /* =====================================================
    VIEW ALL PATIENTS
    ===================================================== */
 
-const viewAll =
-    document.querySelector(
-        ".text-btn"
-    );
-
+const viewAll = document.querySelector(".text-btn");
 
 if (viewAll) {
-
-    viewAll.addEventListener(
-        "click",
-        function () {
-
-            openPatientsWorkspace();
-
-        }
-    );
-
+  viewAll.addEventListener("click", function () {
+    openPatientsWorkspace();
+  });
 }
-
 
 /* =====================================================
    PATIENT ROWS
    ===================================================== */
 
-const patientRows =
-    document.querySelectorAll(
-        ".patient-row"
-    );
+const patientRows = document.querySelectorAll(".patient-row");
 
+patientRows.forEach((row) => {
+  row.addEventListener("dblclick", function () {
+    const patient = row.querySelector(".patient-info strong")?.textContent;
 
-patientRows.forEach(row => {
-
-    row.addEventListener(
-        "dblclick",
-        function () {
-
-            const patient =
-                row.querySelector(
-                    ".patient-info strong"
-                )?.textContent;
-
-
-            if (patient) {
-
-                showToast(
-                    `Opening ${patient}'s case.`
-                );
-
-            }
-
-        }
-    );
-
+    if (patient) {
+      showToast(`Opening ${patient}'s case.`);
+    }
+  });
 });
-
 
 /* =====================================================
    MORE BUTTONS
    ===================================================== */
 
-const moreButtons =
-    document.querySelectorAll(
-        ".more-btn"
-    );
+function moreButton() {
+  const moreButtons = document.querySelectorAll(".more-btn");
 
+  moreButtons.forEach((button) => {
+    button.addEventListener("click", function (event) {
+      event.stopPropagation();
 
-moreButtons.forEach(button => {
+      const row = button.closest(".patient-row");
 
-    button.addEventListener(
-        "click",
-        function (event) {
+      const patient =
+        row?.querySelector(".patient-info strong")?.textContent || "Patient";
 
-            event.stopPropagation();
+      showPatientMenu(patient, button);
+    });
+  });
 
-
-            const row =
-                button.closest(
-                    ".patient-row"
-                );
-
-
-            const patient =
-                row?.querySelector(
-                    ".patient-info strong"
-                )?.textContent ||
-                "Patient";
-
-
-            showPatientMenu(
-                patient,
-                button
-            );
-
-        }
-    );
-
-});
-
-
-function showPatientMenu(
-    patient,
-    button
-) {
-
-    const existing =
-        document.getElementById(
-            "patientActionMenu"
-        );
-
+  function showPatientMenu(patient, button) {
+    const existing = document.getElementById("patientActionMenu");
 
     if (existing) {
-
-        existing.remove();
-
+      existing.remove();
     }
 
+    const menu = document.createElement("div");
 
-    const menu =
-        document.createElement(
-            "div"
-        );
-
-
-    menu.id =
-        "patientActionMenu";
-
+    menu.id = "patientActionMenu";
 
     menu.innerHTML = `
-
-        <div>
-
-            <strong>
-                ${escapeHTML(patient)}
-            </strong>
-
-        </div>
-
-
-        <button data-action="view">
-
-            <i class="fa-solid fa-eye"></i>
-
-            View Case
-
-        </button>
-
-
-        <button data-action="history">
-
-            <i class="fa-solid fa-clock-rotate-left"></i>
-
-            Case History
-
-        </button>
-
-
-        <button data-action="close">
-
-            <i class="fa-solid fa-xmark"></i>
-
-            Close
-
-        </button>
-
-    `;
-
+    
+            <div>
+    
+                <strong>
+                    ${escapeHTML(patient)}
+                </strong>
+    
+            </div>
+    
+    
+            <button data-action="view">
+    
+                <i class="fa-solid fa-eye"></i>
+    
+                View Case
+    
+            </button>
+    
+    
+            <button data-action="history">
+    
+                <i class="fa-solid fa-clock-rotate-left"></i>
+    
+                Case History
+    
+            </button>
+    
+    
+            <button data-action="close">
+    
+                <i class="fa-solid fa-xmark"></i>
+    
+                Close
+    
+            </button>
+    
+            <button data-action="delete" style="color: red !important">
+    
+                <i class="fa-solid fa-trash-can"></i>
+    
+                Delete
+    
+            </button>
+    
+        `;
 
     menu.style.cssText = `
+    
+            position:absolute;
+    
+            background:white;
+    
+            border:1px solid #e5e9e5;
+    
+            border-radius:12px;
+    
+            padding:7px;
+    
+            width:170px;
+    
+            box-shadow:
+                0 15px 35px rgba(0,0,0,.15);
+    
+            z-index:49;
+    
+        `;
 
-        position:fixed;
+    document.body.appendChild(menu);
 
-        background:white;
+    const rect = button.getBoundingClientRect();
+    console.log(rect);
 
-        border:1px solid #e5e9e5;
+    menu.style.top = `${window.scrollY + rect.bottom + 6}px`;
 
-        border-radius:12px;
+    menu.style.left = `${Math.max(10, rect.left - 140)}px`;
 
-        padding:7px;
+    menu.querySelectorAll("button").forEach((actionButton) => {
+      actionButton.style.cssText += `
+    
+                    width:100%;
+    
+                    text-align:left;
+    
+                    padding:9px;
+    
+                    background:none;
+    
+                    border-radius:7px;
+    
+                    font-size:9px;
+    
+                    color:#45534b;
+    
+                    border:none;
+    
+                    cursor:pointer;
+    
+                `;
 
-        width:170px;
+      actionButton.addEventListener("click", function () {
+        const action = this.dataset.action;
 
-        box-shadow:
-            0 15px 35px rgba(0,0,0,.15);
-
-        z-index:900;
-
-    `;
-
-
-    document.body.appendChild(
-        menu
-    );
-
-
-    const rect =
-        button.getBoundingClientRect();
-
-
-    menu.style.top =
-        `${rect.bottom + 6}px`;
-
-
-    menu.style.left =
-        `${Math.max(
-            10,
-            rect.left - 140
-        )}px`;
-
-
-    menu.querySelectorAll(
-        "button"
-    ).forEach(
-        actionButton => {
-
-            actionButton.style.cssText = `
-
-                width:100%;
-
-                text-align:left;
-
-                padding:9px;
-
-                background:none;
-
-                border-radius:7px;
-
-                font-size:9px;
-
-                color:#45534b;
-
-                border:none;
-
-                cursor:pointer;
-
-            `;
-
-
-            actionButton.addEventListener(
-                "click",
-                function () {
-
-                    const action =
-                        this.dataset.action;
-
-
-                    if (
-                        action === "view"
-                    ) {
-
-                        showToast(
-                            `Opening ${patient}'s case.`
-                        );
-
-                    }
-
-
-                    if (
-                        action === "history"
-                    ) {
-
-                        openHistoryWorkspace();
-
-                    }
-
-
-                    menu.remove();
-
-                }
-            );
-
+        console.log(patient);
+        if (action === "view") {
+          showToast(`Opening ${patient}'s case.`);
         }
-    );
 
+        if (action === "history") {
+          openHistoryWorkspace();
+        }
 
-    setTimeout(
-        () => {
+        if (action === "delete") {
+          let patients = JSON.parse(localStorage.getItem("ayurcase-cases"));
+          updatedPatients = patients.filter((p) => p.name !== patient.trim());
+          console.log(updatedPatients);
+          localStorage.setItem(
+            "ayurcase-cases",
+            JSON.stringify(updatedPatients),
+          );
+          renderPatientsdashboard();
+          showToast(`Deleted ${patient}'s case.`);
+          moreButton();
+        }
 
-            document.addEventListener(
-                "click",
-                function closeMenu(event) {
+        menu.remove();
+      });
+    });
 
-                    if (
-                        !menu.contains(
-                            event.target
-                        ) &&
-                        event.target !== button
-                    ) {
+    setTimeout(() => {
+      document.addEventListener("click", function closeMenu(event) {
+        if (!menu.contains(event.target) && event.target !== button) {
+          menu.remove();
 
-                        menu.remove();
-
-                        document.removeEventListener(
-                            "click",
-                            closeMenu
-                        );
-
-                    }
-
-                }
-            );
-
-        },
-        10
-    );
-
+          document.removeEventListener("click", closeMenu);
+        }
+      });
+    }, 10);
+  }
 }
 
+moreButton();
 
 /* =====================================================
    CALENDAR
    ===================================================== */
 
-const calendarButton =
-    document.querySelector(
-        ".calendar-btn"
-    );
-
+const calendarButton = document.querySelector(".calendar-btn");
 
 if (calendarButton) {
-
-    calendarButton.addEventListener(
-        "click",
-        function () {
-
-            openCalendarWorkspace();
-
-        }
-    );
-
+  calendarButton.addEventListener("click", function () {
+    openCalendarWorkspace();
+  });
 }
 
-
 function openCalendarWorkspace() {
+  const content = openWorkspace(
+    "Upcoming Schedule",
 
-    const content =
-        openWorkspace(
+    "Review your upcoming patient follow-ups.",
 
-            "Upcoming Schedule",
+    "fa-regular fa-calendar",
+  );
 
-            "Review your upcoming patient follow-ups.",
+  const appointments = [
+    {
+      date: "31 AUG",
+      patient: "Rahul Sharma",
+      type: "Follow-up consultation",
+      time: "10:30 AM",
+    },
 
-            "fa-regular fa-calendar"
+    {
+      date: "01 SEP",
+      patient: "Priya Das",
+      type: "Progress assessment",
+      time: "11:15 AM",
+    },
 
-        );
+    {
+      date: "03 SEP",
+      patient: "Sneha Mukherjee",
+      type: "Case review",
+      time: "04:00 PM",
+    },
+  ];
 
-
-    const appointments = [
-
-        {
-            date: "31 AUG",
-            patient: "Rahul Sharma",
-            type: "Follow-up consultation",
-            time: "10:30 AM"
-        },
-
-        {
-            date: "01 SEP",
-            patient: "Priya Das",
-            type: "Progress assessment",
-            time: "11:15 AM"
-        },
-
-        {
-            date: "03 SEP",
-            patient: "Sneha Mukherjee",
-            type: "Case review",
-            time: "04:00 PM"
-        }
-
-    ];
-
-
-    content.innerHTML =
-        appointments.map(
-            item => `
+  content.innerHTML = appointments
+    .map(
+      (item) => `
 
                 <div class="workspace-box">
 
@@ -2718,130 +2283,65 @@ function openCalendarWorkspace() {
 
                 </div>
 
-            `
-        ).join("");
-
+            `,
+    )
+    .join("");
 }
-
 
 /* =====================================================
    ANALYTICS & SETTINGS
    ===================================================== */
 
-const sidebarLinks =
-    document.querySelectorAll(
-        ".sidebar .nav-item"
-    );
+const sidebarLinks = document.querySelectorAll(".sidebar .nav-item");
 
+sidebarLinks.forEach((link) => {
+  const text = link.querySelector("span")?.textContent.trim();
 
-sidebarLinks.forEach(link => {
+  if (text === "Analytics") {
+    link.addEventListener("click", function (event) {
+      event.preventDefault();
 
-    const text =
-        link.querySelector(
-            "span"
-        )?.textContent
-        .trim();
+      sidebarLinks.forEach((nav) => nav.classList.remove("active"));
 
+      link.classList.add("active");
 
-    if (text === "Analytics") {
+      updateBreadcrumbText("Analytics");
 
-        link.addEventListener(
-            "click",
-            function (event) {
+      openAnalyticsWorkspace();
+    });
+  }
 
-                event.preventDefault();
+  if (text === "Settings") {
+    link.addEventListener("click", function (event) {
+      event.preventDefault();
 
+      sidebarLinks.forEach((nav) => nav.classList.remove("active"));
 
-                sidebarLinks.forEach(
-                    nav =>
-                        nav.classList.remove(
-                            "active"
-                        )
-                );
+      link.classList.add("active");
 
+      updateBreadcrumbText("Settings");
 
-                link.classList.add(
-                    "active"
-                );
-
-
-                updateBreadcrumbText(
-                    "Analytics"
-                );
-
-
-                openAnalyticsWorkspace();
-
-            }
-        );
-
-    }
-
-
-    if (text === "Settings") {
-
-        link.addEventListener(
-            "click",
-            function (event) {
-
-                event.preventDefault();
-
-
-                sidebarLinks.forEach(
-                    nav =>
-                        nav.classList.remove(
-                            "active"
-                        )
-                );
-
-
-                link.classList.add(
-                    "active"
-                );
-
-
-                updateBreadcrumbText(
-                    "Settings"
-                );
-
-
-                openSettingsWorkspace();
-
-            }
-        );
-
-    }
-
+      openSettingsWorkspace();
+    });
+  }
 });
-
 
 /* =====================================================
    ANALYTICS WORKSPACE
    ===================================================== */
 
 function openAnalyticsWorkspace() {
+  const content = openWorkspace(
+    "Analytics",
 
-    const content =
-        openWorkspace(
+    "Overview of your clinical documentation activity.",
 
-            "Analytics",
+    "fa-solid fa-chart-line",
+  );
 
-            "Overview of your clinical documentation activity.",
+  const cases = JSON.parse(localStorage.getItem("ayurcase-cases")) || [];
 
-            "fa-solid fa-chart-line"
-
-        );
-
-
-    const cases =
-        JSON.parse(
-            localStorage.getItem(
-                "ayurcase-cases"
-            )
-        ) || [];
-
-
-    content.innerHTML = `
+  content.innerHTML = `
 
         <div class="workspace-box">
 
@@ -2882,29 +2382,22 @@ function openAnalyticsWorkspace() {
         </div>
 
     `;
-
 }
-
 
 /* =====================================================
    SETTINGS WORKSPACE
    ===================================================== */
 
 function openSettingsWorkspace() {
+  const content = openWorkspace(
+    "Settings",
 
-    const content =
-        openWorkspace(
+    "Manage your AYURCASE workspace preferences.",
 
-            "Settings",
+    "fa-solid fa-gear",
+  );
 
-            "Manage your AYURCASE workspace preferences.",
-
-            "fa-solid fa-gear"
-
-        );
-
-
-    content.innerHTML = `
+  content.innerHTML = `
 
         <div class="workspace-box">
 
@@ -2954,72 +2447,39 @@ function openSettingsWorkspace() {
 
     `;
 
+  const settingsTheme = document.getElementById("settingsTheme");
 
-    const settingsTheme =
-        document.getElementById(
-            "settingsTheme"
-        );
-
-
-    if (settingsTheme) {
-
-        settingsTheme.addEventListener(
-            "click",
-            function () {
-
-                if (themeButton) {
-
-                    themeButton.click();
-
-                }
-
-            }
-        );
-
-    }
-
+  if (settingsTheme) {
+    settingsTheme.addEventListener("click", function () {
+      if (themeButton) {
+        themeButton.click();
+      }
+    });
+  }
 }
-
 
 /* =====================================================
    DOCTOR PROFILE
    ===================================================== */
 
-const topDoctor =
-    document.querySelector(
-        ".top-doctor"
-    );
-
+const topDoctor = document.querySelector(".top-doctor");
 
 if (topDoctor) {
-
-    topDoctor.addEventListener(
-        "click",
-        function () {
-
-            openProfileWorkspace();
-
-        }
-    );
-
+  topDoctor.addEventListener("click", function () {
+    openProfileWorkspace();
+  });
 }
 
-
 function openProfileWorkspace() {
+  const content = openWorkspace(
+    "Practitioner Profile",
 
-    const content =
-        openWorkspace(
+    "Your AYURCASE practitioner account.",
 
-            "Practitioner Profile",
+    "fa-solid fa-user-doctor",
+  );
 
-            "Your AYURCASE practitioner account.",
-
-            "fa-solid fa-user-doctor"
-
-        );
-
-
-    content.innerHTML = `
+  content.innerHTML = `
 
         <div class="workspace-box">
 
@@ -3047,90 +2507,55 @@ function openProfileWorkspace() {
         </div>
 
     `;
-
 }
-
 
 /* =====================================================
    ESCAPE HTML
    ===================================================== */
 
 function escapeHTML(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
 
-    return String(value)
+    .replace(/</g, "&lt;")
 
-        .replace(
-            /&/g,
-            "&amp;"
-        )
+    .replace(/>/g, "&gt;")
 
-        .replace(
-            /</g,
-            "&lt;"
-        )
+    .replace(/"/g, "&quot;")
 
-        .replace(
-            />/g,
-            "&gt;"
-        )
-
-        .replace(
-            /"/g,
-            "&quot;"
-        )
-
-        .replace(
-            /'/g,
-            "&#039;"
-        );
-
+    .replace(/'/g, "&#039;");
 }
-
 
 /* =====================================================
    SYSTEM STATUS
    ===================================================== */
 
 console.log(
-    "%c AYURCASE ",
-    "background:#173b2b;color:white;padding:8px;border-radius:5px;font-weight:bold;"
+  "%c AYURCASE ",
+  "background:#173b2b;color:white;padding:8px;border-radius:5px;font-weight:bold;",
 );
 
-console.log(
-    "Digital AYUSH Patient Case-Taking Platform"
-);
+console.log("Digital AYUSH Patient Case-Taking Platform");
 
-console.log(
-    "System Status: ONLINE"
-);
+console.log("System Status: ONLINE");
 
 /* =====================================================
    PRAKRITI HELP BUTTONS
    ===================================================== */
 
-document
-    .querySelectorAll(".prakriti-help-btn")
-    .forEach(button => {
+document.querySelectorAll(".prakriti-help-btn").forEach((button) => {
+  button.addEventListener("click", function () {
+    const explanation = this.dataset.help;
 
-        button.addEventListener(
-            "click",
-            function () {
+    openWorkspace(
+      "Prakriti Help",
+      "Simple explanation of the Ayurvedic term.",
+      "fa-solid fa-circle-question",
+    );
 
-                const explanation =
-                    this.dataset.help;
+    const helpContent = document.getElementById("workspaceContent");
 
-                openWorkspace(
-                    "Prakriti Help",
-                    "Simple explanation of the Ayurvedic term.",
-                    "fa-solid fa-circle-question"
-                );
-
-                const helpContent =
-                    document.getElementById(
-                        "workspaceContent"
-                    );
-
-                helpContent.innerHTML = `
+    helpContent.innerHTML = `
 
                     <div class="workspace-box">
 
@@ -3149,8 +2574,43 @@ document
                     </div>
 
                 `;
+  });
+});
 
-            }
-        );
+function ai() {
+  const aiInput = document.getElementById("aiInput");
+  const runAI = document.getElementById("runAI");
+  const res = document.getElementById("aiResult");
+  async function testBackend() {
+    const response = await fetch("http://127.0.0.1:5000/api/recommend", {
+      method: "POST",
 
+      headers: {
+        "Content-Type": "application/json",
+      },
+
+      body: JSON.stringify({
+        problem: aiInput.value,
+      }),
     });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      res.innerHTML = `<strong class="ai-res">
+                             AI Response : 
+                        </strong>
+                    ${marked.parse(data.recommendation)}`;
+    } else {
+      res.innerHTML = `<strong class="ai-res">
+                            AI Response : 
+                        </strong>
+                    ${marked.parse(data.error)}`;
+    }
+  }
+
+  testBackend();
+
+  console.log(aiInput, runAI);
+  runAI.addEventListener("click", testBackend);
+}
