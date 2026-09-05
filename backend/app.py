@@ -1,6 +1,6 @@
 import os
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 from google import genai
@@ -9,6 +9,8 @@ load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
@@ -67,6 +69,14 @@ Important rules:
             "error": "The AI service is currently unavailable. Please try again later."
         }), 500
 
+@app.route("/")
+def home():
+    return send_from_directory(BASE_DIR, "index.html")
+
+
+@app.route("/<path:path>")
+def frontend_files(path):
+    return send_from_directory(BASE_DIR, path)
 
 if __name__ == "__main__":
     app.run(debug=True)

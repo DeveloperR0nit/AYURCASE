@@ -2582,7 +2582,7 @@ function ai() {
   const runAI = document.getElementById("runAI");
   const res = document.getElementById("aiResult");
   async function testBackend() {
-    const response = await fetch("http://127.0.0.1:5000/api/recommend", {
+    const response = await fetch("/api/recommend", {
       method: "POST",
 
       headers: {
