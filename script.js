@@ -173,9 +173,8 @@ const defaultcases = [
     status: "Active",
   },
 ];
-let c = JSON.parse(localStorage.getItem("reload")) || false;
-
-if (c) {
+let c = JSON.parse(localStorage.getItem("reload"));
+if (c === null) {
   localStorage.setItem("ayurcase-cases", JSON.stringify(defaultcases));
   localStorage.setItem("reload", JSON.stringify([{ value: "true" }]));
 }
