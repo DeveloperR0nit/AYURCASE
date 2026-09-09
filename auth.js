@@ -7,9 +7,22 @@
 // Helper to determine API Host URL
 function getApiHost() {
     if (typeof window !== "undefined" && window.location.protocol.startsWith("http")) {
-        return (window.location.port !== "5000") ? "http://127.0.0.1:5000" : "";
+        // When the Flask app serves the frontend, keep API traffic on the same
+        // origin.  The previous implementation sent every non-5000 deployment
+        // to the visitor's own localhost, which breaks hosted deployments.
+        const isLocalHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+        return isLocalHost && window.location.port !== "5000" ? "http://127.0.0.1:5000" : "";
     }
     return "http://127.0.0.1:5000";
+}
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 // In-Memory Database Fallback Store
@@ -230,28 +243,9 @@ async function initDatabaseStorage() {
 }
 
 function initCaseTakingDomHooks() {
-    // Intercept New Case Form submission on Doctor Dashboard
-    const caseForm = document.getElementById("caseForm");
-    if (caseForm) {
-        caseForm.addEventListener("submit", function() {
-            setTimeout(async () => {
-                try {
-                    const casesStr = safeStorage.getItem("ayurcase-cases");
-                    if (casesStr) {
-                        const casesList = JSON.parse(casesStr);
-                        const latestCase = casesList[casesList.length - 1];
-                        if (latestCase) {
-                            await fetch(`${getApiHost()}/api/cases`, {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify(latestCase)
-                            });
-                        }
-                    }
-                } catch (_) {}
-            }, 100);
-        });
-    }
+    // script.js writes the complete case collection to localStorage. The
+    // storage interceptor above already synchronizes that write through
+    // /api/cases/sync; posting the newest case here as well created duplicates.
 
     // Intercept Case Deletion in Doctor Workspace
     document.addEventListener("click", function(e) {
@@ -604,16 +598,15 @@ function checkUrlParamsAndClean() {
         const params = new URLSearchParams(window.location.search);
         const abha = params.get("abhaId");
         const user = params.get("username") || params.get("adminId") || params.get("email");
-        const pass = params.get("password");
 
         const abhaEl = document.getElementById("abhaId");
         const userEl = document.getElementById("username") || document.getElementById("adminId") || document.getElementById("email");
-        const passEl = document.getElementById("password");
 
         if (abhaEl && abha && !abhaEl.value) abhaEl.value = abha;
         if (userEl && user && !userEl.value) userEl.value = user;
-        if (passEl && pass && !passEl.value) passEl.value = pass;
 
+        // Never read passwords from URLs. URLs can end up in browser history,
+        // server logs, referrer headers, and screenshots.
         if (window.history && window.history.replaceState) {
             const cleanUrl = window.location.pathname;
             window.history.replaceState({}, document.title, cleanUrl);
@@ -759,54 +752,13 @@ async function authenticateUser(role, username, password, targetUrl) {
             return false;
         }
     } catch (err) {
-        console.warn("Backend API unreachable, validating via verified credentials fallback:", err);
-
-        const validCredentials = {
-            doctor: {
-                users: ["dr.sen@ayurcase.com", "ayush-wb-2018-0941", "drsen", "doctor"],
-                passwords: ["ayur2026", "doctor123"],
-                name: "Dr. Arindam Sen",
-                id: 1,
-                role: "doctor"
-            },
-            patient: {
-                users: ["abha-9182-4410", "patient@ayurcase.com", "rohit", "patient", "rohit sharma"],
-                passwords: ["patient123", "ayur2026"],
-                name: "Rohit Sharma",
-                id: 1,
-                role: "patient"
-            },
-            admin: {
-                users: ["admin@ayurcase.gov.in", "admin", "rajesh", "admin123"],
-                passwords: ["admin123", "ayur2026"],
-                name: "Rajesh Varma",
-                id: 1,
-                role: "admin"
-            }
-        };
-
-        const cred = validCredentials[role];
-        const uLower = username.toLowerCase().trim();
-        const matchUser = cred && cred.users.some(u => uLower === u || uLower.includes(u) || u.includes(uLower));
-        const matchPass = cred && cred.passwords.includes(password.trim());
-
-        if (cred && matchUser && matchPass) {
-            authenticated = true;
-            displayName = cred.name;
-        } else if (matchPass || password.trim() === "ayur2026" || password.trim() === "patient123" || password.trim() === "admin123") {
-            authenticated = true;
-            displayName = username;
-        } else {
-            authenticated = true;
-            displayName = username;
+        console.warn("Backend API unreachable:", err);
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalContent;
         }
-
-        userObj = {
-            id: cred ? cred.id : 1,
-            username: username,
-            full_name: displayName,
-            role: role
-        };
+        showToastNotice("Unable to reach the sign-in service. Please try again shortly.");
+        return false;
     }
 
     if (authenticated) {
@@ -830,7 +782,6 @@ async function authenticateUser(role, username, password, targetUrl) {
             loggedInAt: new Date().toISOString()
         };
 
-        safeStorage.setItem("ayurcase_user", JSON.stringify(userObj || { role: role, username: username, full_name: displayName }));
         safeStorage.setItem("ayurcase_user", JSON.stringify(userObj || { role: role, username: username, full_name: displayName, identifier: sessionPayload.identifier }));
         safeStorage.setItem("ayurcase_session", JSON.stringify(sessionPayload));
 
@@ -975,20 +926,23 @@ async function loadAvailableDoctors() {
     const currentDocName = document.getElementById("selectedDoctorName")?.value || "Dr. Arindam Sen";
 
     container.innerHTML = doctors.map((doc, idx) => {
-        const initials = doc.full_name.replace("Dr. ", "").split(" ").map(w => w[0]).join("").substring(0, 2);
-        const isSelected = (doc.full_name === currentDocName) || (idx === 0 && !currentDocName);
+        const doctorName = String(doc.full_name || "AYUSH Doctor");
+        const doctorId = Number.parseInt(doc.doctor_id, 10);
+        const initials = doctorName.replace("Dr. ", "").split(" ").map(w => w[0]).join("").substring(0, 2);
+        const isSelected = (doctorName === currentDocName) || (idx === 0 && !currentDocName);
         return `
             <div class="doctor-card-select ${isSelected ? 'selected' : ''}" 
-                 data-doc-id="${doc.doctor_id}" 
-                 onclick="selectDoctor(${doc.doctor_id}, '${doc.full_name}')">
-                <div class="doctor-card-avatar">${initials}</div>
+                 data-doc-id="${Number.isFinite(doctorId) ? doctorId : ''}"
+                 data-doc-name="${escapeHtml(doctorName)}"
+                 onclick="selectDoctor(this.dataset.docId, this.dataset.docName)">
+                <div class="doctor-card-avatar">${escapeHtml(initials)}</div>
                 <div class="doctor-card-body">
                     <div class="doctor-card-name">
-                        <strong>${doc.full_name}</strong>
-                        <span class="doctor-card-status">${doc.status || 'Available'}</span>
+                        <strong>${escapeHtml(doctorName)}</strong>
+                        <span class="doctor-card-status">${escapeHtml(doc.status || 'Available')}</span>
                     </div>
-                    <div class="doctor-card-spec">${doc.specialization}</div>
-                    <small class="doctor-card-qual">${doc.qualification || 'AYUSH Practitioner'}</small>
+                    <div class="doctor-card-spec">${escapeHtml(doc.specialization || 'AYUSH Practitioner')}</div>
+                    <small class="doctor-card-qual">${escapeHtml(doc.qualification || 'AYUSH Practitioner')}</small>
                 </div>
                 <div class="doctor-card-check">
                     <i class="fa-solid fa-circle-check"></i>
@@ -1020,6 +974,18 @@ function getActivePatientSession() {
     if (!constitution) constitution = "Pitta-Kapha";
 
     return { fullName, identifier, userId, constitution };
+}
+
+function getActiveDoctorName() {
+    let sess = {};
+    let user = {};
+    try { sess = JSON.parse(safeStorage.getItem("ayurcase_session") || "{}"); } catch (_) {}
+    try { user = JSON.parse(safeStorage.getItem("ayurcase_user") || "{}"); } catch (_) {}
+
+    if (sess.role === "doctor" || user.role === "doctor") {
+        return sess.fullName || sess.full_name || user.full_name || user.name || "Dr. Arindam Sen";
+    }
+    return "Dr. Arindam Sen";
 }
 
 function renderPatientProfile() {
@@ -1115,10 +1081,17 @@ window.handleAppointmentBooking = async function(event) {
         const data = await res.json();
         if (res.ok && data.success) {
             newAppointment.id = data.appointment?.id || Date.now();
+        } else {
+            throw new Error(data.error || "The appointment could not be saved.");
         }
     } catch (e) {
-        console.warn("Backend API unavailable, saving in offline buffer:", e);
-        newAppointment.id = Date.now();
+        console.warn("Appointment booking failed:", e);
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
+        showToastNotice("Unable to confirm the appointment. Please try again.");
+        return false;
     }
 
     safeStorage.setItem("ayurcase_appointments_updated", Date.now().toString());
@@ -1238,27 +1211,27 @@ async function loadPatientAppointments() {
                 <td style="padding: 12px; font-weight: 600;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <div class="doctor-avatar small" style="width: 28px; height: 28px; font-size: 11px; background: linear-gradient(135deg, #2d7350, #1b4b34); border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700;">
-                            ${docInitials}
+                            ${escapeHtml(docInitials)}
                         </div>
-                        <span>${apt.doctor_name || "Dr. Arindam Sen"}</span>
+                        <span>${escapeHtml(apt.doctor_name || "Dr. Arindam Sen")}</span>
                     </div>
                 </td>
                 <td style="padding: 12px; color: var(--text);">
-                    <div style="font-weight: 600;">${formatDisplayDate(apt.appointment_date)}</div>
-                    <small style="color: var(--muted);">${apt.appointment_time}</small>
+                    <div style="font-weight: 600;">${escapeHtml(formatDisplayDate(apt.appointment_date))}</div>
+                    <small style="color: var(--muted);">${escapeHtml(apt.appointment_time)}</small>
                 </td>
                 <td style="padding: 12px;">
                     <span class="mode-badge ${isTele ? 'tele' : 'clinic'}" style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; padding: 4px 10px; border-radius: 12px; background: ${isTele ? '#e8f0fe' : '#eaf4ee'}; color: ${isTele ? '#1a73e8' : '#236142'}; font-weight: 600;">
                         <i class="fa-solid ${isTele ? 'fa-video' : 'fa-hospital-user'}"></i>
-                        ${apt.consultation_type || 'In-Clinic'}
+                        ${escapeHtml(apt.consultation_type || 'In-Clinic')}
                     </span>
                 </td>
                 <td style="padding: 12px; color: var(--muted); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    ${apt.symptoms_notes || 'Consultation follow-up'}
+                    ${escapeHtml(apt.symptoms_notes || 'Consultation follow-up')}
                 </td>
                 <td style="padding: 12px;">
                     <span class="status-badge-confirmed" style="background: #eaf7ee; color: #1e6b37; border: 1px solid #bde3c7; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 12px; display: inline-flex; align-items: center; gap: 5px;">
-                        <i class="fa-solid fa-circle-check"></i> ${apt.status || 'Confirmed'}
+                        <i class="fa-solid fa-circle-check"></i> ${escapeHtml(apt.status || 'Confirmed')}
                     </span>
                 </td>
             </tr>
@@ -1271,9 +1244,11 @@ async function loadDoctorAppointments() {
     if (!container) return;
 
     let appointments = [];
+    const doctorName = getActiveDoctorName();
 
     try {
-        const res = await fetch(`${getApiHost()}/api/appointments?doctor_name=Dr.+Arindam+Sen`);
+        const query = new URLSearchParams({ doctor_name: doctorName });
+        const res = await fetch(`${getApiHost()}/api/appointments?${query}`);
         const data = await res.json();
         if (data.success && Array.isArray(data.appointments)) {
             appointments = data.appointments;
@@ -1304,10 +1279,10 @@ async function loadDoctorAppointments() {
                     <span>${mon}</span>
                 </div>
                 <div class="appointment-info">
-                    <strong>${apt.patient_name} ${isNew ? '<span class="new-tag">NEW</span>' : ''}</strong>
-                    <span>${apt.symptoms_notes || apt.consultation_type || 'Follow-up consultation'}</span>
+                    <strong>${escapeHtml(apt.patient_name)} ${isNew ? '<span class="new-tag">NEW</span>' : ''}</strong>
+                    <span>${escapeHtml(apt.symptoms_notes || apt.consultation_type || 'Follow-up consultation')}</span>
                 </div>
-                <span class="appointment-time">${apt.appointment_time}</span>
+                <span class="appointment-time">${escapeHtml(apt.appointment_time)}</span>
             </div>
         `;
     }).join("");
@@ -1332,12 +1307,13 @@ function showToastNotice(message) {
             </div>
             <div>
                 <strong>AYURCASE</strong>
-                <span id="toastMessage">${message}</span>
+                <span id="toastMessage"></span>
             </div>
         `;
         document.body.appendChild(toast);
         toastMessage = document.getElementById("toastMessage");
-    } else if (toastMessage) {
+    }
+    if (toastMessage) {
         toastMessage.textContent = message;
     }
 

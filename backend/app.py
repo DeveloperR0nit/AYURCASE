@@ -1,5 +1,6 @@
 import os
 import sys
+from datetime import date
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
@@ -387,6 +388,14 @@ def api_appointments():
             }), 400
 
         try:
+            requested_date = date.fromisoformat(appointment_date)
+        except (TypeError, ValueError):
+            return jsonify({"success": False, "error": "appointment_date must use YYYY-MM-DD format."}), 400
+
+        if requested_date < date.today():
+            return jsonify({"success": False, "error": "Appointments cannot be scheduled in the past."}), 400
+
+        try:
             new_apt = create_appointment(
                 patient_name=patient_name,
                 doctor_name=doctor_name,
@@ -438,6 +447,11 @@ def recommend():
         return jsonify({
             "error": "Please enter some patient information."
         }), 400
+
+    if not os.getenv("GEMINI_API_KEY"):
+        return jsonify({
+            "error": "AI guidance is not configured on this server."
+        }), 503
 
     prompt = f"""
 You are a patient guidance assistant for a healthcare application.
@@ -510,4 +524,4 @@ def add_no_cache_headers(response):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=os.getenv("FLASK_DEBUG") == "1")

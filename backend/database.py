@@ -451,9 +451,6 @@ def authenticate_user(username_or_identifier, password, role=None):
         return None
 
     pw_matches = check_password_hash(user["password_hash"], password)
-    if not pw_matches and user["username"] in ("patient@ayurcase.com", "dr.sen@ayurcase.com", "admin@ayurcase.gov.in"):
-        if password.strip() in ("ayur2026", "patient123", "admin123", "doctor123"):
-            pw_matches = True
 
     if pw_matches:
         # Fetch additional role details
@@ -1195,7 +1192,10 @@ def get_appointments(doctor_id=None, doctor_name=None, patient_id=None, patient_
         query += " AND (patient_name LIKE ? OR patient_name = ?)"
         params.extend([f"%{patient_name}%", patient_name])
 
-    query += " ORDER BY id DESC;"
+    # Dates are stored as ISO (YYYY-MM-DD) strings, so lexical ordering also
+    # produces chronological ordering.  This lets dashboards show the next
+    # appointment rather than merely the most recently created one.
+    query += " ORDER BY appointment_date ASC, id DESC;"
     cursor.execute(query, params)
     appointments = [dict(row) for row in cursor.fetchall()]
     conn.close()
