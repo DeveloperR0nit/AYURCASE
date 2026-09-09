@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>AYURCASE | Patient Health & Wellness Portal</title>
+    <!-- Favicons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="auth.css" />
+
+    <!-- Immediate Theme Restore (Prevents Flash of Light Mode) -->
+    <script>
+      (function () {
+        try {
+          const d = localStorage.getItem("ayurcase-dark");
+          const t = localStorage.getItem("ayurcase_theme");
+          if (d === "true" || t === "dark") {
+            document.documentElement.classList.add("dark");
+          }
+        } catch (_) {}
+      })();
+    </script>
+  </head>
+
+  <body>
+    <div class="app">
+      <!-- ================= SIDEBAR ================= -->
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-icon">
+            <i class="fa-solid fa-leaf"></i>
+          </div>
+
+          <div>
+            <h2>AYUR<span>CASE</span></h2>
+            <small>PATIENT PORTAL</small>
+          </div>
+        </div>
+
+        <div class="menu-title">MY HEALTH</div>
+
+        <nav>
+          <a href="#" class="nav-item active">
+            <i class="fa-solid fa-heart-pulse"></i>
+            <span>Health Summary</span>
+          </a>
+
+          <a href="#" class="nav-item">
+            <i class="fa-solid fa-prescription-bottle-medical"></i>
+            <span>My Prescriptions</span>
+          </a>
+
+          <a href="#" class="nav-item">
+            <i class="fa-solid fa-spa"></i>
+            <span>Prakriti Score</span>
+          </a>
+
+          <a href="#" class="nav-item">
+            <i class="fa-solid fa-file-lines"></i>
+            <span>Case History</span>
+          </a>
+
+          <a href="#" class="nav-item">
+            <i class="fa-solid fa-calendar-check"></i>
+            <span>Appointments</span>
+          </a>
+
+          <div class="menu-title second">ACCOUNT</div>
+
+          <a href="index.html" class="nav-item" title="Switch Portal">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            <span>Exit to Role Portal</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+          <div class="help-card" onclick="window.location.href='index.html'" style="cursor: pointer;">
+            <div class="help-icon">
+              <i class="fa-solid fa-arrow-left"></i>
+            </div>
+            <div>
+              <strong>Switch Role</strong>
+              <p>Return to main portal</p>
+            </div>
+            <i class="fa-solid fa-arrow-right"></i>
+          </div>
+
+          <div class="doctor-mini">
+            <div class="doctor-avatar" style="background: #2f5f92;">RS</div>
+            <div class="doctor-avatar" id="patientSidebarAvatar" style="background: #2f5f92;">RS</div>
+            <div class="doctor-info">
+              <strong>Rohit Sharma</strong>
+              <span>ABHA-9182-4410</span>
+              <strong id="patientSidebarName">Rohit Sharma</strong>
+              <span id="patientSidebarAbha">ABHA-9182-4410</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ================= MAIN ================= -->
+      <main class="main">
+        <!-- TOPBAR -->
+        <header class="topbar">
+          <div class="breadcrumb">
+            <span>AYURCASE</span>
+            <i class="fa-solid fa-chevron-right"></i>
+            <strong>Patient Health Portal</strong>
+          </div>
+
+          <div class="top-actions">
+            <button class="icon-btn theme-btn" id="themeToggle" onclick="toggleTheme()" title="Toggle Theme">
+              <i class="fa-solid fa-moon"></i>
+            </button>
+
+            <a href="index.html" class="primary-btn" style="text-decoration: none; padding: 9px 15px; font-size: 12px;">
+              <i class="fa-solid fa-arrow-right-from-bracket"></i>
+              <span>Sign Out</span>
+            </a>
+          </div>
+        </header>
+
+        <!-- DASHBOARD BODY -->
+        <div class="dashboard-body" style="padding: 24px 30px;">
+          <div class="welcome-banner" style="background: linear-gradient(135deg, #1b384f, #234b39); color: white; padding: 24px 28px; border-radius: var(--radius); margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+          <div class="welcome-banner" style="background: linear-gradient(135deg, #1b384f, #234b39); color: white; padding: 24px 28px; border-radius: var(--radius); margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap;">
+            <div>
+              <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #a2c4db; font-weight: 600;">Personal AYUSH Wellness</span>
+              <h2 style="font-family: 'Playfair Display', serif; font-size: 26px; margin: 4px 0 8px;">Namaste, Rohit Sharma</h2>
+              <h2 style="font-family: 'Playfair Display', serif; font-size: 26px; margin: 4px 0 8px;" id="patientWelcomeName">Namaste, Rohit Sharma</h2>
+              <p style="font-size: 13px; color: #d0e4f2;">Your current AYUSH treatment plan is managed by Dr. Arindam Sen.</p>
+              <p style="font-size: 13px; color: #d0e4f2;" id="patientDoctorNote">Your current AYUSH treatment plan is managed by Dr. Arindam Sen.</p>
+            </div>
+            <div style="background: rgba(255,255,255,0.1); padding: 12px 20px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.15);">
+              <span style="font-size: 11px; color: #bed9eb;">Constitution</span>
+              <div style="font-size: 18px; font-weight: 700; color: #72e09b;"><i class="fa-solid fa-spa"></i> Pitta-Kapha</div>
+            <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+              <div style="background: rgba(255,255,255,0.1); padding: 10px 18px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.15);">
+                <span style="font-size: 10.5px; color: #bed9eb;">Constitution</span>
+                <div style="font-size: 16px; font-weight: 700; color: #72e09b;"><i class="fa-solid fa-spa"></i> Pitta-Kapha</div>
+                <div style="font-size: 16px; font-weight: 700; color: #72e09b;" id="patientConstitutionBadge"><i class="fa-solid fa-spa"></i> Pitta-Kapha</div>
+              </div>
+              <button class="primary-btn schedule-action-btn" onclick="openAppointmentModal()" style="background: linear-gradient(135deg, #2d7350, #4da375); border: none; font-size: 13px; font-weight: 600; padding: 12px 20px; border-radius: 12px; cursor: pointer; color: white; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 6px 18px rgba(0,0,0,0.25);">
+                <i class="fa-solid fa-calendar-plus"></i>
+                <span>Schedule Consultation</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- STATS -->
+          <div class="stats" style="margin-bottom: 24px;">
+            <div class="stat-card">
+              <div class="stat-icon" style="background: #eaf1f8; color: #2f5f92;">
+                <i class="fa-solid fa-stethoscope"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-title">Attending Doctor</span>
+                <strong class="stat-value" style="font-size: 18px;">Dr. Arindam Sen</strong>
+                <span class="stat-sub" style="color: var(--green-600); font-size: 11px;">Kayachikitsa</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon" style="background: #e7f0e9; color: var(--green-700);">
+                <i class="fa-solid fa-capsules"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-title">Active Formulations</span>
+                <strong class="stat-value">3 Herbs</strong>
+                <span class="stat-sub" style="color: var(--green-700); font-size: 11px;">100% Ayurvedic</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon" style="background: #fdf5ea; color: #c4823a;">
+                <i class="fa-solid fa-calendar-check"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-title">Next Follow-Up</span>
+                <strong class="stat-value" style="font-size: 18px;">Sept 18, 2026</strong>
+                <span class="stat-sub" style="color: #c4823a; font-size: 11px;">In 9 days</span>
+                <strong class="stat-value" style="font-size: 18px;" id="patientNextAppointmentStat">Sept 18, 2026</strong>
+                <span class="stat-sub" style="color: #c4823a; font-size: 11px;" id="patientNextAppointmentStatSub">In 9 days</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon" style="background: #f2eef7; color: #6c4f99;">
+                <i class="fa-solid fa-dna"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-title">Prakriti Score</span>
+                <strong class="stat-value">Pitta 54%</strong>
+                <span class="stat-sub" style="color: #6c4f99; font-size: 11px;">Kapha 32% • Vata 14%</span>
+                <strong class="stat-value" id="patientPrakritiScore">Pitta 54%</strong>
+                <span class="stat-sub" style="color: #6c4f99; font-size: 11px;" id="patientPrakritiSub">Kapha 32% • Vata 14%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- UPCOMING SCHEDULED CONSULTATIONS -->
+          <div class="panel" style="border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 12px;">
+              <div>
+                <h3 style="font-family: 'Playfair Display', serif; font-size: 18px; color: var(--green-950);">My Scheduled Consultations</h3>
+                <p style="font-size: 12px; color: var(--muted);">Direct appointments booked with AYUSH clinical practitioners</p>
+              </div>
+              <button class="primary-btn" onclick="openAppointmentModal()" style="padding: 9px 15px; font-size: 12px; border-radius: 10px; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-plus"></i>
+                <span>Book Appointment</span>
+              </button>
+            </div>
+
+            <div id="patientAppointmentsContainer" style="overflow-x: auto;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead>
+                  <tr style="border-bottom: 1px solid var(--border); text-align: left; color: var(--muted); font-size: 11.5px;">
+                    <th style="padding: 10px 12px;">DOCTOR</th>
+                    <th style="padding: 10px 12px;">DATE & TIME</th>
+                    <th style="padding: 10px 12px;">MODE</th>
+                    <th style="padding: 10px 12px;">PURPOSE / SYMPTOMS</th>
+                    <th style="padding: 10px 12px;">STATUS</th>
+                  </tr>
+                </thead>
+                <tbody id="patientAppointmentsTableBody">
+                  <tr>
+                    <td colspan="5" style="text-align: center; padding: 20px; color: var(--muted);">
+                      <i class="fa-solid fa-circle-notch fa-spin"></i> Loading scheduled appointments...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- ACTIVE PRESCRIPTIONS -->
+          <div class="panel" style="background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 24px;">
+          <div class="panel" style="border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+              <div>
+                <h3 style="font-family: 'Playfair Display', serif; font-size: 18px; color: var(--green-950);">Active Herbal Prescriptions</h3>
+                <p style="font-size: 12px; color: var(--muted);">Prescribed by Dr. Arindam Sen during clinical case examination</p>
+              </div>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <thead>
+                <tr style="border-bottom: 1px solid var(--border); text-align: left; color: var(--muted); font-size: 11.5px;">
+                  <th style="padding: 10px 12px;">MEDICINE / FORMULATION</th>
+                  <th style="padding: 10px 12px;">DOSAGE</th>
+                  <th style="padding: 10px 12px;">TIMING</th>
+                  <th style="padding: 10px 12px;">ANUPANA (VEHICLE)</th>
+                  <th style="padding: 10px 12px;">DURATION</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom: 1px solid var(--border);">
+                  <td style="padding: 12px; font-weight: 600;">Ashwagandha Churna</td>
+                  <td style="padding: 12px; color: var(--green-700);">3g (Half teaspoon)</td>
+                  <td style="padding: 12px;">Twice daily (Post meal)</td>
+                  <td style="padding: 12px; color: var(--muted);">Warm Milk</td>
+                  <td style="padding: 12px;"><span style="background: #e7f0e9; color: var(--green-800); font-size: 11px; padding: 4px 10px; border-radius: 12px; font-weight: 600;">30 Days</span></td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--border);">
+                  <td style="padding: 12px; font-weight: 600;">Triphala Kwatha</td>
+                  <td style="padding: 12px; color: var(--green-700);">20 ml</td>
+                  <td style="padding: 12px;">Bedtime</td>
+                  <td style="padding: 12px; color: var(--muted);">Lukewarm Water</td>
+                  <td style="padding: 12px;"><span style="background: #e7f0e9; color: var(--green-800); font-size: 11px; padding: 4px 10px; border-radius: 12px; font-weight: 600;">15 Days</span></td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px; font-weight: 600;">Brahmi Vati</td>
+                  <td style="padding: 12px; color: var(--green-700);">1 Tablet</td>
+                  <td style="padding: 12px;">Morning (Post breakfast)</td>
+                  <td style="padding: 12px; color: var(--muted);">Honey / Water</td>
+                  <td style="padding: 12px;"><span style="background: #eaf1f8; color: #2f5f92; font-size: 11px; padding: 4px 10px; border-radius: 12px; font-weight: 600;">21 Days</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+
+<!-- ================= APPOINTMENT BOOKING MODAL ================= -->
+    <div class="modal-overlay" id="appointmentModal" style="display: none;">
+      <div class="case-modal appointment-modal-card">
+        <button class="close-modal" onclick="closeAppointmentModal()" aria-label="Close modal">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <div class="modal-header">
+          <div class="modal-icon">
+            <i class="fa-solid fa-calendar-check"></i>
+          </div>
+          <div>
+            <span>AYURCASE PATIENT CARE</span>
+            <h2>Schedule Doctor Consultation</h2>
+          </div>
+        </div>
+
+        <form id="appointmentForm" onsubmit="handleAppointmentBooking(event)">
+          <!-- 1. Select Doctor -->
+          <div class="form-group full" style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 8px;">Select Attending AYUSH Doctor</label>
+            <div class="doctor-select-grid" id="doctorSelectGrid">
+              <!-- Dynamically populated -->
+            </div>
+            <input type="hidden" id="selectedDoctorName" name="doctor_name" value="Dr. Arindam Sen" required />
+            <input type="hidden" id="selectedDoctorId" name="doctor_id" value="1" />
+          </div>
+
+          <div class="form-grid">
+            <!-- Date -->
+            <div class="form-group">
+              <label for="appointmentDate">Appointment Date</label>
+              <input type="date" id="appointmentDate" required />
+            </div>
+
+            <!-- Time Slot -->
+            <div class="form-group">
+              <label for="appointmentTime">Preferred Time Slot</label>
+              <select id="appointmentTime" required>
+                <option value="10:00 AM">10:00 AM - Morning</option>
+                <option value="11:30 AM" selected>11:30 AM - Late Morning</option>
+                <option value="02:00 PM">02:00 PM - Afternoon</option>
+                <option value="03:30 PM">03:30 PM - Afternoon</option>
+                <option value="05:00 PM">05:00 PM - Evening</option>
+              </select>
+            </div>
+
+            <!-- Consultation Type -->
+            <div class="form-group full">
+              <label>Consultation Mode</label>
+              <div class="consultation-mode-selector">
+                <label class="mode-chip active" id="chipInClinic">
+                  <input type="radio" name="consultation_type" value="In-Clinic Consultation" checked onchange="updateModeChips(this)" />
+                  <i class="fa-solid fa-hospital-user"></i>
+                  <span>In-Clinic Consultation</span>
+                </label>
+                <label class="mode-chip" id="chipTele">
+                  <input type="radio" name="consultation_type" value="Tele-AYUSH Video" onchange="updateModeChips(this)" />
+                  <i class="fa-solid fa-video"></i>
+                  <span>Tele-AYUSH Video</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Symptoms / Reason -->
+            <div class="form-group full">
+              <label for="appointmentNotes">Reason for Visit / Primary Symptoms</label>
+              <textarea id="appointmentNotes" rows="3" placeholder="Describe symptoms or reasons (e.g. follow-up for Pitta acid reflux, joint stiffness, dietary assessment...)" required></textarea>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="secondary-btn" onclick="closeAppointmentModal()">Cancel</button>
+            <button type="submit" class="primary-btn submit-appointment-btn" id="submitAppointmentBtn">
+              <i class="fa-solid fa-calendar-check"></i>
+              <span>Confirm & Schedule</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Script for Theme Toggle & Appointments -->
+    <script src="auth.js?v=4.1"></script>
+</body>
+</html>
+

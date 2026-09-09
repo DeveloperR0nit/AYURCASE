@@ -345,7 +345,7 @@ function openWorkspace(title, description, icon) {
           .closest(".workspace-box")
           .firstElementChild.textContent.trim();
         let patients = JSON.parse(localStorage.getItem("ayurcase-cases"));
-        updatedPatients = patients.filter((p) => p.name !== targ);
+        const updatedPatients = patients.filter((p) => p.name !== targ);
         localStorage.setItem("ayurcase-cases", JSON.stringify(updatedPatients));
         renderPatientsdashboard();
         openPatientsWorkspace();
@@ -1042,7 +1042,9 @@ function openPatientsWorkspace() {
 }
 function renderPatientsdashboard() {
   const cases = JSON.parse(localStorage.getItem("ayurcase-cases")) || [];
-  document.getElementById("patient-list").innerHTML = cases
+  const patientList = document.getElementById("patient-list");
+  if (!patientList) return;
+  patientList.innerHTML = cases
     .map(
       (patient) => `<div class="patient-row">
                       <div class="patient-avatar avatar-${Math.floor(Math.random() * 4 + 1)}">
@@ -2186,7 +2188,7 @@ function moreButton() {
 
         if (action === "delete") {
           let patients = JSON.parse(localStorage.getItem("ayurcase-cases"));
-          updatedPatients = patients.filter((p) => p.name !== patient.trim());
+          const updatedPatients = patients.filter((p) => p.name !== patient.trim());
           console.log(updatedPatients);
           localStorage.setItem(
             "ayurcase-cases",
@@ -2607,8 +2609,6 @@ function ai() {
                     ${marked.parse(data.error)}`;
     }
   }
-
-  testBackend();
 
   console.log(aiInput, runAI);
   runAI.addEventListener("click", testBackend);

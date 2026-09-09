@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>AYURCASE | Hospital Administration Console</title>
+    <!-- Favicons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="auth.css" />
+
+    <!-- Immediate Theme Restore (Prevents Flash of Light Mode) -->
+    <script>
+      (function () {
+        const d = localStorage.getItem("ayurcase-dark");
+        const t = localStorage.getItem("ayurcase_theme");
+        if (d === "true" || t === "dark") {
+          document.documentElement.classList.add("dark");
+        }
+        try {
+          const d = localStorage.getItem("ayurcase-dark");
+          const t = localStorage.getItem("ayurcase_theme");
+          if (d === "true" || t === "dark") {
+            document.documentElement.classList.add("dark");
+          }
+        } catch (_) {}
+      })();
+    </script>
+  </head>
+
+  <body>
+    <div class="app">
+      <!-- ================= SIDEBAR ================= -->
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-icon">
+            <i class="fa-solid fa-leaf"></i>
+          </div>
+
+          <div>
+            <h2>AYUR<span>CASE</span></h2>
+            <small>ADMIN CONSOLE</small>
+          </div>
+        </div>
+
+        <div class="menu-title">ADMINISTRATION</div>
+
+        <nav>
+          <a href="#" class="nav-item active">
+            <i class="fa-solid fa-gauge-high"></i>
+            <span>Overview</span>
+          </a>
+
+          <a href="#" class="nav-item">
+            <i class="fa-solid fa-user-doctor"></i>
+            <span>Doctors & Staff</span>
+          </a>
+
+          <a href="#" class="nav-item">
+            <i class="fa-solid fa-hospital-user"></i>
+            <span>Patient Registry</span>
+          </a>
+
+          <a href="#" class="nav-item">
+            <i class="fa-solid fa-spa"></i>
+            <span>AYUSH Wings</span>
+          </a>
+
+          <a href="#" class="nav-item">
+            <i class="fa-solid fa-clipboard-check"></i>
+            <span>ABDM Audit Logs</span>
+          </a>
+
+          <div class="menu-title second">SYSTEM</div>
+
+          <a href="#" class="nav-item">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span>Security & 2FA</span>
+          </a>
+
+          <a href="index.html" class="nav-item" title="Switch Portal">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            <span>Exit to Role Portal</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+          <div class="help-card" onclick="window.location.href='index.html'" style="cursor: pointer;">
+            <div class="help-icon">
+              <i class="fa-solid fa-arrow-left"></i>
+            </div>
+            <div>
+              <strong>Switch Role</strong>
+              <p>Return to main portal</p>
+            </div>
+            <i class="fa-solid fa-arrow-right"></i>
+          </div>
+
+          <div class="doctor-mini">
+            <div class="doctor-avatar" style="background: #5d3f82;">RV</div>
+            <div class="doctor-info">
+              <strong>Rajesh Varma</strong>
+              <span>Chief Hospital Admin</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ================= MAIN ================= -->
+      <main class="main">
+        <!-- TOPBAR -->
+        <header class="topbar">
+          <div class="breadcrumb">
+            <span>AYURCASE</span>
+            <i class="fa-solid fa-chevron-right"></i>
+            <strong>Administration Console</strong>
+          </div>
+
+          <div class="top-actions">
+            <button class="icon-btn theme-btn" id="themeToggle" onclick="toggleTheme()" title="Toggle Theme">
+              <i class="fa-solid fa-moon"></i>
+            </button>
+
+            <a href="index.html" class="primary-btn" style="text-decoration: none; padding: 9px 15px; font-size: 12px;">
+              <i class="fa-solid fa-arrow-right-from-bracket"></i>
+              <span>Sign Out</span>
+            </a>
+          </div>
+        </header>
+
+        <!-- DASHBOARD BODY -->
+        <div class="dashboard-body" style="padding: 24px 30px;">
+          <div class="welcome-banner" style="background: linear-gradient(135deg, #17382a, #244f3b); color: white; padding: 24px 28px; border-radius: var(--radius); margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #a2cbb1; font-weight: 600;">System Governance</span>
+              <h2 style="font-family: 'Playfair Display', serif; font-size: 26px; margin: 4px 0 8px;">Hospital & AYUSH Clinic Oversight</h2>
+              <p style="font-size: 13px; color: #d0e4d7;">Monitoring 24 certified AYUSH practitioners and 1,480+ digital patient cases.</p>
+            </div>
+            <div style="background: rgba(255,255,255,0.1); padding: 12px 20px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.15);">
+              <span style="font-size: 11px; color: #a9cfb8;">System Health</span>
+              <div style="font-size: 18px; font-weight: 700; color: #72e09b;"><i class="fa-solid fa-circle-check"></i> All Systems Normal</div>
+            </div>
+          </div>
+
+          <!-- STATS -->
+          <div class="stats" style="margin-bottom: 24px;">
+            <div class="stat-card">
+              <div class="stat-icon" style="background: #e7f0e9; color: var(--green-700);">
+                <i class="fa-solid fa-user-doctor"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-title">Active Doctors</span>
+                <strong class="stat-value">24</strong>
+                <span class="stat-sub" style="color: var(--green-600); font-size: 11px;">100% Verified Council</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon" style="background: #eaf1f8; color: #2f5f92;">
+                <i class="fa-solid fa-hospital-user"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-title">Registered Patients</span>
+                <strong class="stat-value">1,482</strong>
+                <span class="stat-sub" style="color: #2f5f92; font-size: 11px;">+38 this week</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon" style="background: #fdf5ea; color: #c4823a;">
+                <i class="fa-solid fa-file-medical"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-title">Total Cases Taken</span>
+                <strong class="stat-value">3,912</strong>
+                <span class="stat-sub" style="color: #c4823a; font-size: 11px;">Ashtavidha Pariksha</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon" style="background: #f2eef7; color: #6c4f99;">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+              </div>
+              <div class="stat-info">
+                <span class="stat-title">AI Copilot Inferences</span>
+                <strong class="stat-value">845</strong>
+                <span class="stat-sub" style="color: #6c4f99; font-size: 11px;">Gemini 3.6 Flash</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- DOCTORS ROSTER TABLE -->
+          <div class="panel" style="background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 24px;">
+          <div class="panel" style="border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+              <div>
+                <h3 style="font-family: 'Playfair Display', serif; font-size: 18px; color: var(--green-950);">Practitioner Roster & Department Status</h3>
+                <p style="font-size: 12px; color: var(--muted);">Doctors actively taking cases in the clinic today</p>
+              </div>
+              <a href="doctor-dashboard.html" class="primary-btn" style="text-decoration: none; font-size: 12px;">
+                <i class="fa-solid fa-stethoscope"></i> View Doctor Case Portal
+              </a>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <thead>
+                <tr style="border-bottom: 1px solid var(--border); text-align: left; color: var(--muted); font-size: 11.5px;">
+                  <th style="padding: 10px 12px;">DOCTOR</th>
+                  <th style="padding: 10px 12px;">SPECIALIZATION</th>
+                  <th style="padding: 10px 12px;">COUNCIL ID</th>
+                  <th style="padding: 10px 12px;">CASES TAKEN</th>
+                  <th style="padding: 10px 12px;">STATUS</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom: 1px solid var(--border);">
+                  <td style="padding: 12px; font-weight: 600;">Dr. Arindam Sen</td>
+                  <td style="padding: 12px; color: var(--green-700);">Kayachikitsa (Internal Medicine)</td>
+                  <td style="padding: 12px; color: var(--muted);">AYUSH-WB-2018-0941</td>
+                  <td style="padding: 12px; font-weight: 600;">142 cases</td>
+                  <td style="padding: 12px;"><span style="background: #e7f0e9; color: var(--green-800); font-size: 11px; padding: 4px 10px; border-radius: 12px; font-weight: 600;">Active Online</span></td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--border);">
+                  <td style="padding: 12px; font-weight: 600;">Dr. Priyadarshini Rao</td>
+                  <td style="padding: 12px; color: var(--green-700);">Panchakarma Specialist</td>
+                  <td style="padding: 12px; color: var(--muted);">AYUSH-KA-2019-1120</td>
+                  <td style="padding: 12px; font-weight: 600;">98 cases</td>
+                  <td style="padding: 12px;"><span style="background: #e7f0e9; color: var(--green-800); font-size: 11px; padding: 4px 10px; border-radius: 12px; font-weight: 600;">In Consultation</span></td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px; font-weight: 600;">Dr. Kabir Hashmi</td>
+                  <td style="padding: 12px; color: var(--green-700);">Unani Tibb Practitioner</td>
+                  <td style="padding: 12px; color: var(--muted);">AYUSH-DL-2020-0433</td>
+                  <td style="padding: 12px; font-weight: 600;">64 cases</td>
+                  <td style="padding: 12px;"><span style="background: #eaf1f8; color: #2f5f92; font-size: 11px; padding: 4px 10px; border-radius: 12px; font-weight: 600;">Available</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+
+</body>
+    <script src="auth.js?v=4.1"></script>
+  </body>
+</html>
+
