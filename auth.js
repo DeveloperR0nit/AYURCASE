@@ -1471,6 +1471,26 @@ function renderDoctorStats(stats) {
     setText("doctorAiCasesSub", `${stats.ai_cases_analyzed || 0} clinical record${stats.ai_cases_analyzed === 1 ? "" : "s"} available`);
 }
 
+function renderDoctorPracticeSummary(dashboard = {}) {
+    const stats = dashboard.stats || {};
+    const followUps = Array.isArray(dashboard.follow_ups) ? dashboard.follow_ups : [];
+    const nextVisit = followUps[0];
+    const setText = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value;
+    };
+
+    setText("doctorPracticePatients", `${stats.total_patients || 0} patients in your care`);
+    setText("doctorCareOverview", `${stats.follow_ups || 0} upcoming visit${stats.follow_ups === 1 ? "" : "s"} scheduled`);
+    if (nextVisit) {
+        setText("doctorNextVisit", nextVisit.patient_name || "Scheduled patient");
+        setText("doctorNextVisitMeta", `${formatDisplayDate(nextVisit.appointment_date)} • ${nextVisit.appointment_time || "Time to be confirmed"}`);
+    } else {
+        setText("doctorNextVisit", "No upcoming appointment");
+        setText("doctorNextVisitMeta", "New bookings will appear here.");
+    }
+}
+
 function renderDoctorFollowUps(appointments) {
     const container = document.getElementById("doctorAppointmentsList");
     if (!container) return;
@@ -1554,7 +1574,8 @@ function renderRecentPatients(patients = []) {
         .map(patient => ({ ...patient, is_demo: false }));
     const liveNames = new Set(livePatients.map(patient => patient.patient_name.toLocaleLowerCase()));
     const demos = RECENT_PATIENT_DEMOS.filter(patient => !liveNames.has(patient.patient_name.toLocaleLowerCase()));
-    const visiblePatients = [...livePatients, ...demos].slice(0, 4);
+    // Live records take priority once a practitioner has patients in care.
+    const visiblePatients = livePatients.length ? livePatients.slice(0, 4) : demos;
 
     container.innerHTML = visiblePatients.map((patient, index) => `
         <article class="recent-patient-card ${patient.is_demo ? "is-demo" : ""}">
@@ -1592,6 +1613,7 @@ async function loadDoctorAppointments() {
             console.warn("Unable to supplement recent patients from case history:", caseError);
         }
         renderDoctorStats(latestDoctorDashboard.stats || {});
+        renderDoctorPracticeSummary(latestDoctorDashboard);
         renderDoctorFollowUps(latestDoctorDashboard.follow_ups || []);
         // Cases and appointments are merged by patient name. This guarantees a
         // patient shown in Case History also appears in Recent Patients.

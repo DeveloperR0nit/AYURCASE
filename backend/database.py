@@ -7,7 +7,7 @@ and data persistence for Users (Doctors, Patients, Admins), Clinical Cases, and 
 import os
 import json
 import sqlite3
-from datetime import date
+from datetime import date, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -255,6 +255,7 @@ def init_db():
     # always available in the sign-in selector and booking directory.
     ensure_default_doctors(cursor, conn)
     ensure_default_admin(cursor, conn)
+    remove_demo_patient_directory(cursor, conn)
     remove_legacy_arindam_follow_up_fixtures(cursor, conn)
     remove_legacy_case_fixtures(cursor, conn)
     conn.close()
@@ -314,6 +315,153 @@ def ensure_default_admin(cursor, conn):
             "INSERT INTO admins (user_id, department, security_code, access_level) VALUES (?, ?, ?, ?)",
             (user_id, "Chief Hospital Administration", "SEC-8821", "SuperAdmin"),
         )
+    conn.commit()
+
+
+def remove_demo_patient_directory(cursor, conn):
+    """Removes only the old AYURCASE sample patients and their linked activity.
+
+    The administrator directory must reflect real registrations and bookings,
+    not generated names. The username pattern is exclusive to the temporary
+    profiles previously added for the local demo.
+    """
+    demo_user_query = """
+        SELECT u.id
+        FROM users u
+        WHERE u.username LIKE 'demo.patient.%@ayurcase.test'
+           OR u.username = 'patient@ayurcase.com'
+    """
+    cursor.execute(f"DELETE FROM appointments WHERE patient_id IN (SELECT id FROM patients WHERE user_id IN ({demo_user_query}))")
+    cursor.execute(f"DELETE FROM cases WHERE patient_id IN (SELECT id FROM patients WHERE user_id IN ({demo_user_query}))")
+    cursor.execute(f"DELETE FROM prescriptions WHERE patient_id IN (SELECT id FROM patients WHERE user_id IN ({demo_user_query}))")
+    cursor.execute(f"DELETE FROM users WHERE id IN ({demo_user_query})")
+    conn.commit()
+
+
+def ensure_demo_patient_directory(cursor, conn):
+    """Creates a one-time, realistic patient directory for each demo practitioner.
+
+    These accounts are clearly demo data for the local AYURCASE experience and
+    are inserted idempotently, so starting the server again never duplicates
+    patients or appointment slots.
+    """
+    cursor.execute(
+        """
+        SELECT d.id, d.user_id, u.full_name
+        FROM doctors d
+        JOIN users u ON u.id = d.user_id
+        ORDER BY d.id ASC
+        LIMIT 4
+        """
+    )
+    doctors = [dict(row) for row in cursor.fetchall()]
+    if not doctors:
+        return
+
+    first_names = [
+        "Aarav", "Ananya", "Vihaan", "Ishita", "Arjun", "Kavya",
+        "Ritwik", "Meera", "Aditya", "Nandini", "Samar", "Diya",
+        "Rohan", "Tanvi", "Kiran", "Ayesha", "Dev", "Saanvi",
+        "Neel", "Charu", "Manav", "Ira", "Yash", "Pallavi",
+    ]
+    family_names = ["Mukherjee", "Iyer", "Kapoor", "Chatterjee"]
+    blood_groups = ["O+", "A+", "B+", "AB+", "O-", "A-", "B-"]
+    constitutions = [("Vata", "Pitta"), ("Pitta", "Kapha"), ("Kapha", "Vata")]
+    concerns = [
+        "Digestive wellness review", "Sleep and stress follow-up",
+        "Seasonal allergy consultation", "Joint mobility assessment",
+        "Diet and lifestyle consultation", "Headache management review",
+    ]
+    appointment_times = ["09:00 AM", "09:30 AM", "10:15 AM", "11:00 AM", "11:45 AM", "12:30 PM", "02:00 PM", "02:45 PM"]
+    today = date.today()
+    patient_password = generate_password_hash("patient123")
+
+    for doctor_index, doctor in enumerate(doctors):
+        surname = family_names[doctor_index % len(family_names)]
+        for patient_index, first_name in enumerate(first_names):
+            name = f"{first_name} {surname}"
+            username = f"demo.patient.{doctor_index + 1}.{patient_index + 1}@ayurcase.test"
+            abha_id = f"ABHA-73{doctor_index + 1}0-{1000 + patient_index}"
+            phone = f"+91 900{doctor_index + 1}{patient_index + 1:06d}"
+            age = 24 + ((patient_index * 3 + doctor_index * 5) % 42)
+            gender = "Female" if patient_index % 2 else "Male"
+            primary, secondary = constitutions[patient_index % len(constitutions)]
+
+            cursor.execute("SELECT id FROM patients WHERE abha_id = ?", (abha_id,))
+            patient_row = cursor.fetchone()
+            if patient_row:
+                patient_id = patient_row[0]
+            else:
+                cursor.execute(
+                    """
+                    INSERT INTO users (username, password_hash, role, full_name, identifier, phone)
+                    VALUES (?, ?, 'patient', ?, ?, ?)
+                    """,
+                    (username, patient_password, name, abha_id, phone),
+                )
+                user_id = cursor.lastrowid
+                cursor.execute(
+                    """
+                    INSERT INTO patients (user_id, abha_id, name, age, gender, phone, blood_group, prakriti_primary, prakriti_secondary)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (user_id, abha_id, name, age, gender, phone, blood_groups[patient_index % len(blood_groups)], primary, secondary),
+                )
+                patient_id = cursor.lastrowid
+
+            cursor.execute(
+                "SELECT id FROM appointments WHERE doctor_id = ? AND patient_id = ? LIMIT 1",
+                (doctor["id"], patient_id),
+            )
+            if not cursor.fetchone():
+                appointment_day = today + timedelta(days=patient_index % 12)
+                cursor.execute(
+                    """
+                    INSERT INTO appointments (
+                        patient_id, doctor_id, patient_name, doctor_name, appointment_date,
+                        appointment_time, consultation_type, symptoms_notes, status
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        patient_id,
+                        doctor["id"],
+                        name,
+                        doctor["full_name"],
+                        appointment_day.isoformat(),
+                        appointment_times[patient_index % len(appointment_times)],
+                        "Tele-consultation" if patient_index % 5 == 0 else "In-Clinic Consultation",
+                        concerns[patient_index % len(concerns)],
+                        "Confirmed" if patient_index % 7 else "Follow-up",
+                    ),
+                )
+
+            # Give every demo patient a clinical case as well, so the admin
+            # total and practitioner case dashboards reflect real activity.
+            cursor.execute(
+                "SELECT id FROM cases WHERE doctor_id = ? AND patient_id = ? LIMIT 1",
+                (doctor["user_id"], patient_id),
+            )
+            if not cursor.fetchone():
+                cursor.execute(
+                    """
+                    INSERT INTO cases (
+                        patient_id, doctor_id, patient_name, age, gender, chief_complaint,
+                        diagnosis, prakriti, status, case_date
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        patient_id,
+                        doctor["user_id"],
+                        name,
+                        age,
+                        gender,
+                        concerns[patient_index % len(concerns)],
+                        "Lifestyle and AYUSH care plan",
+                        f"{primary}-{secondary}",
+                        "Active",
+                        (today - timedelta(days=patient_index % 15)).isoformat(),
+                    ),
+                )
     conn.commit()
 
 
@@ -1138,6 +1286,9 @@ def get_admin_summary():
     cursor.execute("SELECT COUNT(*) FROM cases")
     case_count = cursor.fetchone()[0]
 
+    cursor.execute("SELECT COUNT(*) FROM appointments")
+    appointment_count = cursor.fetchone()[0]
+
     cursor.execute(
         """
         SELECT d.*, u.full_name, u.username, u.identifier
@@ -1147,16 +1298,77 @@ def get_admin_summary():
     )
     doctors = [dict(r) for r in cursor.fetchall()]
 
+    # A patient is assigned to a practitioner once they have an appointment
+    # or a clinical case with that practitioner.  This is deliberately based
+    # on the actual records rather than the old display-only cases_count field.
+    for doctor in doctors:
+        cursor.execute(
+            """
+            SELECT COUNT(DISTINCT patient_id)
+            FROM (
+                SELECT patient_id FROM appointments
+                WHERE doctor_id = ? AND patient_id IS NOT NULL
+                UNION
+                SELECT patient_id FROM cases
+                WHERE doctor_id = ? AND patient_id IS NOT NULL
+            )
+            """,
+            (doctor["id"], doctor["user_id"]),
+        )
+        doctor["registered_patient_count"] = cursor.fetchone()[0]
+
+        cursor.execute(
+            "SELECT COUNT(*) FROM appointments WHERE doctor_id = ?",
+            (doctor["id"],),
+        )
+        doctor["appointment_count"] = cursor.fetchone()[0]
+
     cursor.execute(
         """
-        SELECT a.*, u.username
+        SELECT a.*, u.username, u.full_name, u.role
         FROM audit_logs a
         LEFT JOIN users u ON a.user_id = u.id
         ORDER BY a.timestamp DESC
-        LIMIT 10
+        LIMIT 200
         """
     )
     logs = [dict(r) for r in cursor.fetchall()]
+
+    cursor.execute(
+        """
+        SELECT activity_type, patient_id, patient_name, patient_age, condition, detail, occurred_at
+        FROM (
+            SELECT 'Appointment booked' AS activity_type,
+                   COALESCE(p_by_id.id, p_by_name.id) AS patient_id,
+                   a.patient_name AS patient_name,
+                   COALESCE(p_by_id.age, p_by_name.age) AS patient_age,
+                   COALESCE((SELECT c.chief_complaint FROM cases c WHERE c.patient_id = COALESCE(p_by_id.id, p_by_name.id) ORDER BY c.created_at DESC LIMIT 1), a.symptoms_notes, 'Condition not recorded') AS condition,
+                   'Appointment with ' || a.doctor_name || ' on ' || a.appointment_date || ' at ' || a.appointment_time AS detail,
+                   a.created_at AS occurred_at
+            FROM appointments a
+            LEFT JOIN patients p_by_id ON p_by_id.id = a.patient_id
+            LEFT JOIN patients p_by_name ON LOWER(TRIM(p_by_name.name)) = LOWER(TRIM(a.patient_name))
+            UNION ALL
+            SELECT CASE
+                     WHEN l.action = 'PATIENT_REGISTERED' THEN 'Patient registered'
+                     ELSE 'Patient signed in'
+                   END AS activity_type,
+                   p.id AS patient_id,
+                   COALESCE(p.name, u.full_name, 'Patient') AS patient_name,
+                   p.age AS patient_age,
+                   COALESCE((SELECT c.chief_complaint FROM cases c WHERE c.patient_id = p.id ORDER BY c.created_at DESC LIMIT 1), 'Condition not recorded') AS condition,
+                   l.details AS detail,
+                   l.timestamp AS occurred_at
+            FROM audit_logs l
+            JOIN users u ON u.id = l.user_id AND u.role = 'patient'
+            LEFT JOIN patients p ON p.user_id = u.id
+            WHERE l.action IN ('PATIENT_REGISTERED', 'USER_LOGIN')
+        )
+        ORDER BY occurred_at DESC
+        LIMIT 12
+        """
+    )
+    patient_activity = [dict(r) for r in cursor.fetchall()]
 
     conn.close()
 
@@ -1164,9 +1376,75 @@ def get_admin_summary():
         "doctor_count": doc_count,
         "patient_count": pat_count,
         "case_count": case_count,
+        "appointment_count": appointment_count,
         "doctors": doctors,
         "audit_logs": logs,
+        "patient_activity": patient_activity,
     }
+
+
+def get_admin_doctor_patients(doctor_id):
+    """Returns one practitioner's registered patients and appointment schedule for the admin console."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT d.id AS doctor_id, d.user_id, d.specialization, d.council_reg_no,
+                   d.qualification, d.status, u.full_name, u.phone
+            FROM doctors d
+            JOIN users u ON u.id = d.user_id
+            WHERE d.id = ?
+            """,
+            (doctor_id,),
+        )
+        doctor_row = cursor.fetchone()
+        if not doctor_row:
+            return None
+        doctor = dict(doctor_row)
+
+        cursor.execute(
+            """
+            SELECT DISTINCT p.id, p.name, p.age, p.gender, p.phone, p.abha_id,
+                   p.blood_group, p.prakriti_primary, p.prakriti_secondary, p.created_at
+            FROM patients p
+            WHERE p.id IN (
+                SELECT patient_id FROM appointments
+                WHERE doctor_id = ? AND patient_id IS NOT NULL
+                UNION
+                SELECT patient_id FROM cases
+                WHERE doctor_id = ? AND patient_id IS NOT NULL
+            )
+            ORDER BY p.name COLLATE NOCASE
+            """,
+            (doctor["doctor_id"], doctor["user_id"]),
+        )
+        patients = [dict(row) for row in cursor.fetchall()]
+
+        for patient in patients:
+            cursor.execute(
+                """
+                SELECT appointment_date, appointment_time, consultation_type,
+                       symptoms_notes, status
+                FROM appointments
+                WHERE doctor_id = ? AND patient_id = ?
+                ORDER BY appointment_date ASC, appointment_time ASC
+                """,
+                (doctor["doctor_id"], patient["id"]),
+            )
+            patient["appointments"] = [dict(row) for row in cursor.fetchall()]
+
+            cursor.execute(
+                "SELECT COUNT(*) FROM cases WHERE doctor_id = ? AND patient_id = ?",
+                (doctor["user_id"], patient["id"]),
+            )
+            patient["case_count"] = cursor.fetchone()[0]
+
+        doctor["patients"] = patients
+        doctor["patient_count"] = len(patients)
+        return doctor
+    finally:
+        conn.close()
 
 
 # =====================================================

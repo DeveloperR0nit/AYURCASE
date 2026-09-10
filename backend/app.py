@@ -24,6 +24,7 @@ try:
         sync_cases_batch,
         get_patient_data,
         get_admin_summary,
+        get_admin_doctor_patients,
         get_doctor_dashboard,
         get_doctors_list,
         create_appointment,
@@ -51,6 +52,7 @@ except ImportError:
         sync_cases_batch,
         get_patient_data,
         get_admin_summary,
+        get_admin_doctor_patients,
         get_doctor_dashboard,
         get_doctors_list,
         create_appointment,
@@ -422,6 +424,15 @@ def api_admin_summary():
         "success": True,
         "summary": summary
     })
+
+
+@app.route("/api/admin/doctors/<int:doctor_id>/patients", methods=["GET"])
+def api_admin_doctor_patients(doctor_id):
+    """Returns the patient directory and schedule for one doctor in the admin console."""
+    doctor = get_admin_doctor_patients(doctor_id)
+    if not doctor:
+        return jsonify({"success": False, "error": "Doctor not found."}), 404
+    return jsonify({"success": True, "doctor": doctor})
 
 
 # =====================================================

@@ -345,6 +345,13 @@
     justify-content: center;
 }
 
+/* Keep the Patient action aligned with the Doctor and Administrator actions. */
+.patient-registration-link {
+    text-align: center;
+    margin: 0 0 10px;
+    font-size: 13px;
+}
+
 .doctor-card .role-features li i {
     background: #e7f0e9;
     color: var(--green-700);
