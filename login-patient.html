@@ -93,7 +93,6 @@
                   name="abhaId"
                   placeholder="e.g. ABHA-9182-4410 or mobile"
                   autocomplete="username"
-                  onkeydown="if(event.key==='Enter'){event.preventDefault(); handlePatientLogin(event);}"
                   required
                 />
                 <i class="fa-solid fa-id-card field-icon"></i>
@@ -112,7 +111,6 @@
                   name="password"
                   placeholder="••••••••"
                   autocomplete="current-password"
-                  onkeydown="if(event.key==='Enter'){event.preventDefault(); handlePatientLogin(event);}"
                   required
                 />
                 <i class="fa-solid fa-lock field-icon"></i>
@@ -129,7 +127,7 @@
               </label>
             </div>
 
-            <button type="button" class="auth-submit-btn patient-login-btn" onclick="handlePatientLogin(event)">
+            <button type="submit" class="auth-submit-btn patient-login-btn">
               <span>Access Health Records</span>
               <i class="fa-solid fa-arrow-right"></i>
             </button>
@@ -178,7 +176,7 @@
     </div>
 
     <!-- Scripts -->
-    <script src="auth.js?v=4.1"></script>
+    <script src="auth.js?v=4.2"></script>
 </body>
 </html>
 

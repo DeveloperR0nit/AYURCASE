@@ -343,7 +343,9 @@ function initTheme() {
             const bodyDark = document.body.classList.contains("dark");
             if (bodyDark !== isDarkMode()) {
                 isSyncing = true;
+                observer.disconnect();
                 applyTheme(bodyDark);
+                observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
                 isSyncing = false;
             }
         });
