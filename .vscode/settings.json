@@ -1,0 +1,15 @@
+﻿{
+  "liveServer.settings.ignoreFiles": [
+    "**/*.db*",
+    "**/backend/**",
+    "**/.git/**",
+    "**/venv/**"
+  ],
+  "livePreview.customExternalServerUrl": "http://127.0.0.1:5000",
+  "files.watcherExclude": {
+    "**/*.db*": true,
+    "**/backend/**": true,
+    "**/venv/**": true,
+    "**/.git/**": true
+  }
+}

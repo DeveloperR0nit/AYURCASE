@@ -45,11 +45,13 @@ var safeStorage = {
     setItem: function(key, val) {
         const strVal = String(val);
         memoryStore[key] = strVal;
+        isSyncingToDb = true;
         try {
             if (typeof window !== "undefined" && window.localStorage) {
                 window.localStorage.setItem(key, strVal);
             }
         } catch (_) {}
+        isSyncingToDb = false;
         syncKeyToDatabase(key, strVal);
     },
     removeItem: function(key) {
@@ -169,23 +171,7 @@ async function syncKeyDeletionToDatabase(key) {
 async function initDatabaseStorage() {
     const api = getApiHost();
 
-    // 1. One-time auto-migration: collect any existing localStorage keys and send to SQLite
-    try {
-        if (typeof window !== "undefined" && window.localStorage) {
-            const localPayload = {};
-            for (let i = 0; i < window.localStorage.length; i++) {
-                const k = window.localStorage.key(i);
-                if (k) localPayload[k] = window.localStorage.getItem(k);
-            }
-            if (Object.keys(localPayload).length > 0) {
-                await fetch(`${api}/api/storage/sync`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ storage: localPayload })
-                }).catch(() => {});
-            }
-        }
-    } catch (_) {}
+    // Initial load is strictly read-only to avoid triggering file watchers / reloads.
 
     // 2. Fetch authoritative cases from SQLite database
     try {
@@ -231,7 +217,7 @@ async function initDatabaseStorage() {
             // Apply theme preference from database
             if (data.storage["ayurcase-dark"] !== undefined || data.storage["ayurcase_theme"] !== undefined) {
                 const dbDark = data.storage["ayurcase-dark"] === "true" || data.storage["ayurcase_theme"] === "dark";
-                applyTheme(dbDark);
+                applyTheme(dbDark, false);
             }
         }
     } catch (e) {
@@ -290,7 +276,7 @@ function updateThemeIcons(isDark) {
     });
 }
 
-function applyTheme(isDark) {
+function applyTheme(isDark, persist = false) {
     if (isDark) {
         document.documentElement.classList.add("dark");
         if (document.body) document.body.classList.add("dark");
@@ -299,15 +285,17 @@ function applyTheme(isDark) {
         if (document.body) document.body.classList.remove("dark");
     }
 
-    safeStorage.setItem("ayurcase-dark", isDark ? "true" : "false");
-    safeStorage.setItem("ayurcase_theme", isDark ? "dark" : "light");
+    if (persist) {
+        safeStorage.setItem("ayurcase-dark", isDark ? "true" : "false");
+        safeStorage.setItem("ayurcase_theme", isDark ? "dark" : "light");
+    }
 
     updateThemeIcons(isDark);
 }
 
 window.toggleTheme = function() {
     const nextDark = !isDarkMode();
-    applyTheme(nextDark);
+    applyTheme(nextDark, true);
     if (typeof showToastNotice === "function") {
         showToastNotice(nextDark ? "Dark mode enabled." : "Light mode enabled.");
     } else if (typeof showToast === "function") {
@@ -316,7 +304,7 @@ window.toggleTheme = function() {
 };
 
 function initTheme() {
-    applyTheme(isDarkMode());
+    applyTheme(isDarkMode(), false);
 
     const themeToggleBtns = document.querySelectorAll(".theme-btn, #themeToggle");
     themeToggleBtns.forEach(btn => {
@@ -328,7 +316,7 @@ function initTheme() {
 
     window.addEventListener("storage", (e) => {
         if (e.key === "ayurcase-dark" || e.key === "ayurcase_theme") {
-            applyTheme(isDarkMode());
+            applyTheme(isDarkMode(), false);
         }
         if (e.key === "ayurcase_appointments_updated") {
             loadPatientAppointments();
@@ -344,7 +332,7 @@ function initTheme() {
             if (bodyDark !== isDarkMode()) {
                 isSyncing = true;
                 observer.disconnect();
-                applyTheme(bodyDark);
+                applyTheme(bodyDark, false);
                 observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
                 isSyncing = false;
             }
@@ -553,7 +541,7 @@ async function handlePatientSignup(event) {
                 } catch (_) {
                     window.location.href = "patient-dashboard.html";
                 }
-            }, 1200);
+            }, 400);
             return false;
         } else {
             if (submitBtn) {
@@ -723,7 +711,7 @@ async function authenticateUser(role, username, password, targetUrl) {
 
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         const response = await fetch(`${apiHost}/api/auth/login`, {
             method: "POST",

@@ -17,7 +17,7 @@ def get_db_connection():
     """Returns a SQLite connection with foreign keys enabled, WAL mode, and dict-like row access."""
     conn = sqlite3.connect(DB_PATH, timeout=30.0)
     try:
-        conn.execute("PRAGMA journal_mode = WAL;")
+        conn.execute("PRAGMA journal_mode = DELETE;")
         conn.execute("PRAGMA busy_timeout = 30000;")
         conn.execute("PRAGMA foreign_keys = ON;")
     except Exception:
@@ -433,11 +433,20 @@ def authenticate_user(username_or_identifier, password, role=None):
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    ident = username_or_identifier.strip()
+    digits = "".join(filter(str.isdigit, ident))
+    phone_suf = f"%{digits[-10:]}" if len(digits) >= 10 else ident
     query = """
         SELECT * FROM users
-        WHERE (LOWER(username) = LOWER(?) OR LOWER(identifier) = LOWER(?) OR LOWER(full_name) = LOWER(?))
+        WHERE (
+            LOWER(username) = LOWER(?) 
+            OR LOWER(identifier) = LOWER(?) 
+            OR LOWER(full_name) = LOWER(?)
+            OR LOWER(phone) = LOWER(?)
+            OR (length(?) >= 10 AND replace(replace(phone, ' ', ''), '-', '') LIKE ?)
+        )
     """
-    params = [username_or_identifier.strip(), username_or_identifier.strip(), username_or_identifier.strip()]
+    params = [ident, ident, ident, ident, digits, phone_suf]
 
     if role:
         query += " AND role = ?"
