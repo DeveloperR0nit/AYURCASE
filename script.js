@@ -345,7 +345,7 @@ function openWorkspace(title, description, icon) {
           .closest(".workspace-box")
           .firstElementChild.textContent.trim();
         let patients = JSON.parse(localStorage.getItem("ayurcase-cases"));
-        updatedPatients = patients.filter((p) => p.name !== targ);
+        const updatedPatients = patients.filter((p) => p.name !== targ);
         localStorage.setItem("ayurcase-cases", JSON.stringify(updatedPatients));
         renderPatientsdashboard();
         openPatientsWorkspace();
@@ -1042,7 +1042,9 @@ function openPatientsWorkspace() {
 }
 function renderPatientsdashboard() {
   const cases = JSON.parse(localStorage.getItem("ayurcase-cases")) || [];
-  document.getElementById("patient-list").innerHTML = cases
+  const patientList = document.getElementById("patient-list");
+  if (!patientList) return;
+  patientList.innerHTML = cases
     .map(
       (patient) => `<div class="patient-row">
                       <div class="patient-avatar avatar-${Math.floor(Math.random() * 4 + 1)}">
@@ -1344,35 +1346,6 @@ function openAIWorkspace() {
     `;
 
   ai();
-  document.getElementById("runAI").addEventListener("click", function () {
-    const input = document.getElementById("aiInput").value.trim();
-
-    if (!input) {
-      showToast("Please enter clinical information first.");
-
-      return;
-    }
-
-    const result = document.getElementById("aiResult");
-
-    result.style.display = "block";
-
-    result.innerHTML = `
-                    <strong class="ai-res">
-                       AI Response : 
-                    </strong>
-<section class="dots-container">
-  <div class="dot"></div>
-  <div class="dot"></div>
-  <div class="dot"></div>
-  <div class="dot"></div>
-  <div class="dot"></div>
-</section>
-
-                `;
-
-    showToast("Case analysis completed.");
-  });
 }
 
 /* =====================================================
@@ -2186,7 +2159,7 @@ function moreButton() {
 
         if (action === "delete") {
           let patients = JSON.parse(localStorage.getItem("ayurcase-cases"));
-          updatedPatients = patients.filter((p) => p.name !== patient.trim());
+          const updatedPatients = patients.filter((p) => p.name !== patient.trim());
           console.log(updatedPatients);
           localStorage.setItem(
             "ayurcase-cases",
@@ -2580,8 +2553,27 @@ function ai() {
   const aiInput = document.getElementById("aiInput");
   const runAI = document.getElementById("runAI");
   const res = document.getElementById("aiResult");
+  if (!aiInput || !runAI || !res) return;
+
   async function testBackend() {
-    const response = await fetch("/api/recommend", {
+    const problem = aiInput.value.trim();
+    if (!problem) {
+      showToast("Please enter clinical information first.");
+      return;
+    }
+
+    res.style.display = "block";
+    res.replaceChildren();
+    const heading = document.createElement("strong");
+    heading.className = "ai-res";
+    heading.textContent = "AI Response:";
+    const loading = document.createElement("p");
+    loading.textContent = "Analyzing the case…";
+    res.append(heading, loading);
+    runAI.disabled = true;
+
+    try {
+      const response = await fetch(`${typeof getApiHost === "function" ? getApiHost() : ""}/api/recommend`, {
       method: "POST",
 
       headers: {
@@ -2589,27 +2581,24 @@ function ai() {
       },
 
       body: JSON.stringify({
-        problem: aiInput.value,
+        problem,
       }),
     });
 
     const data = await response.json();
-
-    if (response.ok) {
-      res.innerHTML = `<strong class="ai-res">
-                             AI Response : 
-                        </strong>
-                    ${marked.parse(data.recommendation)}`;
-    } else {
-      res.innerHTML = `<strong class="ai-res">
-                            AI Response : 
-                        </strong>
-                    ${marked.parse(data.error)}`;
+      const message = response.ok ? data.recommendation : data.error;
+      const output = document.createElement("p");
+      // Model output is untrusted. textContent prevents it from becoming page
+      // markup or executable event handlers.
+      output.textContent = message || "No response was returned.";
+      res.replaceChildren(heading, output);
+    } catch (error) {
+      const output = document.createElement("p");
+      output.textContent = "The AI service is unavailable. Please try again later.";
+      res.replaceChildren(heading, output);
+    } finally {
+      runAI.disabled = false;
     }
   }
-
-  testBackend();
-
-  console.log(aiInput, runAI);
   runAI.addEventListener("click", testBackend);
 }

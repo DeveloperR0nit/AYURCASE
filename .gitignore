@@ -1,2 +1,9 @@
 venv/
 .env
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+backend/*.db*
+__pycache__/

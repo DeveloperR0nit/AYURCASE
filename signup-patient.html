@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Patient Self-Registration & ABHA ID | AYURCASE</title>
+    <!-- Favicons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="auth.css" />
+
+    <!-- Immediate Theme Restore (Prevents Flash of Light Mode) -->
+    <script>
+      (function () {
+        try {
+          const d = localStorage.getItem("ayurcase-dark");
+          const t = localStorage.getItem("ayurcase_theme");
+          if (d === "true" || t === "dark") {
+            document.documentElement.classList.add("dark");
+          }
+        } catch (_) {}
+      })();
+    </script>
+
+    <style>
+      .form-row-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      @media (max-width: 540px) {
+        .form-row-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+      .input-action-btn {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(45, 115, 80, 0.12);
+        color: var(--primary, #2d7350);
+        border: 1px solid rgba(45, 115, 80, 0.25);
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        transition: all 0.2s ease;
+      }
+      .input-action-btn:hover {
+        background: var(--primary, #2d7350);
+        color: white;
+      }
+      .form-select-field {
+        width: 100%;
+        padding: 11px 14px 11px 38px;
+        border: 1px solid var(--border, #e2e8f0);
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 14px;
+        background-color: var(--card-bg, #ffffff);
+        color: var(--text, #1e293b);
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      .dark .form-select-field {
+        background-color: #1a2c24;
+        border-color: #2b4539;
+        color: #f1f5f9;
+      }
+      .form-select-field:focus {
+        border-color: var(--primary, #2d7350);
+      }
+    </style>
+  </head>
+
+  <body class="portal-page">
+    <!-- Navbar -->
+    <header class="portal-navbar">
+      <a href="index.html" class="brand">
+        <div class="brand-icon">
+          <i class="fa-solid fa-leaf"></i>
+        </div>
+        <div>
+          <h2>AYUR<span>CASE</span></h2>
+          <small>AYUSH CARE PLATFORM</small>
+        </div>
+      </a>
+
+      <div class="navbar-right">
+        <a href="index.html" class="back-to-portal-link">
+          <i class="fa-solid fa-arrow-left"></i>
+          <span>Switch Role</span>
+        </a>
+
+        <button class="icon-btn theme-btn" id="themeToggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+          <i class="fa-solid fa-moon"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="login-body-wrapper">
+      <div class="login-container" style="max-width: 520px;">
+        <div class="login-card">
+          <div class="login-card-header">
+            <div class="login-role-badge patient-badge">
+              <i class="fa-solid fa-id-card-clip"></i>
+              <span>Patient Registration & ABHA ID</span>
+            </div>
+
+            <h2>Create Patient Account</h2>
+            <p>Generate your digital AYUSH health identifier and register your personal wellness records.</p>
+          </div>
+
+          <!-- Patient Registration Form -->
+          <form class="auth-form" id="patientSignupForm" action="javascript:void(0);" method="POST" onsubmit="event.preventDefault(); return handlePatientSignup(event);">
+            <!-- Full Name -->
+            <div class="form-field">
+              <label for="signupFullName">Full Name</label>
+              <div class="input-with-icon">
+                <input
+                  type="text"
+                  id="signupFullName"
+                  name="fullName"
+                  placeholder="e.g. Aditi Sen"
+                  autocomplete="name"
+                  required
+                />
+                <i class="fa-solid fa-user field-icon"></i>
+              </div>
+            </div>
+
+            <!-- Email & Mobile -->
+            <div class="form-row-2">
+              <div class="form-field">
+                <label for="signupEmail">Email Address</label>
+                <div class="input-with-icon">
+                  <input
+                    type="email"
+                    id="signupEmail"
+                    name="email"
+                    placeholder="name@email.com"
+                    autocomplete="email"
+                    required
+                  />
+                  <i class="fa-solid fa-envelope field-icon"></i>
+                </div>
+              </div>
+
+              <div class="form-field">
+                <label for="signupPhone">Phone Number</label>
+                <div class="input-with-icon">
+                  <input
+                    type="tel"
+                    id="signupPhone"
+                    name="phone"
+                    placeholder="+91 98765 43210"
+                    autocomplete="tel"
+                    required
+                  />
+                  <i class="fa-solid fa-phone field-icon"></i>
+                </div>
+              </div>
+            </div>
+
+            <!-- ABHA ID with Auto-Generator -->
+            <div class="form-field">
+              <label for="signupAbhaId">
+                <span>ABHA ID (Ayushman Bharat Health Account)</span>
+                <span style="font-size: 11px; color: var(--muted); font-weight: normal;">Optional (Auto-generated if blank)</span>
+              </label>
+              <div class="input-with-icon" style="position: relative;">
+                <input
+                  type="text"
+                  id="signupAbhaId"
+                  name="abhaId"
+                  placeholder="e.g. ABHA-4821-9930"
+                  style="padding-right: 110px;"
+                />
+                <i class="fa-solid fa-id-card field-icon"></i>
+                <button type="button" class="input-action-btn" onclick="generateAbhaId()">
+                  <i class="fa-solid fa-wand-magic-sparkles"></i> Generate
+                </button>
+              </div>
+            </div>
+
+            <!-- Age & Gender -->
+            <div class="form-row-2">
+              <div class="form-field">
+                <label for="signupAge">Age</label>
+                <div class="input-with-icon">
+                  <input
+                    type="number"
+                    id="signupAge"
+                    name="age"
+                    min="1"
+                    max="120"
+                    value="28"
+                    required
+                  />
+                  <i class="fa-solid fa-calendar-days field-icon"></i>
+                </div>
+              </div>
+
+              <div class="form-field">
+                <label for="signupGender">Gender</label>
+                <div class="input-with-icon">
+                  <select id="signupGender" name="gender" class="form-select-field">
+                    <option value="Female">Female</option>
+                    <option value="Male">Male</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  <i class="fa-solid fa-venus-mars field-icon"></i>
+                </div>
+              </div>
+            </div>
+
+            <!-- Blood Group & Ayurvedic Prakriti -->
+            <div class="form-row-2">
+              <div class="form-field">
+                <label for="signupBloodGroup">Blood Group</label>
+                <div class="input-with-icon">
+                  <select id="signupBloodGroup" name="bloodGroup" class="form-select-field">
+                    <option value="B+">B+</option>
+                    <option value="A+">A+</option>
+                    <option value="O+">O+</option>
+                    <option value="AB+">AB+</option>
+                    <option value="B-">B-</option>
+                    <option value="A-">A-</option>
+                    <option value="O-">O-</option>
+                    <option value="AB-">AB-</option>
+                  </select>
+                  <i class="fa-solid fa-droplet field-icon"></i>
+                </div>
+              </div>
+
+              <div class="form-field">
+                <label for="signupPrakriti">Prakriti (Dosha Constitution)</label>
+                <div class="input-with-icon">
+                  <select id="signupPrakriti" name="prakriti" class="form-select-field">
+                    <option value="Pitta">Pitta Dominant</option>
+                    <option value="Vata">Vata Dominant</option>
+                    <option value="Kapha">Kapha Dominant</option>
+                    <option value="Vata-Pitta">Vata-Pitta</option>
+                    <option value="Pitta-Kapha">Pitta-Kapha</option>
+                    <option value="Tridoshic">Tridoshic (Balanced)</option>
+                  </select>
+                  <i class="fa-solid fa-spa field-icon"></i>
+                </div>
+              </div>
+            </div>
+
+            <!-- Passwords -->
+            <div class="form-row-2">
+              <div class="form-field">
+                <label for="signupPassword">Password</label>
+                <div class="input-with-icon">
+                  <input
+                    type="password"
+                    id="signupPassword"
+                    name="password"
+                    placeholder="Min 6 chars"
+                    autocomplete="new-password"
+                    required
+                  />
+                  <i class="fa-solid fa-lock field-icon"></i>
+                  <button type="button" class="password-toggle-btn" data-target="signupPassword" aria-label="Toggle password">
+                    <i class="fa-regular fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-field">
+                <label for="signupConfirmPassword">Confirm Password</label>
+                <div class="input-with-icon">
+                  <input
+                    type="password"
+                    id="signupConfirmPassword"
+                    name="confirmPassword"
+                    placeholder="Re-enter password"
+                    autocomplete="new-password"
+                    required
+                  />
+                  <i class="fa-solid fa-shield-halved field-icon"></i>
+                  <button type="button" class="password-toggle-btn" data-target="signupConfirmPassword" aria-label="Toggle confirm password">
+                    <i class="fa-regular fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-options">
+              <label class="remember-me">
+                <input type="checkbox" id="signupConsent" checked required />
+                <span>I consent to digital health records registration under Ayushman Bharat Digital Mission (ABDM).</span>
+              </label>
+            </div>
+
+            <button type="submit" class="auth-submit-btn patient-login-btn" id="signupSubmitBtn">
+              <span>Create Health Account & Sign In</span>
+              <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </form>
+
+          <!-- Quick Demo Account for Fast Evaluation -->
+          <div class="demo-box">
+            <div class="demo-box-header">
+              <i class="fa-solid fa-bolt"></i>
+              <span>Quick Evaluation Registration</span>
+            </div>
+            <button type="button" class="demo-fill-btn" onclick="fillDemoSignup()">
+              <i class="fa-solid fa-user-plus"></i>
+              <span>Auto-fill New Patient Demo (Aditi Sen)</span>
+            </button>
+          </div>
+
+          <!-- Card Footer -->
+          <div class="login-card-footer">
+            <div class="role-switcher-text" style="margin-bottom: 12px;">
+              Already registered? <a href="login-patient.html" style="font-weight: 600; color: var(--primary);">Patient Login</a> • <a href="login-doctor.html">Doctor Portal</a>
+            </div>
+
+            <a href="index.html" class="back-to-portal-link">
+              <i class="fa-solid fa-arrow-left"></i>
+              <span>Return to Role Selection</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast" id="toast">
+      <div class="toast-icon">
+        <i class="fa-solid fa-check"></i>
+      </div>
+      <div>
+        <strong>AYURCASE</strong>
+        <span id="toastMessage">Action completed successfully.</span>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="auth.js?v=4.2"></script>
+</body>
+</html>
+

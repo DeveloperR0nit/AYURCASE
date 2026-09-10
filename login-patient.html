@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Patient Portal Login | AYURCASE</title>
+    <!-- Favicons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="auth.css" />
+
+    <!-- Immediate Theme Restore (Prevents Flash of Light Mode) -->
+    <script>
+      (function () {
+        try {
+          const d = localStorage.getItem("ayurcase-dark");
+          const t = localStorage.getItem("ayurcase_theme");
+          if (d === "true" || t === "dark") {
+            document.documentElement.classList.add("dark");
+          }
+        } catch (_) {}
+      })();
+    </script>
+  </head>
+
+  <body class="portal-page">
+    <!-- Navbar -->
+    <header class="portal-navbar">
+      <a href="index.html" class="brand">
+        <div class="brand-icon">
+          <i class="fa-solid fa-leaf"></i>
+        </div>
+        <div>
+          <h2>AYUR<span>CASE</span></h2>
+          <small>AYUSH CARE PLATFORM</small>
+        </div>
+      </a>
+
+      <div class="navbar-right">
+        <a href="index.html" class="back-to-portal-link">
+          <i class="fa-solid fa-arrow-left"></i>
+          <span>Switch Role</span>
+        </a>
+
+        <button class="icon-btn theme-btn" id="themeToggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+          <i class="fa-solid fa-moon"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="login-body-wrapper">
+      <div class="login-container">
+        <div class="login-card">
+          <div class="login-card-header">
+            <div class="login-role-badge patient-badge">
+              <i class="fa-solid fa-hospital-user"></i>
+              <span>Patient & Wellness Portal</span>
+            </div>
+
+            <h2>Patient Login</h2>
+            <p>Access your personal health records and treatment progress.</p>
+          </div>
+
+          <!-- Patient Login Form -->
+          <form class="auth-form" id="patientLoginForm" action="javascript:void(0);" method="POST" onsubmit="event.preventDefault(); return handlePatientLogin(event);">
+            <div class="form-field">
+              <label for="abhaId">ABHA ID / Mobile Number / Email</label>
+              <div class="input-with-icon">
+                <input
+                  type="text"
+                  id="abhaId"
+                  name="abhaId"
+                  placeholder="e.g. ABHA-9182-4410 or mobile"
+                  autocomplete="username"
+                  required
+                />
+                <i class="fa-solid fa-id-card field-icon"></i>
+              </div>
+            </div>
+
+            <div class="form-field">
+              <label for="password">
+                <span>Password / OTP</span>
+                <a href="#" class="forgot-link" onclick="showToastNotice('Verification OTP sent to your registered mobile number.')">Get OTP / Forgot?</a>
+              </label>
+              <div class="input-with-icon">
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  placeholder="••••••••"
+                  autocomplete="current-password"
+                  required
+                />
+                <i class="fa-solid fa-lock field-icon"></i>
+                <button type="button" class="password-toggle-btn" data-target="password" aria-label="Toggle password visibility">
+                  <i class="fa-regular fa-eye"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-options">
+              <label class="remember-me">
+                <input type="checkbox" checked />
+                <span>Remember on this device</span>
+              </label>
+            </div>
+
+            <button type="submit" class="auth-submit-btn patient-login-btn">
+              <span>Access Health Records</span>
+              <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </form>
+
+          <!-- Quick Demo Account for Fast Evaluation -->
+          <div class="demo-box">
+            <div class="demo-box-header">
+              <i class="fa-solid fa-bolt"></i>
+              <span>Quick Evaluation Credentials</span>
+            </div>
+            <button type="button" class="demo-fill-btn" onclick="fillDemo('patient')">
+              <i class="fa-solid fa-key"></i>
+              <span>Auto-fill Patient Demo (Rohit Sharma)</span>
+            </button>
+          </div>
+
+          <!-- Card Footer -->
+          <div class="login-card-footer">
+            <div class="role-switcher-text" style="margin-bottom: 12px;">
+              Don't have an account or ABHA ID? <a href="signup-patient.html" style="font-weight: 600; color: var(--primary);">Register / Sign Up here</a>
+            </div>
+
+            <div class="role-switcher-text">
+              Looking for clinical or admin access? <a href="login-doctor.html">Doctor Login</a> • <a href="login-admin.html">Admin Login</a>
+            </div>
+
+            <a href="index.html" class="back-to-portal-link">
+              <i class="fa-solid fa-arrow-left"></i>
+              <span>Return to Role Selection</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast" id="toast">
+      <div class="toast-icon">
+        <i class="fa-solid fa-check"></i>
+      </div>
+      <div>
+        <strong>Success</strong>
+        <span id="toastMessage">Action completed successfully.</span>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="auth.js?v=4.2"></script>
+</body>
+</html>
+
