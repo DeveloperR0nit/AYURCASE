@@ -24,6 +24,7 @@ try:
         sync_cases_batch,
         get_patient_data,
         get_admin_summary,
+        get_doctor_dashboard,
         get_doctors_list,
         create_appointment,
         get_appointments,
@@ -50,6 +51,7 @@ except ImportError:
         sync_cases_batch,
         get_patient_data,
         get_admin_summary,
+        get_doctor_dashboard,
         get_doctors_list,
         create_appointment,
         get_appointments,
@@ -75,7 +77,61 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Initialize database on startup
 init_db()
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+MAX_ASSISTANT_QUESTION_LENGTH = 4000
+_gemini_client = None
+_gemini_client_key = None
+
+
+def get_gemini_client():
+    """Return a configured Gemini client only when this deployment has a key."""
+    global _gemini_client, _gemini_client_key
+
+    api_key = (os.getenv("GEMINI_API_KEY") or "").strip()
+    if not api_key:
+        return None
+
+    if _gemini_client is None or _gemini_client_key != api_key:
+        _gemini_client = genai.Client(api_key=api_key)
+        _gemini_client_key = api_key
+
+    return _gemini_client
+
+
+def get_gemini_model():
+    return (os.getenv("GEMINI_MODEL") or DEFAULT_GEMINI_MODEL).strip()
+
+
+def assistant_fallback(question):
+    """Give the chat UI a helpful reply when the provider cannot respond."""
+    normalized = question.lower()
+
+    if any(term in normalized for term in ("chest pain", "difficulty breathing", "suicid", "unconscious", "severe bleeding")):
+        return (
+            "Your message may describe an emergency. Please contact local emergency "
+            "services or seek urgent medical care now."
+        )
+
+    if any(term in normalized for term in ("appointment", "book", "consultation")):
+        return (
+            "I received your appointment question. In AYURCASE, open the appointment "
+            "section, select an available practitioner, choose a date and time, then "
+            "confirm the booking. The live AI service is temporarily unavailable, so "
+            "please try your question again shortly for more specific help."
+        )
+
+    if "abha" in normalized or "profile" in normalized:
+        return (
+            "I received your profile question. You can review your Digital ABHA Health "
+            "Card and profile from the patient dashboard. The live AI service is "
+            "temporarily unavailable, so please try again shortly for more specific help."
+        )
+
+    return (
+        "I received your question. The live AI service is temporarily unavailable, "
+        "but your message was not lost. Please try again shortly. For urgent health "
+        "concerns, contact a qualified clinician or local emergency services."
+    )
 
 
 # =====================================================
@@ -89,6 +145,7 @@ def api_login():
     username = data.get("username")
     password = data.get("password")
     role = data.get("role")
+    selected_doctor_username = (data.get("selected_doctor_username") or "").strip()
 
     if not username or not password:
         return jsonify({
@@ -102,6 +159,18 @@ def api_login():
             "success": False,
             "error": "Invalid credentials or unauthorized role access."
         }), 401
+
+    if role == "doctor":
+        if not selected_doctor_username:
+            return jsonify({
+                "success": False,
+                "error": "Select the practitioner account before signing in."
+            }), 400
+        if user["username"].casefold() != selected_doctor_username.casefold():
+            return jsonify({
+                "success": False,
+                "error": "The selected practitioner does not match these credentials."
+            }), 401
 
     return jsonify({
         "success": True,
@@ -132,7 +201,10 @@ def api_cases():
         if not data.get("name") and not data.get("patient_name"):
             return jsonify({"success": False, "error": "Patient name is required."}), 400
 
-        new_case = add_case(data)
+        try:
+            new_case = add_case(data)
+        except ValueError as e:
+            return jsonify({"success": False, "error": str(e)}), 400
         return jsonify({
             "success": True,
             "case": new_case,
@@ -140,7 +212,7 @@ def api_cases():
             "message": f"Case for {new_case['name']} successfully recorded in SQLite database."
         }), 201
 
-    cases = get_all_cases()
+    cases = get_all_cases(request.args.get("doctor_id"))
     return jsonify({
         "success": True,
         "cases": cases
@@ -164,7 +236,7 @@ def api_sync_cases():
     """Batch synchronizes cases from frontend into SQLite database."""
     data = request.json or {}
     cases_list = data.get("cases") or []
-    synced_cases = sync_cases_batch(cases_list)
+    synced_cases = sync_cases_batch(cases_list, data.get("doctor_id"))
     return jsonify({
         "success": True,
         "cases": synced_cases,
@@ -356,6 +428,18 @@ def api_admin_summary():
 # DOCTORS & APPOINTMENT APIS
 # =====================================================
 
+@app.route("/api/doctor-dashboard", methods=["GET"])
+def api_doctor_dashboard():
+    """Returns current dashboard data for one authenticated practitioner."""
+    doctor_id = request.args.get("doctor_id")
+    if not doctor_id:
+        return jsonify({"success": False, "error": "doctor_id is required."}), 400
+
+    dashboard = get_doctor_dashboard(doctor_id)
+    if not dashboard:
+        return jsonify({"success": False, "error": "Practitioner account not found."}), 404
+    return jsonify({"success": True, "dashboard": dashboard})
+
 @app.route("/api/doctors", methods=["GET"])
 def api_doctors():
     """Returns list of available AYUSH doctors for selection."""
@@ -407,6 +491,8 @@ def api_appointments():
                 doctor_id=doctor_id
             )
             return jsonify({"success": True, "appointment": new_apt}), 201
+        except ValueError as e:
+            return jsonify({"success": False, "error": str(e)}), 400
         except Exception as e:
             print("Error creating appointment:", e)
             return jsonify({"success": False, "error": str(e)}), 500
@@ -437,23 +523,66 @@ def api_appointments():
 
 @app.route("/api/recommend", methods=["POST"])
 def recommend():
-
-    data = request.json or {}
-    problem = data.get("problem")
-
-    print("Patient problem:", repr(problem))
+    data = request.get_json(silent=True) or {}
+    problem = str(data.get("problem") or "").strip()
+    mode = str(data.get("mode") or "").strip().lower()
 
     if not problem:
         return jsonify({
             "error": "Please enter some patient information."
         }), 400
 
-    if not os.getenv("GEMINI_API_KEY"):
-        return jsonify({
-            "error": "AI guidance is not configured on this server."
-        }), 503
+    # The UI limits questions to 4,000 characters. Truncating here keeps the
+    # public endpoint predictable when it is called directly after deployment.
+    problem = problem[:MAX_ASSISTANT_QUESTION_LENGTH]
 
-    prompt = f"""
+    try:
+        client = get_gemini_client()
+    except Exception as error:
+        app.logger.warning("Gemini client configuration failed: %s", type(error).__name__)
+        return jsonify({
+            "recommendation": assistant_fallback(problem),
+            "source": "fallback",
+            "reason": "configuration_unavailable",
+        })
+
+    if not client:
+        return jsonify({
+            "recommendation": assistant_fallback(problem),
+            "source": "fallback",
+            "reason": "not_configured",
+        })
+
+    if mode == "patient-assistant":
+        prompt = f"""
+You are the AYURCASE Assistant, a helpful general-purpose assistant inside the
+AYURCASE portal. You can answer everyday general questions, explain how to use
+this website, and provide general health and wellness information.
+
+AYURCASE patient portal context:
+- Patients can view their Digital ABHA Health Card and profile.
+- Patients can book and review appointments, view case history, explore their
+  Prakriti score, and use the learning section.
+- Do not claim that a website action has been completed unless the user can see
+  confirmation in the portal. If unsure about a feature, say so plainly.
+
+For health questions:
+- Give general educational information and practical, low-risk suggestions.
+- Do not diagnose conditions, prescribe medication, or give medication doses.
+- Explain uncertainty and encourage a qualified clinician when appropriate.
+- For symptoms that could be urgent or life-threatening, advise immediate local
+  emergency care.
+
+For non-health questions, answer helpfully and directly. Keep responses clear,
+concise, and friendly.
+- Never return an empty response. If you cannot safely answer, explain why and
+  offer a safe, practical next step instead.
+
+User question:
+{problem}
+"""
+    else:
+        prompt = f"""
 You are a patient guidance assistant for a healthcare application.
 
 The patient has reported:
@@ -471,33 +600,48 @@ Important rules:
 - Recommend consulting a qualified healthcare professional when appropriate.
 - If the symptoms could indicate an emergency, clearly recommend seeking urgent medical attention.
 - Keep the response clear and easy to understand.
+- Never return an empty response. If you cannot safely answer, explain why and
+  offer a safe, practical next step instead.
 """
 
     try:
-
         response = client.models.generate_content(
-            model="gemini-3.6-flash",
-            contents=prompt
+            model=get_gemini_model(),
+            contents=prompt,
         )
 
-        recommendation = response.text
+        recommendation = str(getattr(response, "text", "") or "").strip()
+        if not recommendation:
+            raise RuntimeError("Gemini returned an empty response")
 
         return jsonify({
-            "recommendation": recommendation
+            "recommendation": recommendation,
+            "source": "gemini",
         })
-
-    except Exception as e:
-
-        print("Gemini error:", repr(e))
-
+    except Exception as error:
+        # Do not log the user's health question. Deployment logs can be
+        # retained by hosting providers, so record only the failure type.
+        app.logger.warning("Gemini request failed: %s", type(error).__name__)
         return jsonify({
-            "error": "The AI service is currently unavailable. Please try again later."
-        }), 500
+            "recommendation": assistant_fallback(problem),
+            "source": "fallback",
+            "reason": "provider_unavailable",
+        })
 
 
 # =====================================================
 # STATIC FRONTEND SERVING & SECURITY
 # =====================================================
+
+@app.get("/api/health")
+def health_check():
+    """A lightweight endpoint for hosting-platform health checks."""
+    return jsonify({
+        "status": "ok",
+        "ai_configured": bool((os.getenv("GEMINI_API_KEY") or "").strip()),
+        "model": get_gemini_model(),
+    })
+
 
 @app.route("/")
 def home():
@@ -524,4 +668,8 @@ def add_no_cache_headers(response):
 
 
 if __name__ == "__main__":
-    app.run(debug=os.getenv("FLASK_DEBUG") == "1")
+    app.run(
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", "5000")),
+        debug=os.getenv("FLASK_DEBUG") == "1",
+    )

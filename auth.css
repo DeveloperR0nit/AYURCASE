@@ -1124,6 +1124,30 @@ body.dark footer {
     margin-top: 6px;
 }
 
+#doctorAccount {
+    width: 100%;
+    min-height: 46px;
+    padding: 0 40px 0 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--white);
+    color: var(--text);
+    font: inherit;
+    font-size: 12px;
+    outline: none;
+}
+
+#doctorAccount:focus {
+    border-color: var(--green-600);
+    box-shadow: 0 0 0 3px rgba(75, 149, 110, 0.12);
+}
+
+body.dark #doctorAccount {
+    background: #111d16;
+    border-color: #283e30;
+    color: #f2f7f4;
+}
+
 .doctor-card-select {
     border: 1.5px solid var(--border);
     border-radius: 14px;
@@ -1287,6 +1311,10 @@ body.dark footer {
 }
 
 /* Highlight newly added appointment */
+.legacy-follow-ups {
+    display: none;
+}
+
 .appointment.new-appointment-highlight {
     border: 1.5px solid var(--green-500);
     background: rgba(75, 149, 110, 0.06);

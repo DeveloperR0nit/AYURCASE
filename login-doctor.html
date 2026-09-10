@@ -83,7 +83,21 @@
           </div>
 
           <!-- Doctor Login Form -->
-          <form class="auth-form" id="doctorLoginForm" action="javascript:void(0);" method="POST" onsubmit="event.preventDefault(); return handleDoctorLogin(event);">
+          <form class="auth-form" id="doctorLoginForm" action="javascript:void(0);" method="POST" autocomplete="off" onsubmit="event.preventDefault(); return handleDoctorLogin(event);">
+            <div class="form-field">
+              <label for="doctorAccount">Choose practitioner account</label>
+              <div class="input-with-icon">
+                <select id="doctorAccount" name="doctorAccount" required>
+                  <option value="">Select the practitioner who is signing in</option>
+                  <option value="dr.sen@ayurcase.com" data-council="AYUSH-WB-2018-0941">Dr. Arindam Sen — Kayachikitsa</option>
+                  <option value="dr.rao@ayurcase.com" data-council="AYUSH-KA-2019-1120">Dr. Priyadarshini Rao — Panchakarma</option>
+                  <option value="dr.kapoor@ayurcase.com" data-council="AYUSH-DL-2020-1846">Dr. Meera Kapoor — Dravyaguna</option>
+                  <option value="dr.bose@ayurcase.com" data-council="AYUSH-WB-2021-0673">Dr. Kunal Bose — Shalya Tantra</option>
+                </select>
+                <i class="fa-solid fa-user-doctor field-icon"></i>
+              </div>
+            </div>
+
             <div class="form-field">
               <label for="username">Doctor Registration ID or Email</label>
               <div class="input-with-icon">
@@ -92,7 +106,7 @@
                   id="username"
                   name="username"
                   placeholder="e.g. dr.sen@ayurcase.com"
-                  autocomplete="username"
+                  autocomplete="off"
                   onkeydown="if(event.key==='Enter'){event.preventDefault(); handleDoctorLogin(event);}"
                   required
                 />
@@ -111,7 +125,7 @@
                   id="password"
                   name="password"
                   placeholder="••••••••"
-                  autocomplete="current-password"
+                  autocomplete="off"
                   onkeydown="if(event.key==='Enter'){event.preventDefault(); handleDoctorLogin(event);}"
                   required
                 />
@@ -152,18 +166,6 @@
             </button>
           </form>
 
-          <!-- Quick Demo Account for Fast Evaluation -->
-          <div class="demo-box">
-            <div class="demo-box-header">
-              <i class="fa-solid fa-bolt"></i>
-              <span>Quick Evaluation Credentials</span>
-            </div>
-            <button type="button" class="demo-fill-btn" onclick="fillDemo('doctor')">
-              <i class="fa-solid fa-key"></i>
-              <span>Auto-fill Dr. Arindam Sen Credentials</span>
-            </button>
-          </div>
-
           <!-- Card Footer -->
           <div class="login-card-footer">
             <div class="role-switcher-text">
@@ -191,7 +193,7 @@
     </div>
 
     <!-- Scripts -->
-    <script src="auth.js?v=4.1"></script>
+    <script src="auth.js?v=4.5"></script>
 </body>
 </html>
 

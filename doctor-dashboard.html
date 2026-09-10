@@ -87,12 +87,6 @@
             <span>Prakriti</span>
           </a>
 
-          <a href="#" class="nav-item" data-page="ai">
-            <i class="fa-solid fa-wand-magic-sparkles"></i>
-            <span>AI Assistant</span>
-            <b class="new-badge">NEW</b>
-          </a>
-
           <a href="#" class="nav-item" data-page="learn">
             <i class="fa-solid fa-book-open-reader"></i>
             <span>Learn</span>
@@ -126,10 +120,10 @@
           </div>
 
           <div class="doctor-mini">
-            <div class="doctor-avatar">AS</div>
+            <div class="doctor-avatar" data-doctor-initials>AS</div>
 
             <div class="doctor-info">
-              <strong>Dr. Arindam Sen</strong>
+              <strong data-doctor-name>Dr. Arindam Sen</strong>
               <span>AYUSH Practitioner</span>
             </div>
 
@@ -164,16 +158,42 @@
               <span></span>
             </button>
 
-            <div class="top-doctor">
-              <div class="doctor-avatar small">AS</div>
+            <div class="doctor-account-control">
+              <button type="button" class="top-doctor" id="doctorProfileTrigger" aria-expanded="false" aria-controls="doctorAccountMenu">
+                <div class="doctor-avatar small" data-doctor-initials>DR</div>
 
-              <div>
-                <strong>Dr. Arindam Sen</strong>
-                <small>Practitioner</small>
+                <div>
+                  <strong data-doctor-name>Doctor</strong>
+                  <small data-doctor-specialization>AYUSH Practitioner</small>
+                </div>
+
+                <i class="fa-solid fa-chevron-down"></i>
+              </button>
+
+              <div class="doctor-account-menu" id="doctorAccountMenu" hidden>
+                <div class="doctor-account-menu-header">
+                  <div class="doctor-avatar" data-doctor-initials>DR</div>
+                  <div>
+                    <strong id="doctorProfileName">Loading practitioner profile</strong>
+                    <span id="doctorProfileSpecialization">AYUSH Practitioner</span>
+                  </div>
+                </div>
+                <dl class="doctor-profile-details">
+                  <div><dt>Qualification</dt><dd id="doctorProfileQualification">—</dd></div>
+                  <div><dt>Registration no.</dt><dd id="doctorProfileCouncil">—</dd></div>
+                  <div><dt>Contact</dt><dd id="doctorProfilePhone">—</dd></div>
+                  <div><dt>Email</dt><dd id="doctorProfileEmail">—</dd></div>
+                  <div><dt>Patients in care</dt><dd id="doctorProfilePatients">—</dd></div>
+                  <div><dt>Case records</dt><dd id="doctorProfileCases">—</dd></div>
+                  <div><dt>Availability</dt><dd id="doctorProfileAvailability">—</dd></div>
+                  <div><dt>Account</dt><dd id="doctorProfileStatus">—</dd></div>
+                </dl>
+                <button type="button" class="doctor-logout-btn" id="doctorLogoutButton">
+                  <i class="fa-solid fa-right-from-bracket"></i>
+                  Log out
+                </button>
               </div>
-
-              <i class="fa-solid fa-chevron-down"></i>
-            </div>
+            </button>
           </div>
         </header>
 
@@ -189,7 +209,7 @@
                 SYSTEM ONLINE
               </div>
 
-              <h1>Good Morning, <span>Doctor.</span></h1>
+              <h1 id="doctorGreeting">Hello, <span>Doctor.</span></h1>
 
               <p>
                 Here's your clinical overview for today. Let's make every
@@ -206,61 +226,61 @@
           <!-- ================= STAT CARDS ================= -->
 
           <div class="stats">
-            <div class="stat-card">
+            <button type="button" class="stat-card dashboard-stat-action" data-dashboard-action="patients" aria-label="View recent patients">
               <div class="stat-top">
                 <div class="stat-icon green">
                   <i class="fa-solid fa-users"></i>
                 </div>
 
-                <span class="trend positive">
-                  <i class="fa-solid fa-arrow-up"></i> 12.5%
+                <span class="trend neutral">
+                  <i class="fa-solid fa-database"></i> Live
                 </span>
               </div>
 
               <span class="stat-label">TOTAL PATIENTS</span>
 
-              <h2>1,284</h2>
+              <h2 id="doctorTotalPatients">—</h2>
 
-              <p>Compared to last month</p>
-            </div>
+              <p id="doctorTotalPatientsSub">Loading patient records</p>
+            </button>
 
-            <div class="stat-card">
+            <button type="button" class="stat-card dashboard-stat-action" data-dashboard-action="today" aria-label="View today's activity">
               <div class="stat-top">
                 <div class="stat-icon blue">
                   <i class="fa-solid fa-calendar-day"></i>
                 </div>
 
-                <span class="trend positive">
-                  <i class="fa-solid fa-arrow-up"></i> 8.2%
+                <span class="trend neutral">
+                  <i class="fa-solid fa-calendar-check"></i> Live
                 </span>
               </div>
 
               <span class="stat-label">TODAY'S CASES</span>
 
-              <h2>24</h2>
+              <h2 id="doctorTodayCases">—</h2>
 
-              <p>8 cases remaining</p>
-            </div>
+              <p id="doctorTodayCasesSub">Loading today's activity</p>
+            </button>
 
-            <div class="stat-card">
+            <button type="button" class="stat-card dashboard-stat-action" data-dashboard-action="follow-ups" aria-label="View all follow-up visits">
               <div class="stat-top">
                 <div class="stat-icon orange">
                   <i class="fa-solid fa-rotate"></i>
                 </div>
 
-                <span class="trend positive">
-                  <i class="fa-solid fa-arrow-up"></i> 4.6%
+                <span class="trend neutral">
+                  <i class="fa-solid fa-clock"></i> Live
                 </span>
               </div>
 
               <span class="stat-label">FOLLOW-UPS</span>
 
-              <h2>17</h2>
+              <h2 id="doctorFollowUpsStat">—</h2>
 
-              <p>Due this week</p>
-            </div>
+              <p id="doctorFollowUpsSub">Loading confirmed consultations</p>
+            </button>
 
-            <div class="stat-card">
+            <button type="button" class="stat-card dashboard-stat-action" data-dashboard-action="history" aria-label="View case history">
               <div class="stat-top">
                 <div class="stat-icon purple">
                   <i class="fa-solid fa-brain"></i>
@@ -271,94 +291,35 @@
 
               <span class="stat-label">AI CASES ANALYZED</span>
 
-              <h2>436</h2>
+              <h2 id="doctorAiCases">—</h2>
 
-              <p>Clinical documentation</p>
-            </div>
+              <p id="doctorAiCasesSub">Loading clinical records</p>
+            </button>
           </div>
 
           <!-- ================= GRID ================= -->
 
-          <div class="dashboard-grid">
-            <!-- RECENT PATIENTS -->
+          <div class="dashboard-grid dashboard-grid--single">
+            <!-- FOLLOW-UP VISITS -->
 
             <div class="panel patients-panel">
               <div class="panel-header">
                 <div>
-                  <span class="section-kicker"> PATIENT MANAGEMENT </span>
+                  <span class="section-kicker"> PATIENT SCHEDULE </span>
 
-                  <h3>Recent Patients</h3>
+                  <h3>Follow-up Visits</h3>
                 </div>
 
-                <button class="text-btn">
+                <button type="button" class="text-btn" id="doctorFollowUpsButton" onclick="openDoctorFollowUps()">
                   View all
                   <i class="fa-solid fa-arrow-right"></i>
                 </button>
               </div>
 
-              <div class="patient-list" id="patient-list">
+              <div class="patient-list" id="doctorAppointmentsList">
               </div>
             </div>
 
-            <!-- AI ASSISTANT -->
-
-            <div class="ai-card">
-              <div class="ai-glow"></div>
-
-              <div class="ai-header">
-                <div class="ai-title">
-                  <div class="ai-icon">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i>
-                  </div>
-
-                  <div>
-                    <span>AYURCASE</span>
-                    <h3>AI Assistant</h3>
-                  </div>
-                </div>
-
-                <span class="live-pill">
-                  <span></span>
-                  LIVE
-                </span>
-              </div>
-
-              <div class="ai-content">
-                <div class="ai-orb">
-                  <div class="orb-ring ring-one"></div>
-                  <div class="orb-ring ring-two"></div>
-
-                  <i class="fa-solid fa-brain"></i>
-                </div>
-
-                <h3>
-                  Intelligent Clinical<br />
-                  Documentation
-                </h3>
-
-                <p>
-                  Analyze patient cases, summarize clinical information and
-                  organize observations faster.
-                </p>
-
-                <button class="ai-button">
-                  <i class="fa-solid fa-sparkles"></i>
-                  Analyze a Case
-                </button>
-              </div>
-
-              <div class="ai-footer">
-                <div>
-                  <i class="fa-solid fa-shield-halved"></i>
-                  Practitioner controlled
-                </div>
-
-                <div>
-                  <i class="fa-solid fa-lock"></i>
-                  Secure
-                </div>
-              </div>
-            </div>
           </div>
 
           <!-- ================= LOWER SECTION ================= -->
@@ -417,93 +378,17 @@
               </div>
             </div>
 
-            <!-- UPCOMING -->
+            <!-- RECENT PATIENTS -->
 
-            <div class="panel upcoming">
+            <div class="panel recent-patients-panel">
               <div class="panel-header">
                 <div>
-                  <span class="section-kicker"> SCHEDULE </span>
+                  <span class="section-kicker"> PATIENT ACTIVITY </span>
 
-                  <h3>Upcoming Follow-ups</h3>
+                  <h3>Recent Patients</h3>
                 </div>
-
-                <button class="calendar-btn">
-                  <i class="fa-regular fa-calendar"></i>
-                </button>
               </div>
-
-              <div class="appointment">
-                <div class="date-box">
-                  <strong>31</strong>
-                  <span>AUG</span>
-                </div>
-              <div id="doctorAppointmentsList">
-                <div class="appointment">
-                  <div class="date-box">
-                    <strong>31</strong>
-                    <span>AUG</span>
-                  </div>
-
-                <div class="appointment-info">
-                  <strong>Rahul Sharma</strong>
-                  <span>Follow-up consultation</span>
-                  <div class="appointment-info">
-                    <strong>Rahul Sharma</strong>
-                    <span>Follow-up consultation</span>
-                  </div>
-
-                  <span class="appointment-time"> 10:30 AM </span>
-                </div>
-
-                <span class="appointment-time"> 10:30 AM </span>
-              </div>
-                <div class="appointment">
-                  <div class="date-box">
-                    <strong>01</strong>
-                    <span>SEP</span>
-                  </div>
-
-              <div class="appointment">
-                <div class="date-box">
-                  <strong>01</strong>
-                  <span>SEP</span>
-                </div>
-                  <div class="appointment-info">
-                    <strong>Priya Das</strong>
-                    <span>Progress assessment</span>
-                  </div>
-
-                <div class="appointment-info">
-                  <strong>Priya Das</strong>
-                  <span>Progress assessment</span>
-                  <span class="appointment-time"> 11:15 AM </span>
-                </div>
-
-                <span class="appointment-time"> 11:15 AM </span>
-              </div>
-                <div class="appointment">
-                  <div class="date-box">
-                    <strong>03</strong>
-                    <span>SEP</span>
-                  </div>
-
-              <div class="appointment">
-                <div class="date-box">
-                  <strong>03</strong>
-                  <span>SEP</span>
-                </div>
-                  <div class="appointment-info">
-                    <strong>Sneha Mukherjee</strong>
-                    <span>Case review</span>
-                  </div>
-
-                <div class="appointment-info">
-                  <strong>Sneha Mukherjee</strong>
-                  <span>Case review</span>
-                  <span class="appointment-time"> 04:00 PM </span>
-                </div>
-
-                <span class="appointment-time"> 04:00 PM </span>
+              <div class="patient-list recent-patient-list" id="doctorRecentPatientsList">
               </div>
             </div>
           </div>
@@ -612,6 +497,82 @@
       </div>
     </div>
 
+    <!-- ================= FOLLOW-UP VISITS MODAL ================= -->
+
+    <div class="modal-overlay" id="doctorFollowUpsModal" aria-hidden="true">
+      <div class="case-modal follow-ups-modal" role="dialog" aria-modal="true" aria-labelledby="doctorFollowUpsTitle">
+        <button type="button" class="close-modal" id="closeDoctorFollowUpsModal" aria-label="Close follow-up visits">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <div class="modal-header">
+          <div class="modal-icon">
+            <i class="fa-solid fa-calendar-check"></i>
+          </div>
+          <div>
+            <span>PRACTITIONER SCHEDULE</span>
+            <h2 id="doctorFollowUpsTitle">All Follow-up Visits</h2>
+          </div>
+        </div>
+
+        <p class="follow-ups-modal-intro" id="doctorFollowUpsIntro">Loading your confirmed follow-up visits…</p>
+        <div class="follow-ups-modal-list" id="doctorFollowUpsModalList"></div>
+      </div>
+    </div>
+
+    <!-- ================= FLOATING AI ASSISTANT ================= -->
+
+    <button type="button" class="doctor-ai-trigger" onclick="openDoctorAssistant()" aria-label="Open AI Assistant" title="Ask the AYURCASE AI Assistant">
+      <i class="fa-solid fa-wand-magic-sparkles"></i>
+      <span>AI Assistant</span>
+    </button>
+
+    <!-- ================= AI ASSISTANT MODAL ================= -->
+
+    <div class="doctor-ai-overlay" id="doctorAssistantModal" style="display: none; align-items: center; justify-content: center;">
+      <section class="doctor-ai-modal-card" role="dialog" aria-modal="true" aria-labelledby="doctorAssistantTitle">
+        <div style="background: linear-gradient(135deg, #2d7350, #1a5c2e); color: #fff; padding: 18px 24px; display: flex; justify-content: space-between; align-items: center; border-radius: 18px 18px 0 0;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,0.18); display: flex; align-items: center; justify-content: center; font-size: 19px;">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </div>
+            <div>
+              <h3 id="doctorAssistantTitle" style="font-family: 'DM Sans', sans-serif; font-size: 17px; margin: 0; font-weight: 700;">AYURCASE AI Assistant</h3>
+              <p style="font-size: 12px; color: #e4f4e8; margin: 2px 0 0; font-weight: 500;">Website help, general questions, and health &amp; wellness guidance</p>
+            </div>
+          </div>
+          <button type="button" onclick="closeDoctorAssistant()" aria-label="Close AI Assistant" style="background: rgba(255,255,255,0.15); border: none; color: #fff; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="doctor-ai-chat" id="doctorAssistantChat" aria-live="polite">
+          <div class="doctor-ai-message assistant">
+            <span class="doctor-ai-message-text">Hi! I’m a general AI assistant. Ask me how to use AYURCASE, a general question, or for general health and wellness suggestions.</span>
+            <button type="button" class="doctor-ai-speak" onclick="speakDoctorAssistantMessage(this)" aria-label="Read this reply aloud" title="Read aloud">
+              <i class="fa-solid fa-volume-high" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="doctor-ai-composer">
+          <div style="display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px;">
+            <button type="button" class="doctor-ai-suggestion" onclick="askDoctorAssistantQuestion('How do I book an appointment in AYURCASE?')">Book an appointment</button>
+            <button type="button" class="doctor-ai-suggestion" onclick="askDoctorAssistantQuestion('How can I update my ABHA profile?')">Update my profile</button>
+            <button type="button" class="doctor-ai-suggestion" onclick="askDoctorAssistantQuestion('What are some general tips for better sleep?')">Better sleep tips</button>
+          </div>
+          <form onsubmit="sendDoctorAssistantQuestion(event)" style="display: flex; gap: 10px; align-items: flex-end;">
+            <label for="doctorAssistantInput" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0);">Ask the AI Assistant</label>
+            <textarea id="doctorAssistantInput" rows="3" maxlength="4000" placeholder="Ask anything about AYURCASE, wellness, or a general topic…" style="flex: 1; resize: vertical; min-height: 66px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; font: inherit;"></textarea>
+            <button type="submit" class="primary-btn" id="doctorAssistantSend" aria-label="Send message" style="padding: 10px 14px; min-height: 42px; background: #2d7350; border-color: #2d7350;">
+              <i class="fa-solid fa-paper-plane"></i>
+            </button>
+          </form>
+          <p style="font-size: 10.5px; color: var(--muted); margin: 10px 0 0; line-height: 1.4;">Health information is general guidance, not a diagnosis or a substitute for professional medical care.</p>
+        </div>
+      </section>
+    </div>
+
     <!-- ================= TOAST ================= -->
 
     <div class="toast" id="toast">
@@ -627,7 +588,7 @@
 
     <script src="learn-data.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="auth.js?v=4.1"></script>
+    <script src="auth.js?v=4.5"></script>
     <script src="script.js"></script>
 </body>
 </html>
