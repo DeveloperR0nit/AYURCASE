@@ -77,7 +77,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Initialize database on startup
 init_db()
 
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+DEFAULT_GEMINI_MODEL = "gemini-3.6-flash"
 MAX_ASSISTANT_QUESTION_LENGTH = 4000
 _gemini_client = None
 _gemini_client_key = None
