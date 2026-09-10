@@ -66,34 +66,34 @@
         <div class="menu-title">ADMINISTRATION</div>
 
         <nav>
-          <a href="#" class="nav-item active">
+          <a href="#overview" class="nav-item active" data-admin-view="overview">
             <i class="fa-solid fa-gauge-high"></i>
             <span>Overview</span>
           </a>
 
-          <a href="#" class="nav-item">
+          <a href="#doctorsSection" class="nav-item" data-admin-view="doctors">
             <i class="fa-solid fa-user-doctor"></i>
             <span>Doctors & Staff</span>
           </a>
 
-          <a href="#" class="nav-item">
+          <a href="#patientRegistrySection" class="nav-item" data-admin-view="patients">
             <i class="fa-solid fa-hospital-user"></i>
             <span>Patient Registry</span>
           </a>
 
-          <a href="#" class="nav-item">
+          <a href="#ayushSection" class="nav-item" data-admin-view="ayush">
             <i class="fa-solid fa-spa"></i>
             <span>AYUSH Wings</span>
           </a>
 
-          <a href="#" class="nav-item">
+          <a href="#auditSection" class="nav-item" data-admin-view="audit">
             <i class="fa-solid fa-clipboard-check"></i>
             <span>ABDM Audit Logs</span>
           </a>
 
           <div class="menu-title second">SYSTEM</div>
 
-          <a href="#" class="nav-item">
+          <a href="#securitySection" class="nav-item" data-admin-view="security">
             <i class="fa-solid fa-shield-halved"></i>
             <span>Security & 2FA</span>
           </a>
@@ -149,12 +149,20 @@
         </header>
 
         <!-- DASHBOARD BODY -->
-        <div class="dashboard-body" style="padding: 24px 30px;">
+        <div class="dashboard-body" id="overview" style="padding: 24px 30px;">
+          <div class="admin-greeting">
+            <div>
+              <span>ADMINISTRATION CONSOLE</span>
+              <h1>Hello, Admin</h1>
+              <p>Here is a live overview of AYURCASE registrations, bookings, and practitioners.</p>
+            </div>
+            <div class="admin-greeting-icon"><i class="fa-solid fa-user-shield"></i></div>
+          </div>
           <div class="welcome-banner" style="background: linear-gradient(135deg, #17382a, #244f3b); color: white; padding: 24px 28px; border-radius: var(--radius); margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
             <div>
               <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #a2cbb1; font-weight: 600;">System Governance</span>
               <h2 style="font-family: 'Playfair Display', serif; font-size: 26px; margin: 4px 0 8px;">Hospital & AYUSH Clinic Oversight</h2>
-              <p style="font-size: 13px; color: #d0e4d7;">Monitoring 24 certified AYUSH practitioners and 1,480+ digital patient cases.</p>
+              <p id="adminOverviewText" style="font-size: 13px; color: #d0e4d7;">Loading clinic registration data...</p>
             </div>
             <div style="background: rgba(255,255,255,0.1); padding: 12px 20px; border-radius: 12px; text-align: center; border: 1px solid rgba(255,255,255,0.15);">
               <span style="font-size: 11px; color: #a9cfb8;">System Health</span>
@@ -169,9 +177,9 @@
                 <i class="fa-solid fa-user-doctor"></i>
               </div>
               <div class="stat-info">
-                <span class="stat-title">Active Doctors</span>
-                <strong class="stat-value">24</strong>
-                <span class="stat-sub" style="color: var(--green-600); font-size: 11px;">100% Verified Council</span>
+                <span class="stat-title">Total Doctors</span>
+                <strong class="stat-value" id="doctorCount">—</strong>
+                <span class="stat-sub" id="doctorCountNote" style="color: var(--green-600); font-size: 11px;">Registered practitioners</span>
               </div>
             </div>
 
@@ -181,88 +189,420 @@
               </div>
               <div class="stat-info">
                 <span class="stat-title">Registered Patients</span>
-                <strong class="stat-value">1,482</strong>
-                <span class="stat-sub" style="color: #2f5f92; font-size: 11px;">+38 this week</span>
-              </div>
-            </div>
-
-            <div class="stat-card">
-              <div class="stat-icon" style="background: #fdf5ea; color: #c4823a;">
-                <i class="fa-solid fa-file-medical"></i>
-              </div>
-              <div class="stat-info">
-                <span class="stat-title">Total Cases Taken</span>
-                <strong class="stat-value">3,912</strong>
-                <span class="stat-sub" style="color: #c4823a; font-size: 11px;">Ashtavidha Pariksha</span>
+                <strong class="stat-value" id="patientCount">—</strong>
+                <span class="stat-sub" style="color: #2f5f92; font-size: 11px;">Patient accounts registered</span>
               </div>
             </div>
 
             <div class="stat-card">
               <div class="stat-icon" style="background: #f2eef7; color: #6c4f99;">
-                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <i class="fa-solid fa-calendar-check"></i>
               </div>
               <div class="stat-info">
-                <span class="stat-title">AI Copilot Inferences</span>
-                <strong class="stat-value">845</strong>
-                <span class="stat-sub" style="color: #6c4f99; font-size: 11px;">Gemini 3.6 Flash</span>
+                <span class="stat-title">Appointments Booked</span>
+                <strong class="stat-value" id="appointmentCount">—</strong>
+                <span class="stat-sub" style="color: #6c4f99; font-size: 11px;">Live patient bookings</span>
               </div>
             </div>
           </div>
 
-          <!-- DOCTORS ROSTER TABLE -->
-          <div class="panel" style="background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 24px;">
-          <div class="panel" style="border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 24px;">
+          <section class="panel" id="patientRegistrySection" style="border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <div>
+                <h3 style="font-family: 'Playfair Display', serif; font-size: 18px; color: var(--green-950);">Live Patient Activity</h3>
+                <p style="font-size: 12px; color: var(--muted);">New patient registrations, sign-ins, and appointment bookings</p>
+              </div>
+              <button type="button" id="viewAllPatientActivity" class="admin-view-all">View all <i class="fa-solid fa-arrow-right"></i></button>
+            </div>
+            <div id="patientActivity" class="admin-activity-list" aria-live="polite"><p class="admin-empty">Loading patient activity...</p></div>
+          </section>
+
+          <section class="panel admin-secondary-view" id="ayushSection" hidden>
+            <h3>AYUSH Wings</h3><p>Clinical services are grouped by each practitioner’s registered specialization.</p>
+            <div id="ayushContent" class="admin-simple-grid"></div>
+          </section>
+          <section class="panel admin-secondary-view" id="auditSection" hidden>
+            <h3>ABDM Audit Logs</h3><p>Recent secure system events.</p>
+            <div id="auditContent" class="admin-simple-list"></div>
+          </section>
+          <section class="panel admin-secondary-view" id="securitySection" hidden>
+            <h3>Security & 2FA</h3><p>Administrator security overview.</p>
+            <div class="admin-simple-list"><div class="admin-simple-row"><strong>Administrator access</strong><span>Protected by secure sign-in</span></div><div class="admin-simple-row"><strong>Session handling</strong><span>Active sessions are tracked by AYURCASE</span></div></div>
+          </section>
+
+          <!-- DOCTOR DIRECTORY -->
+          <div class="panel" id="doctorsSection" style="border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 24px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
               <div>
                 <h3 style="font-family: 'Playfair Display', serif; font-size: 18px; color: var(--green-950);">Practitioner Roster & Department Status</h3>
-                <p style="font-size: 12px; color: var(--muted);">Doctors actively taking cases in the clinic today</p>
+                <p id="rosterDescription" style="font-size: 12px; color: var(--muted);">Loading registered doctors and their specializations...</p>
               </div>
-              <a href="doctor-dashboard.html" class="primary-btn" style="text-decoration: none; font-size: 12px;">
-                <i class="fa-solid fa-stethoscope"></i> View Doctor Case Portal
-              </a>
             </div>
 
-            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-              <thead>
-                <tr style="border-bottom: 1px solid var(--border); text-align: left; color: var(--muted); font-size: 11.5px;">
-                  <th style="padding: 10px 12px;">DOCTOR</th>
-                  <th style="padding: 10px 12px;">SPECIALIZATION</th>
-                  <th style="padding: 10px 12px;">COUNCIL ID</th>
-                  <th style="padding: 10px 12px;">CASES TAKEN</th>
-                  <th style="padding: 10px 12px;">STATUS</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr style="border-bottom: 1px solid var(--border);">
-                  <td style="padding: 12px; font-weight: 600;">Dr. Arindam Sen</td>
-                  <td style="padding: 12px; color: var(--green-700);">Kayachikitsa (Internal Medicine)</td>
-                  <td style="padding: 12px; color: var(--muted);">AYUSH-WB-2018-0941</td>
-                  <td style="padding: 12px; font-weight: 600;">142 cases</td>
-                  <td style="padding: 12px;"><span style="background: #e7f0e9; color: var(--green-800); font-size: 11px; padding: 4px 10px; border-radius: 12px; font-weight: 600;">Active Online</span></td>
-                </tr>
-                <tr style="border-bottom: 1px solid var(--border);">
-                  <td style="padding: 12px; font-weight: 600;">Dr. Priyadarshini Rao</td>
-                  <td style="padding: 12px; color: var(--green-700);">Panchakarma Specialist</td>
-                  <td style="padding: 12px; color: var(--muted);">AYUSH-KA-2019-1120</td>
-                  <td style="padding: 12px; font-weight: 600;">98 cases</td>
-                  <td style="padding: 12px;"><span style="background: #e7f0e9; color: var(--green-800); font-size: 11px; padding: 4px 10px; border-radius: 12px; font-weight: 600;">In Consultation</span></td>
-                </tr>
-                <tr>
-                  <td style="padding: 12px; font-weight: 600;">Dr. Kabir Hashmi</td>
-                  <td style="padding: 12px; color: var(--green-700);">Unani Tibb Practitioner</td>
-                  <td style="padding: 12px; color: var(--muted);">AYUSH-DL-2020-0433</td>
-                  <td style="padding: 12px; font-weight: 600;">64 cases</td>
-                  <td style="padding: 12px;"><span style="background: #eaf1f8; color: #2f5f92; font-size: 11px; padding: 4px 10px; border-radius: 12px; font-weight: 600;">Available</span></td>
-                </tr>
-              </tbody>
-            </table>
+            <div id="doctorRoster" class="admin-doctor-grid" aria-live="polite">
+              <p class="admin-empty">Loading doctor directory...</p>
+            </div>
           </div>
         </div>
       </main>
     </div>
 
-</body>
+    <div id="doctorDirectoryModal" class="admin-directory-modal" hidden role="dialog" aria-modal="true" aria-label="Doctor patient directory">
+      <section class="admin-directory-dialog">
+        <button type="button" id="closeDoctorDirectory" class="admin-modal-close" aria-label="Close doctor directory"><i class="fa-solid fa-xmark"></i></button>
+        <div id="doctorDetails" aria-live="polite"></div>
+      </section>
+    </div>
+
+    <div id="adminWorkspaceModal" class="admin-directory-modal" hidden role="dialog" aria-modal="true" aria-label="Administration workspace">
+      <section class="admin-directory-dialog admin-workspace-dialog">
+        <button type="button" id="closeAdminWorkspace" class="admin-modal-close" aria-label="Close workspace"><i class="fa-solid fa-xmark"></i></button>
+        <div id="adminWorkspaceContent"></div>
+      </section>
+    </div>
+
     <script src="auth.js?v=4.5"></script>
+    <style>
+      .admin-doctor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+      .admin-greeting { display: flex; align-items: center; justify-content: space-between; margin: 0 0 16px; }
+      .admin-greeting span { display: block; color: var(--green-600); font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+      .admin-greeting h1 { color: var(--green-950); font-family: 'Playfair Display', serif; font-size: 27px; margin: 3px 0; }
+      .admin-greeting p { color: var(--muted); font-size: 12px; }
+      .admin-greeting-icon { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; background: #e7f0e9; color: var(--green-700); font-size: 20px; }
+      .admin-view-all { background: transparent; color: var(--green-700); font-weight: 700; font-size: 12px; padding: 6px; }
+      .admin-activity-list { display: grid; gap: 9px; }
+      .admin-activity-item { display: flex; align-items: center; gap: 11px; border: 1px solid var(--border); border-radius: 11px; padding: 11px 13px; background: #fff; }
+      .admin-activity-icon { width: 31px; height: 31px; border-radius: 50%; display: grid; place-items: center; background: #e7f0e9; color: var(--green-700); font-size: 12px; }
+      .admin-activity-item strong { display: block; color: var(--green-950); font-size: 13px; } .admin-activity-item p { color: var(--muted); font-size: 11px; margin-top: 2px; }
+      .admin-activity-type { margin-left: auto; color: var(--green-700); font-size: 11px; font-weight: 700; white-space: nowrap; }
+      .admin-secondary-view { margin-bottom: 24px; padding: 22px; border: 1px solid var(--border); border-radius: var(--radius); }
+      .admin-secondary-view > p { font-size: 12px; color: var(--muted); margin: 5px 0 14px; }
+      .admin-simple-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .admin-simple-list { display: grid; gap: 9px; }
+      .admin-simple-row { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
+      .admin-simple-row strong { color: var(--green-950); } .admin-simple-row span { color: var(--muted); }
+      .admin-audit-row { display: grid; grid-template-columns: minmax(160px, .7fr) minmax(0, 1.5fr); gap: 18px; background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 13px 15px; }
+      .admin-audit-row strong { color: var(--green-950); font-size: 13px; } .admin-audit-row p, .admin-audit-row time { display: block; color: var(--muted); font-size: 11px; line-height: 1.45; } .admin-audit-row time { color: var(--green-700); font-weight: 600; margin-top: 4px; }
+      body.dark .admin-activity-item, html.dark .admin-activity-item { background: #223128; border-color: #385044; }
+      body.dark .admin-activity-item strong, html.dark .admin-activity-item strong { color: #f2f7f3; }
+      body.dark .admin-activity-item p, html.dark .admin-activity-item p { color: #c6d4ca; }
+      body.dark .admin-activity-type, html.dark .admin-activity-type { color: #9ce8b6; }
+      body.dark .admin-activity-icon, html.dark .admin-activity-icon { background: #315440; color: #b8f1ca; }
+      body.dark .dashboard-body h2, body.dark .dashboard-body h3, body.dark .dashboard-body h4,
+      html.dark .dashboard-body h2, html.dark .dashboard-body h3, html.dark .dashboard-body h4 { color: #f2f7f3 !important; }
+      body.dark .dashboard-body p, body.dark .dashboard-body .stat-title, body.dark .dashboard-body .stat-sub,
+      html.dark .dashboard-body p, html.dark .dashboard-body .stat-title, html.dark .dashboard-body .stat-sub { color: #c6d4ca !important; }
+      body.dark .dashboard-body .stat-value, html.dark .dashboard-body .stat-value { color: #ffffff !important; }
+      body.dark .admin-doctor-card, html.dark .admin-doctor-card { background: #223128; border-color: #385044; }
+      body.dark .admin-doctor-card p, html.dark .admin-doctor-card p { color: #b8d4c0 !important; }
+      body.dark .admin-doctor-meta, html.dark .admin-doctor-meta { border-color: #385044; color: #c6d4ca; }
+      body.dark .admin-doctor-meta strong, html.dark .admin-doctor-meta strong { color: #a8edbe !important; }
+      body.dark .admin-directory-dialog, html.dark .admin-directory-dialog { background: #18231d; }
+      body.dark .admin-workspace-dialog > h2, html.dark .admin-workspace-dialog > h2 { color: #f2f7f3; }
+      body.dark .admin-workspace-subtitle, html.dark .admin-workspace-subtitle { color: #c6d4ca !important; }
+      body.dark .admin-patient-card, body.dark .admin-profile-card, html.dark .admin-patient-card, html.dark .admin-profile-card { background: #223128; border-color: #385044; color: #f2f7f3; }
+      body.dark .admin-patient-card p, body.dark .admin-profile-card p, html.dark .admin-patient-card p, html.dark .admin-profile-card p { color: #c6d4ca !important; }
+      body.dark .admin-modal-close, html.dark .admin-modal-close { background: #315440; color: #f2f7f3; }
+      body.dark .admin-greeting h1, html.dark .admin-greeting h1 { color: #f2f7f3 !important; }
+      body.dark .admin-greeting p, html.dark .admin-greeting p { color: #c6d4ca !important; }
+      body.dark .admin-greeting-icon, html.dark .admin-greeting-icon { background: #315440; color: #b8f1ca; }
+      body.dark .admin-simple-row, html.dark .admin-simple-row { background: #223128; border-color: #385044; }
+      body.dark .admin-simple-row strong, html.dark .admin-simple-row strong { color: #f2f7f3; }
+      body.dark .admin-simple-row span, html.dark .admin-simple-row span { color: #c6d4ca; }
+      body.dark .admin-audit-row, html.dark .admin-audit-row { background: #223128; border-color: #385044; }
+      body.dark .admin-audit-row strong, html.dark .admin-audit-row strong { color: #f2f7f3; }
+      body.dark .admin-audit-row p, html.dark .admin-audit-row p { color: #c6d4ca !important; }
+      .admin-doctor-card { background: #f8fbf8; border: 1px solid var(--border); border-radius: 14px; padding: 17px; text-align: left; transition: transform .2s, box-shadow .2s, border-color .2s; }
+      .admin-doctor-card:hover, .admin-doctor-card:focus-visible { transform: translateY(-2px); border-color: var(--green-500); box-shadow: var(--shadow); outline: none; }
+      .admin-doctor-head { display: flex; gap: 11px; align-items: center; }
+      .admin-doctor-avatar { width: 42px; height: 42px; flex: 0 0 42px; display: grid; place-items: center; border-radius: 50%; background: var(--green-700); color: #fff; font-size: 12px; font-weight: 700; }
+      .admin-doctor-card h4 { font-size: 14px; color: var(--green-950); margin: 0 0 3px; }
+      .admin-doctor-card p { color: var(--green-700); font-size: 12px; line-height: 1.4; }
+      .admin-doctor-meta { display: flex; gap: 12px; margin-top: 15px; padding-top: 12px; border-top: 1px solid var(--border); color: var(--muted); font-size: 11px; }
+      .admin-doctor-meta strong { color: var(--green-800); font-size: 14px; display: block; }
+      .admin-directory-modal { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 22px; background: rgba(16, 41, 31, .56); }
+      .admin-directory-modal[hidden] { display: none; }
+      .admin-directory-dialog { position: relative; width: min(100%, 980px); max-height: min(84vh, 800px); overflow-y: auto; border-radius: 18px; padding: 28px; background: #f8fbf8; box-shadow: 0 20px 60px rgba(0,0,0,.28); }
+      .admin-workspace-dialog { width: min(100%, 1120px); min-height: min(68vh, 620px); }
+      .admin-workspace-dialog > h2 { font-family: 'Playfair Display', serif; color: var(--green-950); font-size: 24px; }
+      .admin-workspace-subtitle { color: var(--muted); font-size: 12px; margin: 5px 0 20px; }
+      .admin-modal-close { position: absolute; right: 16px; top: 14px; width: 34px; height: 34px; border-radius: 50%; background: #e7f0e9; color: var(--green-950); }
+      .admin-detail-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 16px; }
+      .admin-detail-header h3 { font-family: 'Playfair Display', serif; color: var(--green-950); font-size: 20px; margin-bottom: 4px; }
+      .admin-detail-header p { color: var(--muted); font-size: 12px; }
+      .admin-close-details { background: transparent; color: var(--green-700); font-weight: 700; font-size: 12px; padding: 6px; }
+      .admin-patient-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+      .admin-patient-card { border: 1px solid var(--border); border-radius: 12px; padding: 15px; background: #fff; text-align: left; color: var(--green-950); transition: border-color .2s, transform .2s; }
+      .admin-patient-card:hover, .admin-patient-card:focus-visible { border-color: var(--green-500); transform: translateY(-2px); outline: none; }
+      .admin-patient-card h4 { color: var(--green-950); font-size: 14px; margin-bottom: 5px; }
+      .admin-patient-info { font-size: 11.5px; color: var(--muted); line-height: 1.65; }
+      .admin-schedule { margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--green-700); }
+      .admin-schedule strong { color: var(--green-950); }
+      .admin-empty { color: var(--muted); font-size: 13px; padding: 18px 0; text-align: center; grid-column: 1 / -1; }
+      .admin-patient-age { font-size: 12px; color: var(--muted); margin-top: 4px; }
+      .admin-patient-next { font-size: 11px; color: var(--green-700); margin-top: 12px; font-weight: 600; }
+      .admin-profile-card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 22px; }
+      .admin-profile-card h4 { color: var(--green-950); font-size: 19px; margin-bottom: 14px; }
+      .admin-profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; }
+      .admin-profile-grid p { color: var(--muted); font-size: 12px; line-height: 1.5; } .admin-profile-grid strong { color: var(--green-950); }
+      @media (max-width: 760px) { .admin-doctor-grid, .admin-patient-grid, .admin-profile-grid { grid-template-columns: 1fr; } .admin-detail-header { flex-direction: column; } .admin-directory-dialog { padding: 22px 16px; } }
+    </style>
+    <script>
+      (async function loadAdminDashboard() {
+        const roster = document.getElementById("doctorRoster");
+        const details = document.getElementById("doctorDetails");
+        const activityList = document.getElementById("patientActivity");
+        const ayushContent = document.getElementById("ayushContent");
+        const auditContent = document.getElementById("auditContent");
+        const workspaceModal = document.getElementById("adminWorkspaceModal");
+        const workspaceContent = document.getElementById("adminWorkspaceContent");
+        let adminSummary = null;
+        const directoryModal = document.getElementById("doctorDirectoryModal");
+        const closeDirectory = () => { directoryModal.hidden = true; };
+        document.getElementById("closeDoctorDirectory").addEventListener("click", closeDirectory);
+        directoryModal.addEventListener("click", event => { if (event.target === directoryModal) closeDirectory(); });
+        const setText = (id, value) => { const element = document.getElementById(id); if (element) element.textContent = value; };
+        const number = value => Number(value || 0).toLocaleString("en-IN");
+        const make = (tag, className, text) => {
+          const el = document.createElement(tag);
+          if (className) el.className = className;
+          if (text !== undefined) el.textContent = text;
+          return el;
+        };
+        const initials = name => String(name || "Doctor").replace(/^Dr\.\s*/i, "").split(/\s+/).map(word => word[0]).join("").slice(0, 2).toUpperCase();
+        const formatDate = value => {
+          if (!value) return "Date to be confirmed";
+          const parsed = new Date(`${String(value).slice(0, 10)}T12:00:00`);
+          return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+        };
+        const showEmpty = (message, container = roster) => {
+          container.replaceChildren(make("p", "admin-empty", message));
+        };
+        const closeWorkspace = () => { workspaceModal.hidden = true; };
+        document.getElementById("closeAdminWorkspace").addEventListener("click", closeWorkspace);
+        workspaceModal.addEventListener("click", event => { if (event.target === workspaceModal) closeWorkspace(); });
+        function openWorkspace(view) {
+          if (!adminSummary) return;
+          workspaceModal.hidden = false;
+          workspaceContent.replaceChildren();
+          const title = make("h2", "", view === "doctors" ? "Doctors & Staff" : view === "patients" ? "Patient Registry" : view === "ayush" ? "AYUSH Wings" : view === "audit" ? "ABDM Audit Logs" : "Security & 2FA");
+          const subtitle = make("p", "admin-workspace-subtitle", view === "patients" ? "Live registered-patient profiles and their latest clinical condition." : "Dedicated administration workspace");
+          workspaceContent.append(title, subtitle);
+          const content = make("div", view === "doctors" || view === "ayush" ? "admin-doctor-grid" : "admin-simple-list");
+          if (view === "doctors") {
+            adminSummary.doctors.forEach(doctor => {
+              const card = make("button", "admin-doctor-card"); card.type = "button";
+              const head = make("div", "admin-doctor-head"); head.append(make("div", "admin-doctor-avatar", initials(doctor.full_name)));
+              const identity = make("div"); identity.append(make("h4", "", doctor.full_name), make("p", "", doctor.specialization)); head.append(identity);
+              card.append(head); card.addEventListener("click", () => { closeWorkspace(); showDoctorPatients(doctor.id); }); content.append(card);
+            });
+          } else if (view === "patients") {
+            (adminSummary.patient_activity || []).forEach(item => {
+              if (item.activity_type !== "Appointment booked") return;
+              const row = make("article", "admin-simple-row");
+              row.append(make("strong", "", item.patient_name || "Patient"), make("span", "", `${item.patient_age ?? "Age not provided"} years • ${item.condition || "Condition not recorded"}`)); content.append(row);
+            });
+            if (!content.children.length) content.append(make("p", "admin-empty", "No booked appointments yet."));
+          } else if (view === "ayush") {
+            adminSummary.doctors.forEach(doctor => { const row = make("article", "admin-simple-row"); row.append(make("strong", "", doctor.specialization), make("span", "", doctor.full_name)); content.append(row); });
+          } else if (view === "audit") {
+            (adminSummary.audit_logs || []).forEach(log => {
+              const row = make("article", "admin-audit-row");
+              const identity = make("div");
+              identity.append(make("strong", "", log.full_name || log.username || "System"));
+              identity.append(make("p", "", `${log.role ? `${log.role[0].toUpperCase()}${log.role.slice(1)} • ` : ""}${log.action || "System event"}`));
+              const event = make("div");
+              event.append(make("p", "", log.details || "No further details"));
+              event.append(make("time", "", log.timestamp ? new Date(String(log.timestamp).replace(" ", "T")).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "Time not available"));
+              row.append(identity, event); content.append(row);
+            });
+            if (!content.children.length) content.append(make("p", "admin-empty", "No audit activity has been recorded yet."));
+          } else {
+            [["Administrator access", "Secure role-based sign-in enabled"], ["Patient data", "ABHA-linked records are retained in the local database"], ["Audit trail", `${number((adminSummary.audit_logs || []).length)} recent system events available`]].forEach(([label, value]) => { const row = make("article", "admin-simple-row"); row.append(make("strong", "", label), make("span", "", value)); content.append(row); });
+          }
+          workspaceContent.append(content);
+        }
+        const renderActivity = activity => {
+          // Each booking is a distinct clinical event, even if the same
+          // patient books another time for a different condition.
+          const latestActivity = activity.filter(item => item.activity_type === "Appointment booked").slice(0, 3);
+          activityList.replaceChildren();
+          if (!latestActivity.length) {
+            showEmpty("No patient activity yet. New registrations and bookings will appear here.", activityList);
+            return;
+          }
+          latestActivity.forEach(item => {
+            const row = make("article", "admin-activity-item");
+            const icon = make("div", "admin-activity-icon");
+            const iconElement = document.createElement("i");
+            iconElement.className = item.activity_type === "Appointment booked" ? "fa-solid fa-calendar-check" : item.activity_type === "Patient registered" ? "fa-solid fa-user-plus" : "fa-solid fa-right-to-bracket";
+            icon.append(iconElement);
+            const text = make("div");
+            text.append(make("strong", "", item.patient_name || "Patient"));
+            const age = item.patient_age ?? "Not provided";
+            text.append(make("p", "", `${age} years • ${item.condition || "Condition not recorded"}`));
+            row.append(icon, text, make("span", "admin-activity-type", item.activity_type));
+            activityList.append(row);
+          });
+        };
+
+        function showPatientProfile(patient, doctor) {
+          const header = make("div", "admin-detail-header");
+          const heading = make("div");
+          heading.append(make("h3", "", patient.name));
+          heading.append(make("p", "", `Patient profile • Assigned to ${doctor.full_name}`));
+          const back = make("button", "admin-close-details", "← Back to directory");
+          back.type = "button";
+          back.addEventListener("click", () => showDoctorPatients(doctor.doctor_id));
+          header.append(heading, back);
+          const profile = make("article", "admin-profile-card");
+          profile.append(make("h4", "", "Complete patient details"));
+          const profileGrid = make("div", "admin-profile-grid");
+          const fields = [
+            ["Age & gender", `${patient.age || "—"} years • ${patient.gender || "Not specified"}`],
+            ["ABHA ID", patient.abha_id || "Not recorded"],
+            ["Phone", patient.phone || "Not recorded"],
+            ["Blood group", patient.blood_group || "Not recorded"],
+            ["Prakriti", [patient.prakriti_primary, patient.prakriti_secondary].filter(Boolean).join("-") || "Not recorded"],
+            ["Case records", `${number(patient.case_count)} case${patient.case_count === 1 ? "" : "s"}`],
+            ["Registered on", formatDate(patient.created_at)],
+          ];
+          fields.forEach(([label, value]) => {
+            const item = make("p");
+            item.append(make("strong", "", `${label}: `), value);
+            profileGrid.append(item);
+          });
+          profile.append(profileGrid);
+          const schedule = make("div", "admin-schedule");
+          schedule.append(make("strong", "", "Consultation schedule"));
+          if (patient.appointments.length) {
+            patient.appointments.forEach(appointment => schedule.append(make("div", "", `${formatDate(appointment.appointment_date)} at ${appointment.appointment_time || "Time to be confirmed"} — ${appointment.consultation_type || "Consultation"} (${appointment.status || "Scheduled"})`)));
+          } else {
+            schedule.append(make("div", "", "No appointment timing recorded."));
+          }
+          profile.append(schedule);
+          details.replaceChildren(header, profile);
+        }
+
+        async function showDoctorPatients(doctorId) {
+          directoryModal.hidden = false;
+          details.replaceChildren(make("p", "admin-empty", "Loading registered patients and consultation timings..."));
+          try {
+            const response = await fetch(`${getApiHost()}/api/admin/doctors/${doctorId}/patients`, { cache: "no-store" });
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.error || "Unable to load doctor details.");
+            const doctor = data.doctor;
+            const header = make("div", "admin-detail-header");
+            const heading = make("div");
+            heading.append(make("h3", "", `${doctor.full_name}'s patient directory`));
+            heading.append(make("p", "", `${number(doctor.patient_count)} registered patient${doctor.patient_count === 1 ? "" : "s"} • ${doctor.specialization}`));
+            header.append(heading);
+            const patients = make("div", "admin-patient-grid");
+
+            if (!doctor.patients.length) {
+              patients.append(make("p", "admin-empty", "No registered patients are assigned to this doctor yet."));
+            } else {
+              doctor.patients.forEach(patient => {
+                const card = make("button", "admin-patient-card");
+                card.type = "button";
+                card.setAttribute("aria-label", `Open full profile for ${patient.name}`);
+                card.append(make("h4", "", patient.name));
+                card.append(make("p", "admin-patient-age", `${patient.age || "—"} years • ${patient.gender || "Not specified"}`));
+                if (patient.appointments.length) {
+                  const next = patient.appointments[0];
+                  card.append(make("p", "admin-patient-next", `${formatDate(next.appointment_date)} • ${next.appointment_time || "Time to be confirmed"}`));
+                } else {
+                  card.append(make("p", "admin-patient-next", "No appointment timing recorded"));
+                }
+                card.addEventListener("click", () => showPatientProfile(patient, doctor));
+                patients.append(card);
+              });
+            }
+            details.replaceChildren(header, patients);
+          } catch (error) {
+            showEmpty("Unable to load this doctor’s patient directory. Please try again.", details);
+            console.error("Doctor patient directory load failed:", error);
+          }
+        }
+
+        try {
+          const response = await fetch(`${getApiHost()}/api/admin/summary`, { cache: "no-store" });
+          const data = await response.json();
+          if (!response.ok || !data.success) throw new Error(data.error || "Unable to load administrator data.");
+
+          const summary = data.summary;
+          adminSummary = summary;
+          const doctors = Array.isArray(summary.doctors) ? summary.doctors : [];
+          setText("doctorCount", number(summary.doctor_count));
+          setText("patientCount", number(summary.patient_count));
+          setText("appointmentCount", number(summary.appointment_count));
+          setText("doctorCountNote", `${number(doctors.length)} practitioner${doctors.length === 1 ? "" : "s"} in directory`);
+          setText("adminOverviewText", `Monitoring ${number(summary.doctor_count)} registered practitioner${summary.doctor_count === 1 ? "" : "s"} and ${number(summary.patient_count)} patient account${summary.patient_count === 1 ? "" : "s"}.`);
+          setText("rosterDescription", `${number(doctors.length)} registered doctors, including their specialization and current availability.`);
+          renderActivity(Array.isArray(summary.patient_activity) ? summary.patient_activity : []);
+          ayushContent.replaceChildren();
+          doctors.forEach(doctor => {
+            const wing = make("article", "admin-simple-row");
+            wing.append(make("strong", "", doctor.specialization || "AYUSH practitioner"), make("span", "", `${doctor.full_name} • ${number(doctor.registered_patient_count)} patient${doctor.registered_patient_count === 1 ? "" : "s"}`));
+            ayushContent.append(wing);
+          });
+          auditContent.replaceChildren();
+          (summary.audit_logs || []).slice(0, 8).forEach(log => {
+            const line = make("article", "admin-simple-row");
+            line.append(make("strong", "", log.action || "System event"), make("span", "", log.details || "No further details"));
+            auditContent.append(line);
+          });
+
+          roster.replaceChildren();
+          if (!doctors.length) {
+            showEmpty("No doctors are registered yet.");
+            return;
+          }
+
+          doctors.forEach(doctor => {
+            const card = make("button", "admin-doctor-card");
+            card.type = "button";
+            card.setAttribute("aria-label", `View patients assigned to ${doctor.full_name}`);
+            const head = make("div", "admin-doctor-head");
+            head.append(make("div", "admin-doctor-avatar", initials(doctor.full_name)));
+            const identity = make("div");
+            identity.append(make("h4", "", doctor.full_name));
+            identity.append(make("p", "", doctor.specialization));
+            head.append(identity);
+            const meta = make("div", "admin-doctor-meta");
+            const patientStat = make("div");
+            patientStat.append(make("strong", "", number(doctor.registered_patient_count)));
+            patientStat.append("Patients assigned");
+            const appointmentStat = make("div");
+            appointmentStat.append(make("strong", "", number(doctor.appointment_count)));
+            appointmentStat.append("Appointments");
+            meta.append(patientStat, appointmentStat);
+            card.append(head, meta);
+            card.addEventListener("click", () => showDoctorPatients(doctor.id));
+            roster.append(card);
+          });
+        } catch (error) {
+          setText("adminOverviewText", "Clinic registration data could not be loaded. Please refresh the page.");
+          setText("rosterDescription", "Doctor directory is currently unavailable.");
+          showEmpty("Unable to load the doctor directory.");
+          showEmpty("Patient activity could not be loaded.", activityList);
+          console.error("Admin dashboard load failed:", error);
+        }
+
+        document.querySelectorAll(".nav-item[data-admin-view]").forEach(item => {
+          item.addEventListener("click", event => {
+            event.preventDefault();
+            const view = item.dataset.adminView;
+            document.querySelectorAll(".nav-item[data-admin-view]").forEach(link => link.classList.remove("active"));
+            item.classList.add("active");
+            ["ayushSection", "auditSection", "securitySection"].forEach(id => { document.getElementById(id).hidden = true; });
+            if (view === "overview") { document.getElementById("overview").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+            openWorkspace(view);
+          });
+        });
+        document.getElementById("viewAllPatientActivity").addEventListener("click", () => openWorkspace("patients"));
+      })();
+    </script>
   </body>
 </html>
 
