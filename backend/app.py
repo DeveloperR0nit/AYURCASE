@@ -621,7 +621,11 @@ Important rules:
     except Exception as error:
         # Do not log the user's health question. Deployment logs can be
         # retained by hosting providers, so record only the failure type.
-        app.logger.warning("Gemini request failed: %s", type(error).__name__)
+        app.logger.warning(
+    "Gemini request failed: %s: %s",
+    type(error).__name__,
+    error
+)
         return jsonify({
             "recommendation": assistant_fallback(problem),
             "source": "fallback",
