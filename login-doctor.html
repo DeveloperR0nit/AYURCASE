@@ -85,6 +85,20 @@
           <!-- Doctor Login Form -->
           <form class="auth-form" id="doctorLoginForm" action="javascript:void(0);" method="POST" onsubmit="event.preventDefault(); return handleDoctorLogin(event);">
             <div class="form-field">
+              <label for="doctorAccount">Choose practitioner account</label>
+              <div class="input-with-icon">
+                <select id="doctorAccount" name="doctorAccount" onchange="fillDoctorDemo(this.value)">
+                  <option value="">Select a practitioner to auto-fill</option>
+                  <option value="sen">Dr. Arindam Sen — Kayachikitsa</option>
+                  <option value="rao">Dr. Priyadarshini Rao — Panchakarma</option>
+                  <option value="kapoor">Dr. Meera Kapoor — Dravyaguna</option>
+                  <option value="bose">Dr. Kunal Bose — Shalya Tantra</option>
+                </select>
+                <i class="fa-solid fa-user-doctor field-icon"></i>
+              </div>
+            </div>
+
+            <div class="form-field">
               <label for="username">Doctor Registration ID or Email</label>
               <div class="input-with-icon">
                 <input
@@ -158,9 +172,9 @@
               <i class="fa-solid fa-bolt"></i>
               <span>Quick Evaluation Credentials</span>
             </div>
-            <button type="button" class="demo-fill-btn" onclick="fillDemo('doctor')">
+            <button type="button" class="demo-fill-btn" onclick="fillDoctorDemo(document.getElementById('doctorAccount').value || 'sen')">
               <i class="fa-solid fa-key"></i>
-              <span>Auto-fill Dr. Arindam Sen Credentials</span>
+              <span>Auto-fill selected practitioner credentials</span>
             </button>
           </div>
 

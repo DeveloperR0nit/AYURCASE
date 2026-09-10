@@ -397,6 +397,24 @@ function fillDemo(role) {
     }
 }
 
+function fillDoctorDemo(doctorKey) {
+    const profiles = {
+        sen: { username: "dr.sen@ayurcase.com", council: "AYUSH-WB-2018-0941", name: "Dr. Arindam Sen" },
+        rao: { username: "dr.rao@ayurcase.com", council: "AYUSH-KA-2019-1120", name: "Dr. Priyadarshini Rao" },
+        kapoor: { username: "dr.kapoor@ayurcase.com", council: "AYUSH-DL-2020-1846", name: "Dr. Meera Kapoor" },
+        bose: { username: "dr.bose@ayurcase.com", council: "AYUSH-WB-2021-0673", name: "Dr. Kunal Bose" }
+    };
+    const profile = profiles[doctorKey];
+    if (!profile) return;
+    const userInput = document.getElementById("username") || document.getElementById("email");
+    const passInput = document.getElementById("password");
+    const councilInput = document.getElementById("councilId");
+    if (userInput) userInput.value = profile.username;
+    if (passInput) passInput.value = "ayur2026";
+    if (councilInput) councilInput.value = profile.council;
+    showToastNotice(`${profile.name}'s verified demo credentials filled.`, "success");
+}
+
 
 
 function generateAbhaId() {
@@ -451,27 +469,36 @@ async function handlePatientSignup(event) {
     const email = document.getElementById("signupEmail")?.value.trim() || "";
     let abhaId = document.getElementById("signupAbhaId")?.value.trim() || "";
     const phone = document.getElementById("signupPhone")?.value.trim() || "";
-    const age = parseInt(document.getElementById("signupAge")?.value, 10) || 28;
-    const gender = document.getElementById("signupGender")?.value || "Female";
+    const ageValue = document.getElementById("signupAge")?.value || "";
+    const age = parseInt(ageValue, 10);
+    const gender = document.getElementById("signupGender")?.value || "";
     const bloodGroup = document.getElementById("signupBloodGroup")?.value || "B+";
     const prakriti = document.getElementById("signupPrakriti")?.value || "Pitta";
     const password = document.getElementById("signupPassword")?.value || "";
     const confirmPassword = document.getElementById("signupConfirmPassword")?.value || "";
 
     if (!name) {
-        showToastNotice("Please enter your Full Name.");
+        showToastNotice("Registration failed: please enter your full name.", "error");
         return false;
     }
     if (!email) {
-        showToastNotice("Please enter your Email Address.");
+        showToastNotice("Registration failed: please enter your email address.", "error");
         return false;
     }
     if (!password || password.length < 6) {
-        showToastNotice("Password must be at least 6 characters.");
+        showToastNotice("Registration failed: password must be at least 6 characters.", "error");
         return false;
     }
     if (password !== confirmPassword) {
-        showToastNotice("Passwords do not match. Please re-enter.");
+        showToastNotice("Registration failed: passwords do not match.", "error");
+        return false;
+    }
+    if (!Number.isInteger(age) || age < 1 || age > 120) {
+        showToastNotice("Registration failed: enter a valid age between 1 and 120.", "error");
+        return false;
+    }
+    if (!gender) {
+        showToastNotice("Registration failed: please select your gender.", "error");
         return false;
     }
 
@@ -548,7 +575,7 @@ async function handlePatientSignup(event) {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = origBtnText;
             }
-            showToastNotice(data.error || "Registration failed. Please check your details.");
+            showToastNotice(data.error || "Registration failed. Please check your details.", "error");
             return false;
         }
     } catch (err) {
@@ -695,7 +722,7 @@ async function authenticateUser(role, username, password, targetUrl) {
     const originalContent = submitBtn ? submitBtn.innerHTML : "Sign In";
 
     if (!username || !password) {
-        showToastNotice("Please enter your credentials.");
+        showToastNotice("Sign-in failed: enter both your practitioner ID and password.", "error");
         return false;
     }
 
@@ -738,7 +765,7 @@ async function authenticateUser(role, username, password, targetUrl) {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalContent;
             }
-            showToastNotice(data.error || "Invalid credentials. Please verify your details.");
+            showToastNotice(data.error || "Sign-in failed: invalid credentials. Please verify your details.", "error");
             return false;
         }
     } catch (err) {
@@ -747,7 +774,7 @@ async function authenticateUser(role, username, password, targetUrl) {
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalContent;
         }
-        showToastNotice("Unable to reach the sign-in service. Please try again shortly.");
+        showToastNotice("Sign-in failed: unable to reach the sign-in service. Please try again shortly.", "error");
         return false;
     }
 
@@ -788,7 +815,7 @@ async function authenticateUser(role, username, password, targetUrl) {
         }).catch(() => {});
 
         try {
-            showToastNotice(`Welcome, ${displayName}! Redirecting...`);
+            showToastNotice(`Welcome, ${displayName}! Redirecting...`, "success");
         } catch (_) {}
 
         setTimeout(() => {
@@ -804,7 +831,7 @@ async function authenticateUser(role, username, password, targetUrl) {
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalContent;
         }
-        showToastNotice("Invalid credentials. Please verify your details.");
+        showToastNotice("Sign-in failed: invalid credentials. Please verify your details.", "error");
     }
     return false;
 }
@@ -816,6 +843,7 @@ window.handlePatientSignup = handlePatientSignup;
 window.generateAbhaId = generateAbhaId;
 window.fillDemoSignup = fillDemoSignup;
 window.fillDemo = fillDemo;
+window.fillDoctorDemo = fillDoctorDemo;
 window.authenticateUser = authenticateUser;
 window.checkUrlParamsAndClean = checkUrlParamsAndClean;
 
@@ -843,6 +871,24 @@ var DEFAULT_DOCTORS = window.DEFAULT_DOCTORS || [
         status: "In Consultation",
         cases_count: 98,
         avatar: "PR"
+    },
+    {
+        doctor_id: 3,
+        full_name: "Dr. Meera Kapoor",
+        specialization: "Dravyaguna & Lifestyle Medicine",
+        qualification: "BAMS, MD (Dravyaguna)",
+        status: "Active Online",
+        cases_count: 116,
+        avatar: "MK"
+    },
+    {
+        doctor_id: 4,
+        full_name: "Dr. Kunal Bose",
+        specialization: "Shalya Tantra Specialist",
+        qualification: "BAMS, MS (Shalya)",
+        status: "Active Online",
+        cases_count: 87,
+        avatar: "KB"
     }
 ];
 
@@ -907,7 +953,9 @@ async function loadAvailableDoctors() {
         const res = await fetch(`${getApiHost()}/api/doctors`);
         const data = await res.json();
         if (data.success && data.doctors && data.doctors.length > 0) {
-            doctors = data.doctors;
+            const returned = data.doctors;
+            const returnedNames = new Set(returned.map(doc => String(doc.full_name || "").toLowerCase()));
+            doctors = [...returned, ...DEFAULT_DOCTORS.filter(doc => !returnedNames.has(doc.full_name.toLowerCase()))];
         }
     } catch (e) {
         console.warn("Using offline doctor list fallback:", e);
@@ -978,6 +1026,21 @@ function getActiveDoctorName() {
     return "Dr. Arindam Sen";
 }
 
+function renderDoctorDashboardProfile() {
+    const session = (() => {
+        try { return JSON.parse(safeStorage.getItem("ayurcase_session") || "{}"); }
+        catch (_) { return {}; }
+    })();
+    if (session.role !== "doctor") return;
+
+    const name = getActiveDoctorName();
+    const initials = name.replace(/^Dr\.\s*/i, "").split(" ").filter(Boolean).map(word => word[0]).join("").slice(0, 2).toUpperCase();
+    document.querySelectorAll("[data-doctor-name]").forEach(el => { el.textContent = name; });
+    document.querySelectorAll("[data-doctor-initials]").forEach(el => { el.textContent = initials; });
+    const greeting = document.getElementById("doctorGreeting");
+    if (greeting) greeting.innerHTML = `Hello, <span>${escapeHtml(name)}.</span>`;
+}
+
 function renderPatientProfile() {
     const session = getActivePatientSession();
     const fullName = session.fullName;
@@ -1033,14 +1096,24 @@ window.handleAppointmentBooking = async function(event) {
     const appointmentDate = document.getElementById("appointmentDate")?.value;
     const appointmentTime = document.getElementById("appointmentTime")?.value || "11:30 AM";
     const consultationType = document.querySelector('input[name="consultation_type"]:checked')?.value || "In-Clinic Consultation";
-    const notes = document.getElementById("appointmentNotes")?.value.trim() || "Routine Clinical Follow-up";
+    const notes = document.getElementById("appointmentNotes")?.value.trim() || "";
 
     const session = getActivePatientSession();
     const patientName = session.fullName || "Rohit Sharma";
     const patientId = session.userId || 1;
 
     if (!appointmentDate) {
-        showToastNotice("Please select an appointment date.");
+        showToastNotice("Booking failed: please select an appointment date.", "error");
+        return false;
+    }
+
+    if (!doctorName || !doctorId) {
+        showToastNotice("Booking failed: please select an attending doctor.", "error");
+        return false;
+    }
+
+    if (!notes) {
+        showToastNotice("Booking failed: please describe the reason for your visit.", "error");
         return false;
     }
 
@@ -1080,7 +1153,7 @@ window.handleAppointmentBooking = async function(event) {
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalText;
         }
-        showToastNotice("Unable to confirm the appointment. Please try again.");
+        showToastNotice("Booking failed: unable to confirm the appointment. Please try again.", "error");
         return false;
     }
 
@@ -1283,7 +1356,7 @@ async function loadDoctorAppointments() {
    6. TOAST NOTIFICATION HELPER
    ===================================================== */
 
-function showToastNotice(message) {
+function showToastNotice(message, type = "success") {
     let toast = document.getElementById("toast");
     let toastMessage = document.getElementById("toastMessage");
 
@@ -1307,6 +1380,12 @@ function showToastNotice(message) {
         toastMessage.textContent = message;
     }
 
+    toast.classList.toggle("toast-error", type === "error");
+    const toastTitle = toast.querySelector("strong");
+    const toastIcon = toast.querySelector(".toast-icon i");
+    if (toastTitle) toastTitle.textContent = type === "error" ? "Failed" : "Success";
+    if (toastIcon) toastIcon.className = type === "error" ? "fa-solid fa-circle-xmark" : "fa-solid fa-circle-check";
+
     toast.classList.add("show");
     setTimeout(() => {
         toast.classList.remove("show");
@@ -1324,12 +1403,14 @@ function initApp() {
     initLoginForms();
     initDatabaseStorage();
     renderPatientProfile();
+    renderDoctorDashboardProfile();
     loadPatientAppointments();
     loadDoctorAppointments();
 }
 
 window.getActivePatientSession = getActivePatientSession;
 window.renderPatientProfile = renderPatientProfile;
+window.renderDoctorDashboardProfile = renderDoctorDashboardProfile;
 window.loadPatientAppointments = loadPatientAppointments;
 
 if (document.readyState === "loading") {

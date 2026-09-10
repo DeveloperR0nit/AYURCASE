@@ -241,10 +241,9 @@ def init_db():
     if user_count == 0:
         seed_default_data(cursor, conn)
     else:
-        # If database already has users, ensure initial appointments exist
-        cursor.execute("SELECT COUNT(*) FROM appointments;")
-        if cursor.fetchone()[0] == 0:
-            seed_initial_appointments(cursor, conn)
+        ensure_default_doctors(cursor, conn)
+
+    ensure_demo_follow_ups(cursor, conn)
 
     
     seed_default_cases(cursor, conn)
@@ -294,6 +293,63 @@ def seed_initial_appointments(cursor, conn):
             """,
             apt,
         )
+    conn.commit()
+
+
+def ensure_default_doctors(cursor, conn):
+    """Adds the four supported demo practitioners without changing existing accounts."""
+    doctors = [
+        ("dr.sen@ayurcase.com", "Dr. Arindam Sen", "AYUSH-WB-2018-0941", "+91 98301 23456", "Kayachikitsa (Internal Medicine)", "BAMS, MD (Ayu)", 142, "Active Online"),
+        ("dr.rao@ayurcase.com", "Dr. Priyadarshini Rao", "AYUSH-KA-2019-1120", "+91 98450 78901", "Panchakarma Specialist", "BAMS, MS (Ayu)", 98, "In Consultation"),
+        ("dr.kapoor@ayurcase.com", "Dr. Meera Kapoor", "AYUSH-DL-2020-1846", "+91 98110 45218", "Dravyaguna & Lifestyle Medicine", "BAMS, MD (Dravyaguna)", 116, "Active Online"),
+        ("dr.bose@ayurcase.com", "Dr. Kunal Bose", "AYUSH-WB-2021-0673", "+91 99031 67104", "Shalya Tantra Specialist", "BAMS, MS (Shalya)", 87, "Active Online"),
+    ]
+    for username, name, council, phone, specialty, qualification, cases_count, status in doctors:
+        cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+        user = cursor.fetchone()
+        if user:
+            user_id = user[0]
+        else:
+            cursor.execute(
+                "INSERT INTO users (username, password_hash, role, full_name, identifier, phone) VALUES (?, ?, 'doctor', ?, ?, ?)",
+                (username, generate_password_hash("ayur2026"), name, council, phone),
+            )
+            user_id = cursor.lastrowid
+        cursor.execute("SELECT id FROM doctors WHERE user_id = ?", (user_id,))
+        if not cursor.fetchone():
+            cursor.execute(
+                "INSERT INTO doctors (user_id, specialization, council_reg_no, qualification, cases_count, status) VALUES (?, ?, ?, ?, ?, ?)",
+                (user_id, specialty, council, qualification, cases_count, status),
+            )
+    conn.commit()
+
+
+def ensure_demo_follow_ups(cursor, conn):
+    """Creates one future follow-up per supported doctor for an immediately useful dashboard."""
+    ensure_default_doctors(cursor, conn)
+    follow_ups = [
+        ("Dr. Arindam Sen", "Rahul Sharma", "2026-09-15", "10:30 AM", "Follow-up consultation"),
+        ("Dr. Priyadarshini Rao", "Priya Das", "2026-09-16", "11:15 AM", "Panchakarma progress review"),
+        ("Dr. Meera Kapoor", "Ananya Roy", "2026-09-17", "02:00 PM", "Lifestyle medicine follow-up"),
+        ("Dr. Kunal Bose", "Vikram Das", "2026-09-18", "04:00 PM", "Post-procedure follow-up"),
+    ]
+    for doctor_name, patient_name, appointment_date, appointment_time, notes in follow_ups:
+        cursor.execute(
+            "SELECT d.id FROM doctors d JOIN users u ON u.id = d.user_id WHERE u.full_name = ?",
+            (doctor_name,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            continue
+        cursor.execute(
+            "SELECT id FROM appointments WHERE doctor_name = ? AND patient_name = ? AND appointment_date = ?",
+            (doctor_name, patient_name, appointment_date),
+        )
+        if not cursor.fetchone():
+            cursor.execute(
+                "INSERT INTO appointments (doctor_id, patient_name, doctor_name, appointment_date, appointment_time, consultation_type, symptoms_notes, status) VALUES (?, ?, ?, ?, ?, 'In-Clinic Consultation', ?, 'Confirmed')",
+                (row[0], patient_name, doctor_name, appointment_date, appointment_time, notes),
+            )
     conn.commit()
 
 

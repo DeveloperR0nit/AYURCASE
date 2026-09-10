@@ -2556,3 +2556,19 @@ body.dark #aiInput{
     border: 0;
     border-top: 1px solid var(--border);
 }
+
+.toast.toast-error {
+    background: #6f2d35;
+}
+
+.toast.toast-error .toast-icon {
+    background: #a94752;
+}
+
+.toast.toast-error span {
+    color: #f5d7da;
+}
+
+.legacy-follow-ups {
+    display: none;
+}

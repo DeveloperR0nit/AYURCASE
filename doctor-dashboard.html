@@ -126,10 +126,10 @@
           </div>
 
           <div class="doctor-mini">
-            <div class="doctor-avatar">AS</div>
+            <div class="doctor-avatar" data-doctor-initials>AS</div>
 
             <div class="doctor-info">
-              <strong>Dr. Arindam Sen</strong>
+              <strong data-doctor-name>Dr. Arindam Sen</strong>
               <span>AYUSH Practitioner</span>
             </div>
 
@@ -165,10 +165,10 @@
             </button>
 
             <div class="top-doctor">
-              <div class="doctor-avatar small">AS</div>
+              <div class="doctor-avatar small" data-doctor-initials>AS</div>
 
               <div>
-                <strong>Dr. Arindam Sen</strong>
+                <strong data-doctor-name>Dr. Arindam Sen</strong>
                 <small>Practitioner</small>
               </div>
 
@@ -189,7 +189,7 @@
                 SYSTEM ONLINE
               </div>
 
-              <h1>Good Morning, <span>Doctor.</span></h1>
+              <h1 id="doctorGreeting">Hello, <span>Doctor.</span></h1>
 
               <p>
                 Here's your clinical overview for today. Let's make every
@@ -280,14 +280,14 @@
           <!-- ================= GRID ================= -->
 
           <div class="dashboard-grid">
-            <!-- RECENT PATIENTS -->
+            <!-- FOLLOW-UP VISITS -->
 
             <div class="panel patients-panel">
               <div class="panel-header">
                 <div>
-                  <span class="section-kicker"> PATIENT MANAGEMENT </span>
+                  <span class="section-kicker"> PATIENT SCHEDULE </span>
 
-                  <h3>Recent Patients</h3>
+                  <h3>Follow-up Visits</h3>
                 </div>
 
                 <button class="text-btn">
@@ -296,7 +296,7 @@
                 </button>
               </div>
 
-              <div class="patient-list" id="patient-list">
+              <div class="patient-list" id="doctorAppointmentsList">
               </div>
             </div>
 
@@ -419,7 +419,7 @@
 
             <!-- UPCOMING -->
 
-            <div class="panel upcoming">
+            <div class="panel upcoming legacy-follow-ups">
               <div class="panel-header">
                 <div>
                   <span class="section-kicker"> SCHEDULE </span>
@@ -437,7 +437,7 @@
                   <strong>31</strong>
                   <span>AUG</span>
                 </div>
-              <div id="doctorAppointmentsList">
+              <div id="legacyDoctorAppointmentsList">
                 <div class="appointment">
                   <div class="date-box">
                     <strong>31</strong>
