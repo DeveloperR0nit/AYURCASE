@@ -16,6 +16,26 @@ function getApiHost() {
     return "http://127.0.0.1:5000";
 }
 
+// This mirrors the server-side fallback so an interrupted deployment, proxy,
+// or network connection still leaves the user with a useful assistant reply.
+function getAssistantFallbackResponse(question) {
+    const normalized = String(question || "").toLowerCase();
+
+    if (["chest pain", "difficulty breathing", "suicid", "unconscious", "severe bleeding"].some(term => normalized.includes(term))) {
+        return "Your message may describe an emergency. Please contact local emergency services or seek urgent medical care now.";
+    }
+
+    if (["appointment", "book", "consultation"].some(term => normalized.includes(term))) {
+        return "I received your appointment question. Open the appointment section, select an available practitioner, choose a date and time, then confirm the booking. Please try the AI again shortly for more specific help.";
+    }
+
+    if (normalized.includes("abha") || normalized.includes("profile")) {
+        return "I received your profile question. You can review your Digital ABHA Health Card and profile from the patient dashboard. Please try the AI again shortly for more specific help.";
+    }
+
+    return "I received your question, but the live AI service is temporarily unavailable. Please try again shortly. For urgent health concerns, contact a qualified clinician or local emergency services.";
+}
+
 function escapeHtml(value) {
     return String(value ?? "")
         .replace(/&/g, "&amp;")
@@ -115,10 +135,11 @@ async function syncKeyToDatabase(key, value) {
             try {
                 const casesList = typeof value === "string" ? JSON.parse(value) : value;
                 if (Array.isArray(casesList)) {
+                    const doctorId = typeof getActiveDoctorId === "function" ? getActiveDoctorId() : null;
                     fetch(`${api}/api/cases/sync`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ cases: casesList })
+                        body: JSON.stringify({ cases: casesList, doctor_id: doctorId })
                     }).catch(() => {});
                 }
             } catch (_) {}
@@ -175,9 +196,11 @@ async function initDatabaseStorage() {
 
     // 2. Fetch authoritative cases from SQLite database
     try {
-        const res = await fetch(`${api}/api/cases`);
+        const doctorId = typeof getActiveDoctorId === "function" ? getActiveDoctorId() : null;
+        const caseQuery = doctorId ? `?doctor_id=${encodeURIComponent(doctorId)}` : "";
+        const res = await fetch(`${api}/api/cases${caseQuery}`);
         const data = await res.json();
-        if (data.success && Array.isArray(data.cases) && data.cases.length > 0) {
+        if (data.success && Array.isArray(data.cases)) {
             isSyncingToDb = true;
             try {
                 if (window.localStorage) {
@@ -343,7 +366,7 @@ function initTheme() {
 
 
 /* =====================================================
-   2. PASSWORD TOGGLES & DEMO AUTO-FILL
+   2. PASSWORD VISIBILITY
    ===================================================== */
 
 function initPasswordToggles() {
@@ -367,55 +390,6 @@ function initPasswordToggles() {
         });
     });
 }
-
-function fillDemo(role) {
-    if (role === "doctor") {
-        const userInput = document.getElementById("username") || document.getElementById("email");
-        const passInput = document.getElementById("password");
-        const councilInput = document.getElementById("councilId");
-
-        if (userInput) userInput.value = "dr.sen@ayurcase.com";
-        if (passInput) passInput.value = "ayur2026";
-        if (councilInput) councilInput.value = "AYUSH-WB-2018-0941";
-        showToastNotice("Doctor demo credentials filled (Dr. Arindam Sen)");
-    } else if (role === "patient") {
-        const userInput = document.getElementById("abhaId") || document.getElementById("email") || document.getElementById("username");
-        const passInput = document.getElementById("password");
-
-        if (userInput) userInput.value = "ABHA-9182-4410";
-        if (passInput) passInput.value = "patient123";
-        showToastNotice("Patient demo credentials filled (Rohit Sharma)");
-    } else if (role === "admin") {
-        const userInput = document.getElementById("adminId") || document.getElementById("email") || document.getElementById("username");
-        const passInput = document.getElementById("password");
-        const codeInput = document.getElementById("securityCode");
-
-        if (userInput) userInput.value = "admin@ayurcase.gov.in";
-        if (passInput) passInput.value = "admin123";
-        if (codeInput) codeInput.value = "SEC-8821";
-        showToastNotice("Admin demo credentials filled");
-    }
-}
-
-function fillDoctorDemo(doctorKey) {
-    const profiles = {
-        sen: { username: "dr.sen@ayurcase.com", council: "AYUSH-WB-2018-0941", name: "Dr. Arindam Sen" },
-        rao: { username: "dr.rao@ayurcase.com", council: "AYUSH-KA-2019-1120", name: "Dr. Priyadarshini Rao" },
-        kapoor: { username: "dr.kapoor@ayurcase.com", council: "AYUSH-DL-2020-1846", name: "Dr. Meera Kapoor" },
-        bose: { username: "dr.bose@ayurcase.com", council: "AYUSH-WB-2021-0673", name: "Dr. Kunal Bose" }
-    };
-    const profile = profiles[doctorKey];
-    if (!profile) return;
-    const userInput = document.getElementById("username") || document.getElementById("email");
-    const passInput = document.getElementById("password");
-    const councilInput = document.getElementById("councilId");
-    if (userInput) userInput.value = profile.username;
-    if (passInput) passInput.value = "ayur2026";
-    if (councilInput) councilInput.value = profile.council;
-    showToastNotice(`${profile.name}'s verified demo credentials filled.`, "success");
-}
-
-
 
 function generateAbhaId() {
     const r1 = Math.floor(1000 + Math.random() * 9000);
@@ -535,40 +509,17 @@ async function handlePatientSignup(event) {
         const data = await res.json();
 
         if (res.ok && data.success) {
-            showToastNotice(`Account created! Welcome, ${name}.`);
-
-            const userObj = data.user;
-            const sessionToken = "ayur_sess_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9);
-            const sessionPayload = {
-                role: "patient",
-                username: email,
-                fullName: name,
-                userId: userObj ? userObj.id : 1,
-                token: sessionToken,
-                loggedInAt: new Date().toISOString()
-            };
-
-            safeStorage.setItem("ayurcase_user", JSON.stringify(userObj || { role: "patient", username: email, full_name: name, identifier: abhaId }));
-            safeStorage.setItem("ayurcase_session", JSON.stringify(sessionPayload));
-
-            fetch(`${api}/api/auth/session`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    token: sessionToken,
-                    user_id: userObj ? userObj.id : 1,
-                    role: "patient",
-                    user_data: sessionPayload
-                })
-            }).catch(() => {});
+            // Registration creates an account only. A fresh sign-in is required
+            // before the patient can access their health dashboard.
+            showToastNotice("Account created. Please sign in to continue.");
 
             setTimeout(() => {
                 try {
-                    window.location.replace("patient-dashboard.html");
+                    window.location.replace(`login-patient.html?abhaId=${encodeURIComponent(abhaId)}`);
                 } catch (_) {
-                    window.location.href = "patient-dashboard.html";
+                    window.location.href = `login-patient.html?abhaId=${encodeURIComponent(abhaId)}`;
                 }
-            }, 400);
+            }, 700);
             return false;
         } else {
             if (submitBtn) {
@@ -580,27 +531,12 @@ async function handlePatientSignup(event) {
         }
     } catch (err) {
         console.warn("Backend registration error, using local fallback:", err);
-        const userObj = {
-            id: Date.now(),
-            username: email,
-            role: "patient",
-            full_name: name,
-            identifier: abhaId,
-            phone: phone
-        };
-        safeStorage.setItem("ayurcase_user", JSON.stringify(userObj));
-        safeStorage.setItem("ayurcase_session", JSON.stringify({
-            role: "patient",
-            username: email,
-            fullName: name,
-            userId: userObj.id,
-            loggedInAt: new Date().toISOString()
-        }));
-
-        showToastNotice(`Account created! Welcome, ${name}. Redirecting...`);
+        // Keep the offline fallback on the same sign-in path: it must not
+        // create a local authenticated session after registration.
+        showToastNotice(`Account created! Please sign in, ${name}.`);
         setTimeout(() => {
-            window.location.href = "patient-dashboard.html";
-        }, 1200);
+            window.location.href = `login-patient.html?abhaId=${encodeURIComponent(abhaId)}`;
+        }, 700);
         return false;
     }
 }
@@ -631,15 +567,28 @@ function checkUrlParamsAndClean() {
     } catch (_) {}
 }
 
-function handleDoctorLogin(event) {
+async function handleDoctorLogin(event) {
     if (event) {
         if (typeof event.preventDefault === "function") event.preventDefault();
         if (typeof event.stopPropagation === "function") event.stopPropagation();
     }
     const username = (document.getElementById("username") || document.getElementById("email"))?.value.trim() || "";
     const password = document.getElementById("password")?.value || "";
-    authenticateUser("doctor", username, password, "doctor-dashboard.html");
-    return false;
+    const accountSelect = document.getElementById("doctorAccount");
+    const selectedAccount = accountSelect?.value.trim() || "";
+    const selectedCouncil = accountSelect?.selectedOptions?.[0]?.dataset?.council || "";
+    const normalizedUsername = username.toLowerCase();
+
+    if (!selectedAccount) {
+        showToastNotice("Sign-in failed: select the practitioner account first.", "error");
+        return false;
+    }
+    if (normalizedUsername !== selectedAccount.toLowerCase() && normalizedUsername !== selectedCouncil.toLowerCase()) {
+        showToastNotice("Sign-in failed: the registration ID must match the selected practitioner.", "error");
+        return false;
+    }
+
+    return authenticateUser("doctor", username, password, "doctor-dashboard.html", selectedAccount);
 }
 
 function handlePatientLogin(event) {
@@ -717,7 +666,7 @@ function initLoginForms() {
     });
 }
 
-async function authenticateUser(role, username, password, targetUrl) {
+async function authenticateUser(role, username, password, targetUrl, selectedDoctorUsername = "") {
     const submitBtn = document.querySelector(".auth-submit-btn");
     const originalContent = submitBtn ? submitBtn.innerHTML : "Sign In";
 
@@ -748,7 +697,8 @@ async function authenticateUser(role, username, password, targetUrl) {
             body: JSON.stringify({
                 username: username,
                 password: password,
-                role: role
+                role: role,
+                selected_doctor_username: selectedDoctorUsername
             }),
             signal: controller.signal
         });
@@ -794,6 +744,7 @@ async function authenticateUser(role, username, password, targetUrl) {
             fullName: displayName,
             userId: userObj ? userObj.id : 1,
             identifier: userObj ? (userObj.identifier || "") : (role === "patient" ? "ABHA-9182-4410" : ""),
+            doctorId: role === "doctor" && userObj?.details?.id ? userObj.details.id : null,
             constitution: userConstitution,
             token: sessionToken,
             loggedInAt: new Date().toISOString()
@@ -842,8 +793,6 @@ window.handleAdminLogin = handleAdminLogin;
 window.handlePatientSignup = handlePatientSignup;
 window.generateAbhaId = generateAbhaId;
 window.fillDemoSignup = fillDemoSignup;
-window.fillDemo = fillDemo;
-window.fillDoctorDemo = fillDoctorDemo;
 window.authenticateUser = authenticateUser;
 window.checkUrlParamsAndClean = checkUrlParamsAndClean;
 
@@ -861,6 +810,9 @@ var DEFAULT_DOCTORS = window.DEFAULT_DOCTORS || [
         qualification: "BAMS, MD (Ayu)",
         status: "Active Online",
         cases_count: 142,
+        council_reg_no: "AYUSH-WB-2018-0941",
+        phone: "+91 98301 23456",
+        username: "dr.sen@ayurcase.com",
         avatar: "AS"
     },
     {
@@ -870,6 +822,9 @@ var DEFAULT_DOCTORS = window.DEFAULT_DOCTORS || [
         qualification: "BAMS, MS (Ayu)",
         status: "In Consultation",
         cases_count: 98,
+        council_reg_no: "AYUSH-KA-2019-1120",
+        phone: "+91 98450 78901",
+        username: "dr.rao@ayurcase.com",
         avatar: "PR"
     },
     {
@@ -879,6 +834,9 @@ var DEFAULT_DOCTORS = window.DEFAULT_DOCTORS || [
         qualification: "BAMS, MD (Dravyaguna)",
         status: "Active Online",
         cases_count: 116,
+        council_reg_no: "AYUSH-DL-2020-1846",
+        phone: "+91 98110 45218",
+        username: "dr.kapoor@ayurcase.com",
         avatar: "MK"
     },
     {
@@ -888,6 +846,9 @@ var DEFAULT_DOCTORS = window.DEFAULT_DOCTORS || [
         qualification: "BAMS, MS (Shalya)",
         status: "Active Online",
         cases_count: 87,
+        council_reg_no: "AYUSH-WB-2021-0673",
+        phone: "+91 99031 67104",
+        username: "dr.bose@ayurcase.com",
         avatar: "KB"
     }
 ];
@@ -961,13 +922,13 @@ async function loadAvailableDoctors() {
         console.warn("Using offline doctor list fallback:", e);
     }
 
-    const currentDocName = document.getElementById("selectedDoctorName")?.value || "Dr. Arindam Sen";
+    const currentDocName = document.getElementById("selectedDoctorName")?.value || "";
 
     container.innerHTML = doctors.map((doc, idx) => {
         const doctorName = String(doc.full_name || "AYUSH Doctor");
         const doctorId = Number.parseInt(doc.doctor_id, 10);
         const initials = doctorName.replace("Dr. ", "").split(" ").map(w => w[0]).join("").substring(0, 2);
-        const isSelected = (doctorName === currentDocName) || (idx === 0 && !currentDocName);
+        const isSelected = doctorName === currentDocName;
         return `
             <div class="doctor-card-select ${isSelected ? 'selected' : ''}" 
                  data-doc-id="${Number.isFinite(doctorId) ? doctorId : ''}"
@@ -1026,6 +987,17 @@ function getActiveDoctorName() {
     return "Dr. Arindam Sen";
 }
 
+function getActiveDoctorId() {
+    let sess = {};
+    let user = {};
+    try { sess = JSON.parse(safeStorage.getItem("ayurcase_session") || "{}"); } catch (_) {}
+    try { user = JSON.parse(safeStorage.getItem("ayurcase_user") || "{}"); } catch (_) {}
+
+    if (sess.role !== "doctor" && user.role !== "doctor") return null;
+    const doctorId = sess.doctorId || sess.doctor_id || user?.details?.id || user?.details?.doctor_id || sess.userId || sess.id || user.id;
+    return doctorId ? String(doctorId) : null;
+}
+
 function renderDoctorDashboardProfile() {
     const session = (() => {
         try { return JSON.parse(safeStorage.getItem("ayurcase_session") || "{}"); }
@@ -1033,12 +1005,60 @@ function renderDoctorDashboardProfile() {
     })();
     if (session.role !== "doctor") return;
 
+    const user = (() => {
+        try { return JSON.parse(safeStorage.getItem("ayurcase_user") || "{}"); }
+        catch (_) { return {}; }
+    })();
+    const details = user.details || {};
+
     const name = getActiveDoctorName();
     const initials = name.replace(/^Dr\.\s*/i, "").split(" ").filter(Boolean).map(word => word[0]).join("").slice(0, 2).toUpperCase();
     document.querySelectorAll("[data-doctor-name]").forEach(el => { el.textContent = name; });
     document.querySelectorAll("[data-doctor-initials]").forEach(el => { el.textContent = initials; });
+    document.querySelectorAll("[data-doctor-specialization]").forEach(el => {
+        el.textContent = details.specialization || "AYUSH Practitioner";
+    });
     const greeting = document.getElementById("doctorGreeting");
     if (greeting) greeting.innerHTML = `Hello, <span>${escapeHtml(name)}.</span>`;
+
+    renderDoctorAccountDetails({
+        full_name: name,
+        specialization: details.specialization,
+        qualification: details.qualification,
+        council_reg_no: details.council_reg_no || user.identifier,
+        phone: user.phone,
+        username: user.username,
+        cases_count: details.cases_count,
+        status: details.status,
+    });
+}
+
+function renderDoctorAccountDetails(doctor) {
+    if (!doctor) return;
+    const profile = typeof resolveDoctorDirectoryProfile === "function"
+        ? resolveDoctorDirectoryProfile(doctor)
+        : doctor;
+    const setDetail = (id, value, fallback = "—") => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value || fallback;
+    };
+    const dashboardStats = latestDoctorDashboard?.stats || {};
+    const caseRecords = profile.cases_count ?? dashboardStats.ai_cases_analyzed;
+    const patientsInCare = dashboardStats.total_patients;
+
+    document.querySelectorAll("[data-doctor-specialization]").forEach(element => {
+        element.textContent = profile.specialization || "AYUSH Practitioner";
+    });
+    setDetail("doctorProfileName", profile.full_name, "Practitioner profile");
+    setDetail("doctorProfileSpecialization", profile.specialization, "AYUSH Practitioner");
+    setDetail("doctorProfileQualification", profile.qualification);
+    setDetail("doctorProfileCouncil", profile.council_reg_no || profile.identifier);
+    setDetail("doctorProfilePhone", profile.phone);
+    setDetail("doctorProfileEmail", profile.username || profile.email);
+    setDetail("doctorProfilePatients", patientsInCare, "0");
+    setDetail("doctorProfileCases", caseRecords, "0");
+    setDetail("doctorProfileAvailability", profile.status, "Available");
+    setDetail("doctorProfileStatus", profile.status, "Active");
 }
 
 function renderPatientProfile() {
@@ -1091,8 +1111,8 @@ window.handleAppointmentBooking = async function(event) {
     const submitBtn = document.getElementById("submitAppointmentBtn");
     const originalText = submitBtn ? submitBtn.innerHTML : "Confirm & Schedule";
 
-    const doctorName = document.getElementById("selectedDoctorName")?.value || "Dr. Arindam Sen";
-    const doctorId = document.getElementById("selectedDoctorId")?.value || "1";
+    const doctorName = document.getElementById("selectedDoctorName")?.value.trim() || "";
+    const doctorId = document.getElementById("selectedDoctorId")?.value || "";
     const appointmentDate = document.getElementById("appointmentDate")?.value;
     const appointmentTime = document.getElementById("appointmentTime")?.value || "11:30 AM";
     const consultationType = document.querySelector('input[name="consultation_type"]:checked')?.value || "In-Clinic Consultation";
@@ -1302,54 +1322,399 @@ async function loadPatientAppointments() {
     }).join("");
 }
 
-async function loadDoctorAppointments() {
-    const container = document.getElementById("doctorAppointmentsList");
-    if (!container) return;
+let latestDoctorDashboard = null;
 
-    let appointments = [];
-    const doctorName = getActiveDoctorName();
+async function fetchDoctorDashboard() {
+    const doctorId = getActiveDoctorId();
+    if (!doctorId) throw new Error("No active practitioner account.");
 
+    const query = new URLSearchParams({ doctor_id: doctorId });
     try {
-        const query = new URLSearchParams({ doctor_name: doctorName });
-        const res = await fetch(`${getApiHost()}/api/appointments?${query}`);
-        const data = await res.json();
-        if (data.success && Array.isArray(data.appointments)) {
-            appointments = data.appointments;
+        const response = await fetch(`${getApiHost()}/api/doctor-dashboard?${query}`, { cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok || !data.success || !data.dashboard) {
+            throw new Error(data.error || "Unable to load practitioner dashboard data.");
         }
-    } catch (e) {
-        console.warn("Using cached appointments for doctor:", e);
+        return data.dashboard;
+    } catch (primaryError) {
+        // A dashboard page should still work while a deployment is catching up
+        // with the consolidated endpoint. These two scoped APIs also power Case
+        // History and appointment booking, so they are a reliable live fallback.
+        console.warn("Using practitioner dashboard fallback:", primaryError);
+        return fetchDoctorDashboardFallback(doctorId, primaryError);
+    }
+}
+
+function getDoctorToday() {
+    return new Date().toISOString().slice(0, 10);
+}
+
+function toRecentPatient(record) {
+    const patientName = String(record?.patient_name || record?.name || "").trim();
+    if (!patientName) return null;
+
+    return {
+        patient_name: patientName,
+        last_activity: String(record.last_activity || record.created_at || record.case_date || record.date || record.appointment_date || ""),
+        detail: String(record.detail || record.complaint || record.chief_complaint || record.symptoms_notes || record.diagnosis || record.consultation_type || "Clinical record updated."),
+        status: String(record.status || "Active"),
+    };
+}
+
+function mergeRecentPatients(...collections) {
+    const byPatient = new Map();
+    collections.flat().forEach(record => {
+        const patient = toRecentPatient(record);
+        if (!patient) return;
+        const key = patient.patient_name.toLocaleLowerCase();
+        const current = byPatient.get(key);
+        if (!current || patient.last_activity > current.last_activity) {
+            byPatient.set(key, patient);
+        }
+    });
+
+    return [...byPatient.values()].sort((left, right) =>
+        String(right.last_activity).localeCompare(String(left.last_activity))
+    );
+}
+
+async function fetchDoctorCaseRecords(doctorId = getActiveDoctorId()) {
+    if (!doctorId) return [];
+    const query = new URLSearchParams({ doctor_id: doctorId });
+    const response = await fetch(`${getApiHost()}/api/cases?${query}`, { cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok || !data.success || !Array.isArray(data.cases)) {
+        throw new Error(data.error || "Unable to load practitioner case records.");
+    }
+    return data.cases;
+}
+
+async function fetchDoctorDashboardFallback(doctorId, primaryError) {
+    const query = new URLSearchParams({ doctor_id: doctorId });
+    const [appointmentsResult, casesResult] = await Promise.allSettled([
+        fetch(`${getApiHost()}/api/appointments?${query}`, { cache: "no-store" })
+            .then(async response => {
+                const data = await response.json();
+                if (!response.ok || !data.success || !Array.isArray(data.appointments)) {
+                    throw new Error(data.error || "Unable to load practitioner appointments.");
+                }
+                return data.appointments;
+            }),
+        fetchDoctorCaseRecords(doctorId),
+    ]);
+
+    if (appointmentsResult.status === "rejected" && casesResult.status === "rejected") {
+        throw primaryError;
     }
 
-    if (appointments.length === 0) return;
+    const appointments = appointmentsResult.status === "fulfilled" ? appointmentsResult.value : [];
+    const cases = casesResult.status === "fulfilled" ? casesResult.value : [];
+    const today = getDoctorToday();
+    const followUps = appointments.filter(appointment =>
+        String(appointment.appointment_date || "") >= today
+        && !["cancelled", "completed"].includes(String(appointment.status || "").toLowerCase())
+    );
+    const patientNames = new Set(
+        [...appointments, ...cases]
+            .map(record => record.patient_name || record.name)
+            .filter(Boolean)
+            .map(name => String(name).trim().toLocaleLowerCase())
+    );
+    const todaysCases = appointments.filter(appointment => appointment.appointment_date === today).length
+        + cases.filter(record => String(record.case_date || record.date || record.created_at || "").startsWith(today)).length;
 
-    container.innerHTML = appointments.map(apt => {
-        let day = "15";
-        let mon = "SEP";
-        if (apt.appointment_date) {
-            const parts = apt.appointment_date.split("-");
-            if (parts.length === 3) {
-                day = parts[2];
-                const mIdx = parseInt(parts[1], 10) - 1;
-                const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-                mon = months[mIdx] || "SEP";
-            }
-        }
-        const isNew = apt.created_at && (Date.now() - new Date(apt.created_at).getTime() < 86400000);
-        return `
-            <div class="appointment ${isNew ? 'new-appointment-highlight' : ''}">
-                <div class="date-box">
-                    <strong>${day}</strong>
-                    <span>${mon}</span>
-                </div>
-                <div class="appointment-info">
-                    <strong>${escapeHtml(apt.patient_name)} ${isNew ? '<span class="new-tag">NEW</span>' : ''}</strong>
-                    <span>${escapeHtml(apt.symptoms_notes || apt.consultation_type || 'Follow-up consultation')}</span>
-                </div>
-                <span class="appointment-time">${escapeHtml(apt.appointment_time)}</span>
-            </div>
-        `;
-    }).join("");
+    return {
+        doctor: { full_name: getActiveDoctorName() },
+        stats: {
+            total_patients: patientNames.size,
+            todays_cases: todaysCases,
+            follow_ups: followUps.length,
+            ai_cases_analyzed: cases.length,
+        },
+        follow_ups: followUps,
+        recent_patients: mergeRecentPatients(appointments, cases),
+    };
 }
+
+function doctorInitials(name) {
+    return String(name || "Patient")
+        .replace(/^Dr\.\s*/i, "")
+        .split(" ")
+        .filter(Boolean)
+        .map(word => word[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase();
+}
+
+function doctorEmptyState(message, icon = "fa-calendar-xmark") {
+    return `
+        <div class="doctor-activity-empty">
+            <i class="fa-regular ${icon}"></i>
+            ${escapeHtml(message)}
+        </div>
+    `;
+}
+
+function renderDoctorStats(stats) {
+    const setText = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = String(value);
+    };
+    setText("doctorTotalPatients", stats.total_patients || 0);
+    setText("doctorTodayCases", stats.todays_cases || 0);
+    setText("doctorFollowUpsStat", stats.follow_ups || 0);
+    setText("doctorAiCases", stats.ai_cases_analyzed || 0);
+    setText("doctorTotalPatientsSub", `${stats.total_patients || 0} unique patient${stats.total_patients === 1 ? "" : "s"} in your care`);
+    setText("doctorTodayCasesSub", `${stats.todays_cases || 0} appointment${stats.todays_cases === 1 ? "" : "s"} or cases today`);
+    setText("doctorFollowUpsSub", `${stats.follow_ups || 0} upcoming confirmed consultation${stats.follow_ups === 1 ? "" : "s"}`);
+    setText("doctorAiCasesSub", `${stats.ai_cases_analyzed || 0} clinical record${stats.ai_cases_analyzed === 1 ? "" : "s"} available`);
+}
+
+function renderDoctorFollowUps(appointments) {
+    const container = document.getElementById("doctorAppointmentsList");
+    if (!container) return;
+    if (!appointments.length) {
+        container.innerHTML = doctorEmptyState("No upcoming follow-up visits. New patient bookings will appear here.");
+        return;
+    }
+
+    container.innerHTML = appointments.slice(0, 4).map((appointment, index) => `
+        <div class="patient-row">
+            <div class="patient-avatar avatar-${(index % 4) + 1}">${escapeHtml(doctorInitials(appointment.patient_name))}</div>
+            <div class="patient-info">
+                <strong>${escapeHtml(appointment.patient_name)}</strong>
+                <span>${escapeHtml(formatDisplayDate(appointment.appointment_date))} • ${escapeHtml(appointment.appointment_time || "Time to be confirmed")}</span>
+            </div>
+            <div class="patient-complaint">
+                <span>Reason for visit</span>
+                <strong>${escapeHtml(appointment.symptoms_notes || appointment.consultation_type || "Follow-up consultation")}</strong>
+            </div>
+            <span class="status Active-status">${escapeHtml(appointment.status || "Confirmed")}</span>
+            <i class="fa-solid fa-chevron-right more-btn" aria-hidden="true"></i>
+        </div>
+    `).join("");
+}
+
+const RECENT_PATIENT_DEMOS = [
+    {
+        patient_name: "Aditi Sen",
+        detail: "Demo profile — follow-up after a 7-day sleep and digestion routine; morning energy is improving.",
+        status: "Follow-up",
+        last_activity: "Demo activity",
+        is_demo: true,
+    },
+    {
+        patient_name: "Nikhil Banerjee",
+        detail: "Demo profile — dietary review completed for post-meal heaviness; a gentle Agni-support plan was discussed.",
+        status: "Review",
+        last_activity: "Demo activity",
+        is_demo: true,
+    },
+    {
+        patient_name: "Rhea Mukherjee",
+        detail: "Demo profile — tele-consultation request logged for skin sensitivity and stress-related sleep disruption.",
+        status: "New",
+        last_activity: "Demo activity",
+        is_demo: true,
+    },
+];
+
+function resolveDoctorDirectoryProfile(doctor = {}) {
+    const activeDoctorId = typeof getActiveDoctorId === "function" ? getActiveDoctorId() : null;
+    const requestedId = String(doctor.doctor_id || doctor.id || activeDoctorId || "");
+    const requestedName = String(doctor.full_name || getActiveDoctorName?.() || "").toLowerCase();
+    const defaultProfile = DEFAULT_DOCTORS.find(candidate =>
+        String(candidate.doctor_id) === requestedId ||
+        String(candidate.full_name).toLowerCase() === requestedName
+    ) || {};
+
+    const merged = { ...defaultProfile };
+    Object.entries(doctor).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") merged[key] = value;
+    });
+    return merged;
+}
+
+function formatRecentActivity(activity, isDemo) {
+    if (isDemo) return "Sample activity";
+    if (!activity) return "Recent activity";
+    const parsed = new Date(activity);
+    if (!Number.isNaN(parsed.getTime())) {
+        return `Updated ${parsed.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}`;
+    }
+    return `Updated ${activity}`;
+}
+
+function renderRecentPatients(patients = []) {
+    const container = document.getElementById("doctorRecentPatientsList");
+    if (!container) return;
+
+    const livePatients = mergeRecentPatients(Array.isArray(patients) ? patients : [])
+        .map(patient => ({ ...patient, is_demo: false }));
+    const liveNames = new Set(livePatients.map(patient => patient.patient_name.toLocaleLowerCase()));
+    const demos = RECENT_PATIENT_DEMOS.filter(patient => !liveNames.has(patient.patient_name.toLocaleLowerCase()));
+    const visiblePatients = [...livePatients, ...demos].slice(0, 4);
+
+    container.innerHTML = visiblePatients.map((patient, index) => `
+        <article class="recent-patient-card ${patient.is_demo ? "is-demo" : ""}">
+            <div class="recent-patient-heading">
+                <div class="patient-avatar avatar-${(index % 4) + 1}">${escapeHtml(doctorInitials(patient.patient_name))}</div>
+                <div>
+                    <strong>${escapeHtml(patient.patient_name)}</strong>
+                    <span>${patient.is_demo ? "Demo patient profile" : "Patient in your care"}</span>
+                </div>
+                <span class="status ${String(patient.status || "").toLowerCase().includes("follow") ? "Follow-up-status" : "Active-status"}">${escapeHtml(patient.status || "Active")}</span>
+            </div>
+            <p>${escapeHtml(patient.detail || "Clinical record updated.")}</p>
+            <div class="recent-patient-meta">
+                <span><i class="fa-regular fa-clock"></i>${escapeHtml(formatRecentActivity(patient.last_activity, patient.is_demo))}</span>
+                <span><i class="fa-solid fa-notes-medical"></i>${patient.is_demo ? "Demo record only" : "Live clinical activity"}</span>
+            </div>
+        </article>
+    `).join("");
+}
+
+async function loadDoctorAppointments() {
+    const followUpContainer = document.getElementById("doctorAppointmentsList");
+    const recentContainer = document.getElementById("doctorRecentPatientsList");
+    if (!followUpContainer && !recentContainer) return;
+
+    // Do not leave the panel blank while the live records are loading.
+    renderRecentPatients();
+
+    try {
+        latestDoctorDashboard = await fetchDoctorDashboard();
+        let caseRecords = [];
+        try {
+            caseRecords = await fetchDoctorCaseRecords();
+        } catch (caseError) {
+            console.warn("Unable to supplement recent patients from case history:", caseError);
+        }
+        renderDoctorStats(latestDoctorDashboard.stats || {});
+        renderDoctorFollowUps(latestDoctorDashboard.follow_ups || []);
+        // Cases and appointments are merged by patient name. This guarantees a
+        // patient shown in Case History also appears in Recent Patients.
+        renderRecentPatients(mergeRecentPatients(latestDoctorDashboard.recent_patients || [], caseRecords));
+        renderDoctorAccountDetails(latestDoctorDashboard.doctor);
+    } catch (error) {
+        console.warn("Unable to load practitioner dashboard:", error);
+        if (followUpContainer) {
+            followUpContainer.innerHTML = doctorEmptyState("Follow-up visits could not be loaded. Please refresh and try again.");
+        }
+        // The labelled samples remain visible instead of an empty panel when
+        // the server is temporarily unavailable.
+        if (recentContainer) renderRecentPatients();
+    }
+}
+
+function renderFollowUpsModal(appointments) {
+    const container = document.getElementById("doctorFollowUpsModalList");
+    if (!container) return;
+    container.innerHTML = appointments.length ? appointments.map(appointment => `
+        <article class="follow-up-modal-item">
+            <div class="date-box">
+                <strong>${escapeHtml((appointment.appointment_date || "").split("-")[2] || "—")}</strong>
+                <span>${escapeHtml(formatDisplayDate(appointment.appointment_date || "").split(" ")[1] || "DATE")}</span>
+            </div>
+            <div>
+                <strong>${escapeHtml(appointment.patient_name)}</strong>
+                <span>${escapeHtml(appointment.appointment_time || "Time to be confirmed")} · ${escapeHtml(appointment.consultation_type || "Consultation")}</span>
+                <p>${escapeHtml(appointment.symptoms_notes || "Follow-up consultation")}</p>
+            </div>
+            <span class="status Active-status">${escapeHtml(appointment.status || "Confirmed")}</span>
+        </article>
+    `).join("") : doctorEmptyState("No upcoming follow-up visits. New bookings with you will appear here.");
+}
+
+window.openDoctorFollowUps = async function(event) {
+    if (event) event.preventDefault();
+    const modal = document.getElementById("doctorFollowUpsModal");
+    const intro = document.getElementById("doctorFollowUpsIntro");
+    const container = document.getElementById("doctorFollowUpsModalList");
+    if (!modal || !container) return;
+
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+    if (intro) intro.textContent = "Loading your confirmed follow-up visits…";
+    container.innerHTML = doctorEmptyState("Loading visits…", "fa-calendar-days");
+
+    try {
+        const dashboard = await fetchDoctorDashboard();
+        latestDoctorDashboard = dashboard;
+        const appointments = dashboard.follow_ups || [];
+        if (intro) {
+            intro.textContent = `${appointments.length} confirmed follow-up visit${appointments.length === 1 ? "" : "s"} for ${dashboard.doctor?.full_name || "this practitioner"}.`;
+        }
+        renderFollowUpsModal(appointments);
+    } catch (error) {
+        if (intro) intro.textContent = "We could not load follow-up visits right now.";
+        container.innerHTML = doctorEmptyState(error.message || "Please refresh and try again.");
+    }
+};
+
+window.closeDoctorFollowUps = function() {
+    const modal = document.getElementById("doctorFollowUpsModal");
+    if (!modal) return;
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+};
+
+function initDoctorFollowUpsModal() {
+    const modal = document.getElementById("doctorFollowUpsModal");
+    const closeButton = document.getElementById("closeDoctorFollowUpsModal");
+    if (!modal || !closeButton) return;
+    closeButton.addEventListener("click", window.closeDoctorFollowUps);
+    modal.addEventListener("click", event => {
+        if (event.target === modal) window.closeDoctorFollowUps();
+    });
+}
+
+function initDoctorAccountMenu() {
+    const trigger = document.getElementById("doctorProfileTrigger");
+    const menu = document.getElementById("doctorAccountMenu");
+    const logoutButton = document.getElementById("doctorLogoutButton");
+    if (!trigger || !menu || !logoutButton) return;
+
+    const closeMenu = () => {
+        menu.hidden = true;
+        trigger.setAttribute("aria-expanded", "false");
+    };
+    trigger.addEventListener("click", event => {
+        event.stopPropagation();
+        const willOpen = menu.hidden;
+        menu.hidden = !willOpen;
+        trigger.setAttribute("aria-expanded", String(willOpen));
+    });
+    trigger.addEventListener("keydown", event => {
+        if (event.key === "Escape") closeMenu();
+    });
+    document.addEventListener("click", event => {
+        if (!menu.hidden && !menu.contains(event.target) && !trigger.contains(event.target)) closeMenu();
+    });
+    logoutButton.addEventListener("click", window.logoutDoctor);
+}
+
+window.logoutDoctor = async function() {
+    let session = {};
+    try { session = JSON.parse(safeStorage.getItem("ayurcase_session") || "{}"); } catch (_) {}
+
+    try {
+        await fetch(`${getApiHost()}/api/auth/logout`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: session.token || "" })
+        });
+    } catch (_) {
+        // Local session data is still cleared when the network is unavailable.
+    }
+
+    safeStorage.removeItem("ayurcase_session");
+    safeStorage.removeItem("ayurcase_user");
+    window.location.replace("login-doctor.html");
+};
 
 
 /* =====================================================
@@ -1404,6 +1769,8 @@ function initApp() {
     initDatabaseStorage();
     renderPatientProfile();
     renderDoctorDashboardProfile();
+    initDoctorAccountMenu();
+    initDoctorFollowUpsModal();
     loadPatientAppointments();
     loadDoctorAppointments();
 }

@@ -72,7 +72,6 @@ newCaseButtons.forEach((button) => {
     openCaseModal();
   });
 });
-
 /* Close button */
 
 if (closeModal) {
@@ -111,72 +110,11 @@ document.addEventListener("keydown", function (event) {
    CASE FORM
    ===================================================== */
 
-const defaultcases = [
-  {
-    id: 1786743223383,
-
-    name: "Rahul Sharma",
-
-    age: 32,
-
-    gender: "Male",
-
-    complaint: "Chronic headache",
-
-    date: "14/8/2026",
-
-    status: "Active",
-  },
-  {
-    id: 1786870471317,
-
-    name: "Priya Das",
-
-    age: 27,
-
-    gender: "Female",
-
-    complaint: "Digestive discomfort",
-
-    date: "16/8/2026",
-
-    status: "Follow-up",
-  },
-  {
-    id: 1787577953025,
-
-    name: "Ankit Roy",
-
-    age: 41,
-
-    gender: "Male",
-
-    complaint: "Sleep disturbance",
-
-    date: "24/8/2026",
-
-    status: "New",
-  },
-  {
-    id: 1787808655052,
-
-    name: "Sneha Mukherjee",
-
-    age: 36,
-
-    gender: "Female",
-
-    complaint: "Joint discomfort",
-
-    date: "27/8/2026",
-
-    status: "Active",
-  },
-];
-let c = JSON.parse(localStorage.getItem("reload"));
-if (c === null) {
-  localStorage.setItem("ayurcase-cases", JSON.stringify(defaultcases));
-  localStorage.setItem("reload", JSON.stringify([{ value: "true" }]));
+// Cases are supplied by the signed-in practitioner's database record. Do not
+// seed browser-only sample patients: that allowed unrelated histories to show
+// up in another doctor's workspace.
+if (localStorage.getItem("ayurcase-cases") === null) {
+  localStorage.setItem("ayurcase-cases", JSON.stringify([]));
 }
 renderPatientsdashboard();
 if (caseForm) {
@@ -212,7 +150,10 @@ if (caseForm) {
 
       date: new Date().toLocaleDateString(),
 
-      status: "New",
+      status: localStorage.getItem("ayurcase-default-case-status") || "New",
+
+      doctor_id:
+        typeof getActiveDoctorId === "function" ? getActiveDoctorId() : null,
     };
 
     let cases = JSON.parse(localStorage.getItem("ayurcase-cases")) || [];
@@ -908,12 +849,6 @@ navItems.forEach((item) => {
       return;
     }
 
-    if (page === "ai") {
-      openAIWorkspace();
-
-      return;
-    }
-
     if (page === "learn") {
       openLearnWorkspace();
 
@@ -942,8 +877,6 @@ function updateBreadcrumb(page) {
 
     prakriti: "Prakriti",
 
-    ai: "AI Assistant",
-
     learn: "Learn",
 
     analytics: "Analytics",
@@ -966,79 +899,319 @@ function updateBreadcrumbText(text) {
    PATIENTS WORKSPACE
    ===================================================== */
 
-function openPatientsWorkspace() {
-  const cases = JSON.parse(localStorage.getItem("ayurcase-cases")) || [];
+function getStoredCases() {
+  try {
+    const cases = JSON.parse(localStorage.getItem("ayurcase-cases") || "[]");
+    return Array.isArray(cases) ? cases : [];
+  } catch (_) {
+    return [];
+  }
+}
 
+function getDoctorTodayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getRecordPatientName(record) {
+  return String(record?.patient_name || record?.name || "").trim();
+}
+
+function getRecordDate(record) {
+  return String(
+    record?.case_date ||
+      record?.date ||
+      record?.appointment_date ||
+      record?.created_at ||
+      "",
+  );
+}
+
+function formatClinicalDate(value, fallback = "Date not recorded") {
+  if (!value) return fallback;
+  const isoDate = String(value).slice(0, 10);
+  const parsed = new Date(`${isoDate}T12:00:00`);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toLocaleDateString(undefined, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  }
+  return String(value);
+}
+
+function clinicalStatusClass(status) {
+  const normalized = String(status || "").toLowerCase();
+  if (normalized.includes("follow") || normalized.includes("review")) {
+    return "Follow-up-status";
+  }
+  if (normalized.includes("new")) return "New-status";
+  return "Active-status";
+}
+
+async function fetchDoctorAppointmentsForWorkspace() {
+  const doctorId =
+    typeof getActiveDoctorId === "function" ? getActiveDoctorId() : null;
+  if (!doctorId || typeof getApiHost !== "function") return [];
+
+  const api = getApiHost();
+  const response = await fetch(
+    `${api}/api/appointments?doctor_id=${encodeURIComponent(doctorId)}`,
+    { cache: "no-store" },
+  );
+  const data = await response.json();
+  if (!response.ok || !data.success || !Array.isArray(data.appointments)) {
+    throw new Error(data.error || "Patient appointments could not be loaded.");
+  }
+  return data.appointments;
+}
+
+async function loadDoctorWorkspaceRecords() {
+  const fallbackCases = getStoredCases();
+  const caseRequest =
+    typeof fetchDoctorCaseRecords === "function"
+      ? fetchDoctorCaseRecords()
+      : Promise.resolve(fallbackCases);
+  const dashboardRequest =
+    typeof fetchDoctorDashboard === "function"
+      ? fetchDoctorDashboard()
+      : Promise.resolve(null);
+  const [casesResult, appointmentsResult, dashboardResult] =
+    await Promise.allSettled([
+      caseRequest,
+      fetchDoctorAppointmentsForWorkspace(),
+      dashboardRequest,
+    ]);
+
+  const cases =
+    casesResult.status === "fulfilled" && Array.isArray(casesResult.value)
+      ? casesResult.value
+      : fallbackCases;
+  const appointments =
+    appointmentsResult.status === "fulfilled" &&
+    Array.isArray(appointmentsResult.value)
+      ? appointmentsResult.value
+      : [];
+  const dashboard =
+    dashboardResult.status === "fulfilled" ? dashboardResult.value : null;
+
+  return { cases, appointments, dashboard };
+}
+
+function buildPatientDirectory(cases, appointments) {
+  const patients = new Map();
+  const getPatient = (record) => {
+    const name = getRecordPatientName(record);
+    if (!name) return null;
+    const key = name.toLocaleLowerCase();
+    if (!patients.has(key)) {
+      patients.set(key, {
+        name,
+        age: "",
+        gender: "",
+        cases: [],
+        upcoming: [],
+        previousAppointments: [],
+      });
+    }
+    return patients.get(key);
+  };
+
+  cases.forEach((record) => {
+    const patient = getPatient(record);
+    if (!patient) return;
+    patient.cases.push(record);
+    patient.age = record.age || patient.age;
+    patient.gender = record.gender || patient.gender;
+  });
+
+  const today = getDoctorTodayISO();
+  appointments.forEach((record) => {
+    const patient = getPatient(record);
+    if (!patient) return;
+    const status = String(record.status || "").toLowerCase();
+    const isUpcoming =
+      String(record.appointment_date || "") >= today &&
+      !["cancelled", "completed"].includes(status);
+    if (isUpcoming) patient.upcoming.push(record);
+    else patient.previousAppointments.push(record);
+  });
+
+  return [...patients.values()]
+    .map((patient) => ({
+      ...patient,
+      cases: patient.cases.sort((a, b) =>
+        getRecordDate(b).localeCompare(getRecordDate(a)),
+      ),
+      upcoming: patient.upcoming.sort((a, b) =>
+        String(a.appointment_date || "").localeCompare(
+          String(b.appointment_date || ""),
+        ),
+      ),
+      previousAppointments: patient.previousAppointments.sort((a, b) =>
+        String(b.appointment_date || "").localeCompare(
+          String(a.appointment_date || ""),
+        ),
+      ),
+    }))
+    .sort((a, b) => {
+      const aDate = getRecordDate(a.upcoming[0] || a.cases[0] || a.previousAppointments[0]);
+      const bDate = getRecordDate(b.upcoming[0] || b.cases[0] || b.previousAppointments[0]);
+      return bDate.localeCompare(aDate);
+    });
+}
+
+function renderPatientDirectoryCard(patient, index) {
+  const recordsExpanded = localStorage.getItem("ayurcase-expanded-cases") !== "false";
+  const demographics = [
+    patient.age ? `${escapeHTML(patient.age)} years` : "Age not recorded",
+    patient.gender ? escapeHTML(patient.gender) : "Gender not recorded",
+  ].join(" • ");
+  const latestCase = patient.cases[0];
+  const latestStatus = latestCase?.status ||
+    patient.upcoming[0]?.status ||
+    patient.previousAppointments[0]?.status ||
+    "Patient";
+
+  const upcoming = patient.upcoming.length
+    ? `
+      <section class="patient-record-group upcoming-records">
+        <h4><i class="fa-solid fa-calendar-check"></i> Upcoming consultations <span>${patient.upcoming.length}</span></h4>
+        ${patient.upcoming
+          .map(
+            (appointment) => `
+              <div class="patient-record-line">
+                <strong>${escapeHTML(formatClinicalDate(appointment.appointment_date))} · ${escapeHTML(appointment.appointment_time || "Time to be confirmed")}</strong>
+                <span>${escapeHTML(appointment.consultation_type || "Consultation")} · ${escapeHTML(appointment.symptoms_notes || "No visit note recorded")}</span>
+              </div>`,
+          )
+          .join("")}
+      </section>`
+    : "";
+
+  const caseHistory = patient.cases.length
+    ? `
+      <details class="patient-record-group" ${recordsExpanded ? "open" : ""}>
+        <summary><i class="fa-solid fa-notes-medical"></i> Previous case records <span>${patient.cases.length}</span><i class="fa-solid fa-chevron-down"></i></summary>
+        ${patient.cases
+          .map(
+            (record) => `
+              <div class="patient-record-line">
+                <strong>${escapeHTML(formatClinicalDate(getRecordDate(record)))} · ${escapeHTML(record.diagnosis || "Under AYUSH evaluation")}</strong>
+                <span>${escapeHTML(record.chief_complaint || record.complaint || "Clinical details not recorded")} · ${escapeHTML(record.prakriti || "Prakriti not recorded")}</span>
+              </div>`,
+          )
+          .join("")}
+      </details>`
+    : "";
+
+  const previousVisits = patient.previousAppointments.length
+    ? `
+      <details class="patient-record-group">
+        <summary><i class="fa-solid fa-clock-rotate-left"></i> Previous appointments <span>${patient.previousAppointments.length}</span><i class="fa-solid fa-chevron-down"></i></summary>
+        ${patient.previousAppointments
+          .map(
+            (appointment) => `
+              <div class="patient-record-line">
+                <strong>${escapeHTML(formatClinicalDate(appointment.appointment_date))} · ${escapeHTML(appointment.appointment_time || "Time not recorded")}</strong>
+                <span>${escapeHTML(appointment.consultation_type || "Consultation")} · ${escapeHTML(appointment.symptoms_notes || appointment.status || "Visit recorded")}</span>
+              </div>`,
+          )
+          .join("")}
+      </details>`
+    : "";
+
+  return `
+    <article class="patient-directory-card" data-patient-search="${escapeHTML(patient.name.toLowerCase())}">
+      <div class="patient-directory-header">
+        <div class="patient-avatar avatar-${(index % 4) + 1}">${escapeHTML(getInitials(patient.name))}</div>
+        <div>
+          <h3>${escapeHTML(patient.name)}</h3>
+          <p>${demographics}</p>
+        </div>
+        <span class="status ${clinicalStatusClass(latestStatus)}">${escapeHTML(latestStatus)}</span>
+      </div>
+      ${latestCase ? `<p class="patient-directory-summary"><strong>Latest concern:</strong> ${escapeHTML(latestCase.chief_complaint || latestCase.complaint || "Clinical record updated.")}</p>` : ""}
+      <div class="patient-records">
+        ${upcoming}
+        ${caseHistory}
+        ${previousVisits}
+      </div>
+    </article>`;
+}
+
+async function openPatientsWorkspace() {
   const content = openWorkspace(
     "Patients",
-
-    "Manage and review registered patient cases.",
-
+    "A complete view of every patient, including upcoming consultations and previous clinical records.",
     "fa-solid fa-users",
   );
 
-  if (cases.length === 0) {
-    content.innerHTML = `
+  content.innerHTML = `
+    <div class="workspace-loading">
+      <i class="fa-solid fa-circle-notch fa-spin"></i>
+      Loading your patient directory…
+    </div>`;
 
-            <div class="workspace-box">
+  try {
+    const { cases, appointments } = await loadDoctorWorkspaceRecords();
+    const patients = buildPatientDirectory(cases, appointments);
+    const upcomingCount = patients.reduce(
+      (count, patient) => count + patient.upcoming.length,
+      0,
+    );
+    const previousCount = patients.reduce(
+      (count, patient) => count + patient.cases.length + patient.previousAppointments.length,
+      0,
+    );
 
-                <strong>
-                    No newly created cases yet.
-                </strong>
-
-                <span>
-                    Create a new patient case to see it here.
-                </span>
-
-                <button
-                    class="workspace-action"
-                    id="workspaceNewCase"
-                >
-                    + Create New Case
-                </button>
-
-            </div>
-
-        `;
-
-    document
-      .getElementById("workspaceNewCase")
-      .addEventListener("click", function () {
+    if (!patients.length) {
+      content.innerHTML = `
+        <div class="workspace-empty-state">
+          <i class="fa-solid fa-user-plus"></i>
+          <strong>No patient records yet</strong>
+          <span>New cases and consultation bookings assigned to you will appear here.</span>
+          <button class="workspace-action" id="workspaceNewCase">Create New Case</button>
+        </div>`;
+      document.getElementById("workspaceNewCase")?.addEventListener("click", () => {
         closeWorkspace();
-
         openCaseModal();
       });
+      return;
+    }
 
-    return;
+    content.innerHTML = `
+      <div class="workspace-toolbar">
+        <div class="workspace-counts">
+          <span><strong>${patients.length}</strong> patients</span>
+          <span><strong>${upcomingCount}</strong> upcoming</span>
+          <span><strong>${previousCount}</strong> previous records</span>
+        </div>
+        <label class="workspace-search" for="patientDirectorySearch">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input id="patientDirectorySearch" type="search" placeholder="Search patients" />
+        </label>
+      </div>
+      <div class="patient-directory-list">
+        ${patients.map(renderPatientDirectoryCard).join("")}
+      </div>`;
+
+    document
+      .getElementById("patientDirectorySearch")
+      ?.addEventListener("input", (event) => {
+        const query = event.target.value.trim().toLowerCase();
+        document.querySelectorAll(".patient-directory-card").forEach((card) => {
+          card.hidden = !card.dataset.patientSearch.includes(query);
+        });
+      });
+  } catch (error) {
+    content.innerHTML = `
+      <div class="workspace-empty-state error-state">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <strong>Patient directory unavailable</strong>
+        <span>${escapeHTML(error.message || "Please refresh and try again.")}</span>
+      </div>`;
   }
-
-  content.innerHTML = cases
-    .map(
-      (patient) => `
-
-            <div class="workspace-box">
-
-                <strong>
-                    ${escapeHTML(patient.name)}
-                </strong>
-
-                <span>
-                    ${escapeHTML(patient.age)}
-                    years •
-                    ${escapeHTML(patient.gender)}
-                    •
-                    ${escapeHTML(patient.complaint)}
-                </span>
-
-                <button class="cases-close-btn">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-
-            </div>
-
-        `,
-    )
-    .join("");
 }
 function renderPatientsdashboard() {
   const cases = JSON.parse(localStorage.getItem("ayurcase-cases")) || [];
@@ -1084,64 +1257,123 @@ function getInitials(name) {
    CASE HISTORY
    ===================================================== */
 
-function openHistoryWorkspace() {
+async function openHistoryWorkspace() {
   const content = openWorkspace(
     "Case History",
 
-    "Review previously created patient cases.",
+    "Every clinical case recorded under your practitioner account, arranged from most recent to earliest.",
 
     "fa-solid fa-clock-rotate-left",
   );
 
-  const cases = JSON.parse(localStorage.getItem("ayurcase-cases")) || [];
+  content.innerHTML = `
+
+    <div class="workspace-loading">
+      <i class="fa-solid fa-circle-notch fa-spin"></i>
+      Loading complete case history…
+    </div>`;
+
+  const doctorId =
+    typeof getActiveDoctorId === "function" ? getActiveDoctorId() : null;
+
+  // Do not fall back to browser storage or an unfiltered request here: either
+  // can expose stale sample cases from another practitioner.
+  if (!doctorId) {
+    content.innerHTML = `
+      <div class="workspace-empty-state">
+        <i class="fa-solid fa-lock"></i>
+        <strong>No case history available</strong>
+        <span>Sign in to a practitioner account to view its case history.</span>
+      </div>`;
+    return;
+  }
+
+  let cases = [];
+  try {
+    const api = typeof getApiHost === "function" ? getApiHost() : "";
+    const response = await fetch(
+      `${api}/api/cases?doctor_id=${encodeURIComponent(doctorId)}`,
+    );
+    const data = await response.json();
+    if (!response.ok || !data.success || !Array.isArray(data.cases)) {
+      throw new Error(data.error || "Case history could not be loaded.");
+    }
+    cases = data.cases;
+  } catch (error) {
+    content.innerHTML = `
+      <div class="workspace-empty-state error-state">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <strong>Case history unavailable</strong>
+        <span>${escapeHTML(error.message || "Please refresh and try again.")}</span>
+      </div>`;
+    return;
+  }
 
   if (cases.length === 0) {
     content.innerHTML = `
-
-            <div class="workspace-box">
-
-                <strong>
-                    No case history available
-                </strong>
-
-                <span>
-                    Your completed patient cases will appear here.
-                </span>
-
-            </div>
-
-        `;
+      <div class="workspace-empty-state">
+        <i class="fa-solid fa-folder-open"></i>
+        <strong>No case history available</strong>
+        <span>Cases you create for your own patients will appear here.</span>
+      </div>`;
 
     return;
   }
 
-  content.innerHTML = cases
-    .slice()
-    .reverse()
-    .map(
-      (patient) => `
-
-                <div class="workspace-box">
-
-                    <strong>
-                        ${escapeHTML(patient.name)}
-                    </strong>
-
-                    <span>
-                        Case created on
-                        ${escapeHTML(patient.date)}
-                    </span>
-
-                    <span>
-                        Complaint:
-                        ${escapeHTML(patient.complaint)}
-                    </span>
-
+  content.innerHTML = `
+    <div class="workspace-toolbar">
+      <div class="workspace-counts">
+        <span><strong>${cases.length}</strong> recorded case${cases.length === 1 ? "" : "s"}</span>
+        <span>All dates · all statuses</span>
+      </div>
+      <label class="workspace-search" for="caseHistorySearch">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input id="caseHistorySearch" type="search" placeholder="Search name, diagnosis or concern" />
+      </label>
+    </div>
+    <div class="case-history-list">
+      ${cases
+        .map(
+          (patient, index) => `
+            <article class="case-history-card" data-case-search="${escapeHTML(
+              [
+                patient.name,
+                patient.patient_name,
+                patient.diagnosis,
+                patient.complaint,
+                patient.chief_complaint,
+              ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase(),
+            )}">
+              <div class="case-history-card-header">
+                <div class="patient-avatar avatar-${(index % 4) + 1}">${escapeHTML(getInitials(getRecordPatientName(patient)))}</div>
+                <div>
+                  <h3>${escapeHTML(getRecordPatientName(patient))}</h3>
+                  <p>${escapeHTML(patient.age || "Age not recorded")} years · ${escapeHTML(patient.gender || "Gender not recorded")} · Recorded ${escapeHTML(formatClinicalDate(getRecordDate(patient), "date not recorded"))}</p>
                 </div>
+                <span class="status ${clinicalStatusClass(patient.status)}">${escapeHTML(patient.status || "Active")}</span>
+              </div>
+              <div class="case-history-detail-grid">
+                <div><span>Chief concern</span><strong>${escapeHTML(patient.chief_complaint || patient.complaint || "Not recorded")}</strong></div>
+                <div><span>Clinical assessment</span><strong>${escapeHTML(patient.diagnosis || "Under AYUSH evaluation")}</strong></div>
+                <div><span>Prakriti</span><strong>${escapeHTML(patient.prakriti || "Not recorded")}</strong></div>
+                <div><span>Case reference</span><strong>#${escapeHTML(patient.id || "—")}</strong></div>
+              </div>
+            </article>`,
+        )
+        .join("")}
+    </div>`;
 
-            `,
-    )
-    .join("");
+  document
+    .getElementById("caseHistorySearch")
+    ?.addEventListener("input", (event) => {
+      const query = event.target.value.trim().toLowerCase();
+      document.querySelectorAll(".case-history-card").forEach((card) => {
+        card.hidden = !card.dataset.caseSearch.includes(query);
+      });
+    });
 }
 
 /* =====================================================
@@ -1285,67 +1517,181 @@ function calculatePrakriti() {
    AI ASSISTANT
    ===================================================== */
 
-function openAIWorkspace() {
-  const content = openWorkspace(
-    "AI Assistant",
+let doctorAssistantTrigger = null;
+let doctorAssistantSpeechButton = null;
 
-    "Intelligent clinical documentation and case analysis.",
+function openDoctorAssistant() {
+  const modal = document.getElementById("doctorAssistantModal");
+  if (!modal) return;
 
-    "fa-solid fa-wand-magic-sparkles",
+  doctorAssistantTrigger = document.activeElement;
+  modal.style.display = "flex";
+  document.body.style.overflow = "hidden";
+  requestAnimationFrame(() =>
+    document.getElementById("doctorAssistantInput")?.focus(),
   );
+}
 
-  content.innerHTML = `
+function closeDoctorAssistant() {
+  const modal = document.getElementById("doctorAssistantModal");
+  if (!modal) return;
 
-        <div class="workspace-box">
+  modal.style.display = "none";
+  document.body.style.overflow = "";
+  window.speechSynthesis?.cancel();
+  resetDoctorAssistantSpeechButton();
+  doctorAssistantTrigger?.focus?.();
+}
 
-            <strong>
-                Clinical Case Analyzer
-            </strong>
+function resetDoctorAssistantSpeechButton(button = doctorAssistantSpeechButton) {
+  if (!button) return;
 
-            <span>
-                Enter clinical information to generate a structured summary.
-            </span>
+  if (doctorAssistantSpeechButton === button) {
+    doctorAssistantSpeechButton = null;
+  }
+  button.classList.remove("is-speaking");
+  button.setAttribute("aria-label", "Read this reply aloud");
+  button.title = "Read aloud";
+}
 
+function appendDoctorAssistantMessage(content, role) {
+  const chat = document.getElementById("doctorAssistantChat");
+  if (!chat) return null;
 
-            <textarea
-                id="aiInput"
-                placeholder="Enter patient observations, symptoms, history..."
-                style="
-                    width:100%;
-                    min-height:90px;
-                    margin-top:12px;
-                    padding:10px;
-                    border:1px solid var(--border);
-                    border-radius:10px;
-                    resize:vertical;
-                    outline:none;
-                "
-            ></textarea>
+  const message = document.createElement("div");
+  message.className = `doctor-ai-message ${role}`;
+  const messageText = document.createElement("span");
+  messageText.className = "doctor-ai-message-text";
+  messageText.textContent = content;
+  message.appendChild(messageText);
 
+  if (role === "assistant") {
+    const speakButton = document.createElement("button");
+    speakButton.type = "button";
+    speakButton.className = "doctor-ai-speak";
+    speakButton.setAttribute("aria-label", "Read this reply aloud");
+    speakButton.title = "Read aloud";
+    speakButton.innerHTML = '<i class="fa-solid fa-volume-high" aria-hidden="true"></i>';
+    speakButton.disabled = content === "Thinking…";
+    speakButton.addEventListener("click", () => speakDoctorAssistantMessage(speakButton));
+    message.appendChild(speakButton);
+  }
 
-            <button
-                class="workspace-action"
-                id="runAI"
-            >
+  chat.appendChild(message);
+  chat.scrollTop = chat.scrollHeight;
+  return message;
+}
 
-                <i class="fa-solid fa-sparkles"></i>
+function updateDoctorAssistantMessage(message, content) {
+  if (!message) return;
 
-                Analyze Case
+  const messageText = message.querySelector(".doctor-ai-message-text");
+  if (messageText) messageText.textContent = content;
 
-            </button>
+  const speakButton = message.querySelector(".doctor-ai-speak");
+  if (speakButton) {
+    speakButton.disabled = content === "Thinking…";
+    speakButton.setAttribute("aria-label", "Read this reply aloud");
+    speakButton.title = "Read aloud";
+  }
+}
 
-        </div>
+function speakDoctorAssistantMessage(button) {
+  const message = button?.closest(".doctor-ai-message.assistant");
+  const text = message?.querySelector(".doctor-ai-message-text")?.textContent.trim();
+  if (!button || !text || !("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
+    showToast("Read-aloud is not supported in this browser.");
+    return;
+  }
 
+  if (window.speechSynthesis.speaking && doctorAssistantSpeechButton === button) {
+    window.speechSynthesis.cancel();
+    resetDoctorAssistantSpeechButton(button);
+    return;
+  }
 
-        <div
-            class="workspace-box"
-            id="aiResult"
-            style="display:none;"
-        ></div>
+  window.speechSynthesis.cancel();
+  resetDoctorAssistantSpeechButton();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 1;
+  utterance.onstart = () => {
+    doctorAssistantSpeechButton = button;
+    button.classList.add("is-speaking");
+    button.setAttribute("aria-label", "Stop reading this reply");
+    button.title = "Stop reading";
+  };
+  const resetSpeechButton = () => {
+    if (doctorAssistantSpeechButton !== button) return;
+    resetDoctorAssistantSpeechButton(button);
+  };
+  utterance.onend = resetSpeechButton;
+  utterance.onerror = resetSpeechButton;
+  window.speechSynthesis.speak(utterance);
+}
 
-    `;
+function askDoctorAssistantQuestion(question) {
+  const input = document.getElementById("doctorAssistantInput");
+  if (!input) return;
 
-  ai();
+  input.value = question;
+  sendDoctorAssistantQuestion();
+}
+
+async function sendDoctorAssistantQuestion(event) {
+  event?.preventDefault();
+
+  const input = document.getElementById("doctorAssistantInput");
+  const sendButton = document.getElementById("doctorAssistantSend");
+  const question = input?.value.trim();
+  if (!question || !sendButton) return;
+
+  appendDoctorAssistantMessage(question, "user");
+  input.value = "";
+  sendButton.disabled = true;
+  const originalContent = sendButton.innerHTML;
+  sendButton.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
+  const responseMessage = appendDoctorAssistantMessage("Thinking…", "assistant");
+
+  try {
+    const response = await fetch(
+      `${typeof getApiHost === "function" ? getApiHost() : ""}/api/recommend`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ problem: question, mode: "patient-assistant" }),
+      },
+    );
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "The AI service could not answer right now.");
+    }
+    updateDoctorAssistantMessage(
+      responseMessage,
+      data.recommendation || "I couldn’t generate a response. Please try again.",
+    );
+  } catch (error) {
+    updateDoctorAssistantMessage(
+      responseMessage,
+      typeof getAssistantFallbackResponse === "function"
+        ? getAssistantFallbackResponse(question)
+        : "I received your question, but the live AI service is temporarily unavailable. Please try again shortly.",
+    );
+  } finally {
+    sendButton.disabled = false;
+    sendButton.innerHTML = originalContent;
+    document.getElementById("doctorAssistantChat")?.scrollTo({
+      top: document.getElementById("doctorAssistantChat").scrollHeight,
+      behavior: "smooth",
+    });
+    input?.focus();
+  }
+}
+
+const doctorAssistantModalEl = document.getElementById("doctorAssistantModal");
+if (doctorAssistantModalEl) {
+  doctorAssistantModalEl.addEventListener("click", function (event) {
+    if (event.target === this) closeDoctorAssistant();
+  });
 }
 
 /* =====================================================
@@ -1579,18 +1925,6 @@ function openArticlePreview(article) {
       window.learnLibraryRefresh?.();
       openArticlePreview(article);
     });
-}
-
-/* =====================================================
-   AI DASHBOARD BUTTON
-   ===================================================== */
-
-const aiButton = document.querySelector(".ai-button");
-
-if (aiButton) {
-  aiButton.addEventListener("click", function () {
-    openAIWorkspace();
-  });
 }
 
 /* =====================================================
@@ -1990,14 +2324,6 @@ uniqueHelpElements.forEach((element) => {
    VIEW ALL PATIENTS
    ===================================================== */
 
-const viewAll = document.querySelector(".text-btn");
-
-if (viewAll) {
-  viewAll.addEventListener("click", function () {
-    openPatientsWorkspace();
-  });
-}
-
 /* =====================================================
    PATIENT ROWS
    ===================================================== */
@@ -2364,77 +2690,110 @@ function openSettingsWorkspace() {
   const content = openWorkspace(
     "Settings",
 
-    "Manage your AYURCASE workspace preferences.",
+    "Manage the appearance, case defaults and communication preferences for your workspace.",
 
     "fa-solid fa-gear",
   );
 
   content.innerHTML = `
+    <section class="settings-section">
+      <div class="settings-section-heading">
+        <div><i class="fa-solid fa-palette"></i></div>
+        <div><h3>Appearance</h3><p>Choose how your AYURCASE workspace looks.</p></div>
+      </div>
+      <div class="settings-row">
+        <div><strong>Colour theme</strong><span>Switch between light and dark mode.</span></div>
+        <button class="workspace-action" id="settingsTheme">${darkMode ? "Use Light Mode" : "Use Dark Mode"}</button>
+      </div>
+      <div class="settings-row">
+        <div><strong>Comfortable case view</strong><span>Keep case records expanded when you open a patient.</span></div>
+        <label class="settings-switch"><input id="settingsExpandedCases" type="checkbox" ${localStorage.getItem("ayurcase-expanded-cases") !== "false" ? "checked" : ""} /><span></span></label>
+      </div>
+    </section>
 
-        <div class="workspace-box">
+    <section class="settings-section">
+      <div class="settings-section-heading">
+        <div><i class="fa-solid fa-bell"></i></div>
+        <div><h3>Notifications</h3><p>Choose which clinic updates appear in your workspace.</p></div>
+      </div>
+      <div class="settings-row">
+        <div><strong>Upcoming consultation reminders</strong><span>Show a dashboard reminder for confirmed follow-up visits.</span></div>
+        <label class="settings-switch"><input id="settingsReminders" type="checkbox" ${localStorage.getItem("ayurcase-consultation-reminders") !== "false" ? "checked" : ""} /><span></span></label>
+      </div>
+      <div class="settings-row">
+        <div><strong>Weekly activity summary</strong><span>Keep a weekly summary preference for your clinical activity.</span></div>
+        <label class="settings-switch"><input id="settingsWeeklySummary" type="checkbox" ${localStorage.getItem("ayurcase-weekly-summary") === "true" ? "checked" : ""} /><span></span></label>
+      </div>
+    </section>
 
-            <strong>
-                Appearance
-            </strong>
+    <section class="settings-section">
+      <div class="settings-section-heading">
+        <div><i class="fa-solid fa-file-medical"></i></div>
+        <div><h3>Case defaults</h3><p>Set the initial status used for each newly created patient case.</p></div>
+      </div>
+      <div class="settings-row settings-select-row">
+        <div><strong>New case status</strong><span>This can still be updated while documenting the case.</span></div>
+        <select id="settingsDefaultCaseStatus" aria-label="Default new case status">
+          <option value="New">New</option>
+          <option value="Active">Active</option>
+          <option value="Follow-up">Follow-up</option>
+        </select>
+      </div>
+    </section>
 
-            <span>
-                Switch between light and dark mode.
-            </span>
+    <section class="settings-section settings-account-section">
+      <div class="settings-section-heading">
+        <div><i class="fa-solid fa-user-doctor"></i></div>
+        <div><h3>Practitioner account</h3><p>${escapeHTML(typeof getActiveDoctorName === "function" ? getActiveDoctorName() : "AYURCASE practitioner")}</p></div>
+      </div>
+      <div class="settings-row">
+        <div><strong>Profile and registration details</strong><span>Review your practitioner credentials and availability.</span></div>
+        <button class="workspace-action" id="settingsViewProfile">View Profile</button>
+      </div>
+    </section>`;
 
-
-            <button
-                class="workspace-action"
-                id="settingsTheme"
-            >
-                Toggle Theme
-            </button>
-
-        </div>
-
-
-        <div class="workspace-box">
-
-            <strong>
-                Practitioner
-            </strong>
-
-            <span>
-                Dr. Arindam Sen
-            </span>
-
-        </div>
-
-
-        <div class="workspace-box">
-
-            <strong>
-                Platform
-            </strong>
-
-            <span>
-                AYURCASE • AYUSH Patient Case-Taking Platform
-            </span>
-
-        </div>
-
-    `;
-
-  const settingsTheme = document.getElementById("settingsTheme");
-
-  if (settingsTheme) {
-    settingsTheme.addEventListener("click", function () {
-      if (themeButton) {
-        themeButton.click();
-      }
+  const defaultStatus = localStorage.getItem("ayurcase-default-case-status") || "New";
+  const statusSelect = document.getElementById("settingsDefaultCaseStatus");
+  if (statusSelect) {
+    statusSelect.value = ["New", "Active", "Follow-up"].includes(defaultStatus)
+      ? defaultStatus
+      : "New";
+    statusSelect.addEventListener("change", () => {
+      localStorage.setItem("ayurcase-default-case-status", statusSelect.value);
+      showToast(`New cases will be marked ${statusSelect.value}.`);
     });
   }
+
+  const bindToggle = (id, storageKey, message) => {
+    document.getElementById(id)?.addEventListener("change", (event) => {
+      localStorage.setItem(storageKey, String(event.target.checked));
+      showToast(message(event.target.checked));
+    });
+  };
+  bindToggle("settingsExpandedCases", "ayurcase-expanded-cases", (enabled) =>
+    enabled ? "Patient case records will open expanded." : "Patient case records will open collapsed.",
+  );
+  bindToggle("settingsReminders", "ayurcase-consultation-reminders", (enabled) =>
+    enabled ? "Consultation reminders enabled." : "Consultation reminders paused.",
+  );
+  bindToggle("settingsWeeklySummary", "ayurcase-weekly-summary", (enabled) =>
+    enabled ? "Weekly activity summary enabled." : "Weekly activity summary paused.",
+  );
+
+  document.getElementById("settingsTheme")?.addEventListener("click", () => {
+    themeButton?.click();
+    openSettingsWorkspace();
+  });
+  document.getElementById("settingsViewProfile")?.addEventListener("click", () => {
+    openProfileWorkspace();
+  });
 }
 
 /* =====================================================
    DOCTOR PROFILE
    ===================================================== */
 
-const topDoctor = document.querySelector(".top-doctor");
+const topDoctor = document.querySelector("[data-workspace-profile]");
 
 if (topDoctor) {
   topDoctor.addEventListener("click", function () {
@@ -2451,34 +2810,26 @@ function openProfileWorkspace() {
     "fa-solid fa-user-doctor",
   );
 
+  const doctor = latestDoctorDashboard?.doctor || {};
+  const stats = latestDoctorDashboard?.stats || {};
+  const fullName = doctor.full_name ||
+    (typeof getActiveDoctorName === "function" ? getActiveDoctorName() : "AYURCASE Practitioner");
   content.innerHTML = `
-
-        <div class="workspace-box">
-
-            <strong>
-                Dr. Arindam Sen
-            </strong>
-
-            <span>
-                AYUSH Practitioner
-            </span>
-
-        </div>
-
-
-        <div class="workspace-box">
-
-            <strong>
-                Account Status
-            </strong>
-
-            <span>
-                Active practitioner account
-            </span>
-
-        </div>
-
-    `;
+    <section class="profile-workspace-card">
+      <div class="profile-workspace-hero">
+        <div class="patient-avatar avatar-1">${escapeHTML(getInitials(fullName))}</div>
+        <div><h3>${escapeHTML(fullName)}</h3><p>${escapeHTML(doctor.specialization || "AYUSH Practitioner")}</p></div>
+        <span class="status Active-status">${escapeHTML(doctor.status || "Active")}</span>
+      </div>
+      <div class="profile-workspace-grid">
+        <div><span>Qualification</span><strong>${escapeHTML(doctor.qualification || "Not recorded")}</strong></div>
+        <div><span>Registration no.</span><strong>${escapeHTML(doctor.council_reg_no || doctor.identifier || "Not recorded")}</strong></div>
+        <div><span>Contact</span><strong>${escapeHTML(doctor.phone || "Not recorded")}</strong></div>
+        <div><span>Email</span><strong>${escapeHTML(doctor.username || "Not recorded")}</strong></div>
+        <div><span>Patients in care</span><strong>${escapeHTML(stats.total_patients ?? 0)}</strong></div>
+        <div><span>Case records</span><strong>${escapeHTML(doctor.cases_count ?? stats.ai_cases_analyzed ?? 0)}</strong></div>
+      </div>
+    </section>`;
 }
 
 /* =====================================================
@@ -2548,57 +2899,3 @@ document.querySelectorAll(".prakriti-help-btn").forEach((button) => {
                 `;
   });
 });
-
-function ai() {
-  const aiInput = document.getElementById("aiInput");
-  const runAI = document.getElementById("runAI");
-  const res = document.getElementById("aiResult");
-  if (!aiInput || !runAI || !res) return;
-
-  async function testBackend() {
-    const problem = aiInput.value.trim();
-    if (!problem) {
-      showToast("Please enter clinical information first.");
-      return;
-    }
-
-    res.style.display = "block";
-    res.replaceChildren();
-    const heading = document.createElement("strong");
-    heading.className = "ai-res";
-    heading.textContent = "AI Response:";
-    const loading = document.createElement("p");
-    loading.textContent = "Analyzing the case…";
-    res.append(heading, loading);
-    runAI.disabled = true;
-
-    try {
-      const response = await fetch(`${typeof getApiHost === "function" ? getApiHost() : ""}/api/recommend`, {
-      method: "POST",
-
-      headers: {
-        "Content-Type": "application/json",
-      },
-
-      body: JSON.stringify({
-        problem,
-      }),
-    });
-
-    const data = await response.json();
-      const message = response.ok ? data.recommendation : data.error;
-      const output = document.createElement("p");
-      // Model output is untrusted. textContent prevents it from becoming page
-      // markup or executable event handlers.
-      output.textContent = message || "No response was returned.";
-      res.replaceChildren(heading, output);
-    } catch (error) {
-      const output = document.createElement("p");
-      output.textContent = "The AI service is unavailable. Please try again later.";
-      res.replaceChildren(heading, output);
-    } finally {
-      runAI.disabled = false;
-    }
-  }
-  runAI.addEventListener("click", testBackend);
-}

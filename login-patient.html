@@ -83,7 +83,7 @@
           </div>
 
           <!-- Patient Login Form -->
-          <form class="auth-form" id="patientLoginForm" action="javascript:void(0);" method="POST" onsubmit="event.preventDefault(); return handlePatientLogin(event);">
+          <form class="auth-form" id="patientLoginForm" action="javascript:void(0);" method="POST" autocomplete="off" onsubmit="event.preventDefault(); return handlePatientLogin(event);">
             <div class="form-field">
               <label for="abhaId">ABHA ID / Mobile Number / Email</label>
               <div class="input-with-icon">
@@ -92,7 +92,7 @@
                   id="abhaId"
                   name="abhaId"
                   placeholder="e.g. ABHA-9182-4410 or mobile"
-                  autocomplete="username"
+                  autocomplete="off"
                   required
                 />
                 <i class="fa-solid fa-id-card field-icon"></i>
@@ -110,7 +110,7 @@
                   id="password"
                   name="password"
                   placeholder="••••••••"
-                  autocomplete="current-password"
+                  autocomplete="off"
                   required
                 />
                 <i class="fa-solid fa-lock field-icon"></i>
@@ -132,18 +132,6 @@
               <i class="fa-solid fa-arrow-right"></i>
             </button>
           </form>
-
-          <!-- Quick Demo Account for Fast Evaluation -->
-          <div class="demo-box">
-            <div class="demo-box-header">
-              <i class="fa-solid fa-bolt"></i>
-              <span>Quick Evaluation Credentials</span>
-            </div>
-            <button type="button" class="demo-fill-btn" onclick="fillDemo('patient')">
-              <i class="fa-solid fa-key"></i>
-              <span>Auto-fill Patient Demo (Rohit Sharma)</span>
-            </button>
-          </div>
 
           <!-- Card Footer -->
           <div class="login-card-footer">
@@ -176,7 +164,7 @@
     </div>
 
     <!-- Scripts -->
-    <script src="auth.js?v=4.2"></script>
+    <script src="auth.js?v=4.5"></script>
 </body>
 </html>
 

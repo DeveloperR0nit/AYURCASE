@@ -83,7 +83,7 @@
           </div>
 
           <!-- Admin Login Form -->
-          <form class="auth-form" id="adminLoginForm" action="javascript:void(0);" method="POST" onsubmit="event.preventDefault(); return handleAdminLogin(event);">
+          <form class="auth-form" id="adminLoginForm" action="javascript:void(0);" method="POST" autocomplete="off" onsubmit="event.preventDefault(); return handleAdminLogin(event);">
             <div class="form-field">
               <label for="adminId">Administrator ID or Official Email</label>
               <div class="input-with-icon">
@@ -92,7 +92,7 @@
                   id="adminId"
                   name="adminId"
                   placeholder="e.g. admin@ayurcase.gov.in"
-                  autocomplete="username"
+                  autocomplete="off"
                   onkeydown="if(event.key==='Enter'){event.preventDefault(); handleAdminLogin(event);}"
                   required
                 />
@@ -111,7 +111,7 @@
                   id="password"
                   name="password"
                   placeholder="••••••••"
-                  autocomplete="current-password"
+                  autocomplete="off"
                   onkeydown="if(event.key==='Enter'){event.preventDefault(); handleAdminLogin(event);}"
                   required
                 />
@@ -152,18 +152,6 @@
             </button>
           </form>
 
-          <!-- Quick Demo Account for Fast Evaluation -->
-          <div class="demo-box">
-            <div class="demo-box-header">
-              <i class="fa-solid fa-bolt"></i>
-              <span>Quick Evaluation Credentials</span>
-            </div>
-            <button type="button" class="demo-fill-btn" onclick="fillDemo('admin')">
-              <i class="fa-solid fa-key"></i>
-              <span>Auto-fill Admin Demo Credentials</span>
-            </button>
-          </div>
-
           <!-- Card Footer -->
           <div class="login-card-footer">
             <div class="role-switcher-text">
@@ -191,7 +179,7 @@
     </div>
 
     <!-- Scripts -->
-    <script src="auth.js?v=4.1"></script>
+    <script src="auth.js?v=4.5"></script>
 </body>
 </html>
 

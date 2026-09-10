@@ -1311,6 +1311,10 @@ body.dark #doctorAccount {
 }
 
 /* Highlight newly added appointment */
+.legacy-follow-ups {
+    display: none;
+}
+
 .appointment.new-appointment-highlight {
     border: 1.5px solid var(--green-500);
     background: rgba(75, 149, 110, 0.06);

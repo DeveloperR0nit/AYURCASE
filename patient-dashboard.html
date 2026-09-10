@@ -1947,13 +1947,13 @@
         }
       }
 
-      /* ===== FLOATING EMERGENCY SOS & HOTLINE ===== */
-      .ayur-floating-sos {
+      /* ===== FLOATING AI ASSISTANT ===== */
+      .patient-ai-trigger {
         position: fixed;
         bottom: 24px;
         right: 24px;
         z-index: 9990;
-        background: linear-gradient(135deg, #dc2626, #b91c1c);
+        background: linear-gradient(135deg, #2d7350, #1a5c2e);
         color: #ffffff;
         border: none;
         border-radius: 30px;
@@ -1965,23 +1965,18 @@
         align-items: center;
         gap: 9px;
         cursor: pointer;
-        box-shadow: 0 8px 24px rgba(220, 38, 38, 0.4);
+        box-shadow: 0 8px 24px rgba(45, 115, 80, 0.35);
         transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       }
-      .ayur-floating-sos:hover {
+      .patient-ai-trigger:hover {
         transform: translateY(-3px) scale(1.03);
-        box-shadow: 0 12px 30px rgba(220, 38, 38, 0.55);
+        box-shadow: 0 12px 30px rgba(45, 115, 80, 0.5);
       }
-      .ayur-floating-sos i {
+      .patient-ai-trigger i {
         font-size: 15px;
-        animation: pulseHeart 1.5s infinite;
-      }
-      @keyframes pulseHeart {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.25); }
       }
       @media (max-width: 640px) {
-        .ayur-floating-sos {
+        .patient-ai-trigger {
           bottom: 18px;
           right: 18px;
           padding: 10px 16px;
@@ -1989,9 +1984,10 @@
         }
       }
 
-      /* Emergency SOS Modal */
-      .emergency-modal-card {
-        background: var(--card-bg, #ffffff);
+      /* Patient AI Assistant Modal */
+      .patient-ai-modal-card {
+        background: var(--white, #ffffff);
+        color: var(--text, #1b2923);
         border: 1px solid var(--border);
         border-radius: 18px;
         width: min(540px, 94vw);
@@ -1999,6 +1995,179 @@
         overflow-y: auto;
         box-shadow: 0 24px 64px rgba(0,0,0,0.28);
         animation: slideUpModal 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
+      }
+      .patient-ai-chat {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 230px;
+        max-height: 42vh;
+        overflow-y: auto;
+        padding: 18px 20px;
+        background: var(--cream, #f8f8f4);
+        border-bottom: 1px solid var(--border);
+      }
+      .patient-ai-message {
+        max-width: 88%;
+        padding: 10px 12px;
+        border-radius: 14px;
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 1.55;
+        white-space: pre-wrap;
+      }
+      .patient-ai-message.assistant {
+        align-self: flex-start;
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        color: #173b2b;
+        background: #e1f1e6;
+        border: 1px solid #bfddc7;
+        border-bottom-left-radius: 4px;
+      }
+      .patient-ai-message-text {
+        flex: 1;
+        min-width: 0;
+      }
+      .patient-ai-speak {
+        display: inline-grid;
+        width: 26px;
+        height: 26px;
+        flex: 0 0 26px;
+        place-items: center;
+        padding: 0;
+        color: currentColor;
+        background: transparent;
+        border: 1px solid currentColor;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 11px;
+        opacity: 0.72;
+        transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+      }
+      .patient-ai-speak:hover,
+      .patient-ai-speak:focus-visible,
+      .patient-ai-speak.is-speaking {
+        color: #ffffff;
+        background: #2d7350;
+        border-color: #2d7350;
+        opacity: 1;
+        outline: none;
+      }
+      .patient-ai-speak:disabled {
+        cursor: wait;
+        opacity: 0.35;
+      }
+      .patient-ai-message.user {
+        align-self: flex-end;
+        color: #ffffff;
+        background: #2d7350;
+        border-bottom-right-radius: 4px;
+      }
+      .patient-ai-suggestion {
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 6px 10px;
+        color: var(--text);
+        background: var(--cream);
+        font: inherit;
+        font-size: 11.5px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .patient-ai-suggestion:hover,
+      .patient-ai-suggestion:focus-visible {
+        color: #ffffff;
+        background: #2d7350;
+        border-color: #2d7350;
+        outline: none;
+      }
+      .patient-ai-composer {
+        padding: 16px 20px 18px;
+        color: var(--text);
+        background: var(--white);
+        border-top: 1px solid var(--border);
+      }
+      .patient-ai-composer textarea {
+        color: var(--text) !important;
+        background: var(--cream) !important;
+        border-color: var(--border) !important;
+      }
+      .patient-ai-composer textarea::placeholder {
+        color: var(--muted);
+        opacity: 1;
+      }
+      .patient-ai-composer textarea:focus {
+        outline: 2px solid rgba(45, 115, 80, 0.35);
+        outline-offset: 1px;
+      }
+      .patient-help-modal-card {
+        width: min(460px, 94vw);
+        overflow: hidden;
+        color: var(--text, #1b2923);
+        background: var(--white, #ffffff);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
+        animation: slideUpModal 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
+      }
+      .clinic-contact-list {
+        display: grid;
+        gap: 10px;
+        padding: 18px 20px;
+        background: var(--cream, #f8f8f4);
+      }
+      .clinic-contact-link {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 52px;
+        padding: 12px 14px;
+        color: var(--text);
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        text-decoration: none;
+        transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+      .clinic-contact-link:hover,
+      .clinic-contact-link:focus-visible {
+        transform: translateY(-1px);
+        border-color: #2d7350;
+        box-shadow: 0 6px 16px rgba(45, 115, 80, 0.14);
+        outline: none;
+      }
+      .clinic-contact-link > i {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        flex: 0 0 34px;
+        place-items: center;
+        color: #ffffff;
+        background: #2d7350;
+        border-radius: 10px;
+      }
+      .clinic-contact-link.whatsapp > i {
+        background: #15803d;
+      }
+      .clinic-contact-link span,
+      .clinic-help-note {
+        display: block;
+        color: var(--muted);
+        font-size: 11.5px;
+        line-height: 1.4;
+      }
+      .clinic-contact-link strong {
+        display: block;
+        margin-top: 2px;
+        color: var(--text);
+        font-size: 13px;
+      }
+      body.dark .patient-ai-message.assistant {
+        color: #ecf8ef;
+        background: #284a38;
+        border-color: #3b6850;
       }
 
       /* Recipe Modal Card */
@@ -2021,7 +2190,32 @@
       body.dark .ayur-recipe-card h4 {
         color: #e5f5eb !important;
       }
-      body.dark .emergency-modal-card,
+      body.dark .patient-ai-modal-card {
+        background: var(--white) !important;
+        border-color: var(--border) !important;
+      }
+      body.dark .patient-ai-chat {
+        background: var(--cream);
+      }
+      body.dark .patient-ai-suggestion {
+        color: var(--text);
+        background: #1d2a23;
+        border-color: var(--border);
+      }
+      body.dark .patient-ai-composer {
+        background: var(--white);
+      }
+      body.dark .patient-help-modal-card {
+        background: var(--white);
+        border-color: var(--border);
+      }
+      body.dark .clinic-contact-list {
+        background: var(--cream);
+      }
+      body.dark .clinic-contact-link {
+        background: #1d2a23;
+        border-color: var(--border);
+      }
       body.dark .recipe-modal-card {
         background: #111a14 !important;
         border-color: #284435 !important;
@@ -2092,6 +2286,11 @@
           <a href="#" class="nav-item" onclick="openProfileModal(); return false;" title="My Profile">
             <i class="fa-solid fa-user-circle"></i>
             <span>My Profile</span>
+          </a>
+
+          <a href="#" class="nav-item" onclick="openClinicHelp(); return false;" title="Help & Clinic Contact">
+            <i class="fa-solid fa-circle-question"></i>
+            <span>Help &amp; Contact</span>
           </a>
 
           <a href="index.html" class="nav-item" title="Switch Portal">
@@ -2618,19 +2817,20 @@
                 <!-- Card Body -->
                 <div style="padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; gap: 18px; flex-wrap: wrap;">
                   <div style="display: flex; align-items: center; gap: 16px;">
-                    <div style="width: 64px; height: 64px; border-radius: 14px; background: #2f5f92; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; box-shadow: 0 4px 10px rgba(47,95,146,0.25);">
-                      RS
+                    <div id="abhaCardInitials" style="width: 64px; height: 64px; border-radius: 14px; background: #2f5f92; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; box-shadow: 0 4px 10px rgba(47,95,146,0.25);">
+                      PT
                     </div>
                     <div>
-                      <h4 style="font-family: 'DM Sans', sans-serif; font-size: 17px; margin: 0 0 4px; color: #0f172a; font-weight: 700;">Rohit Sharma</h4>
+                      <h4 id="abhaCardName" style="font-family: 'DM Sans', sans-serif; font-size: 17px; margin: 0 0 4px; color: #0f172a; font-weight: 700;">Patient</h4>
                       <div style="font-size: 11.5px; color: #475569; line-height: 1.4;">
-                        <span>DOB: <strong>14-05-1985</strong></span> · 
-                        <span>Gender: <strong>Male</strong></span> · 
-                        <span>Blood: <strong style="color: #b91c1c;">B+</strong></span>
+                        <span>Age: <strong id="abhaCardAge">Not recorded</strong></span> ·
+                        <span>Gender: <strong id="abhaCardGender">Not recorded</strong></span> ·
+                        <span>Blood: <strong id="abhaCardBlood" style="color: #b91c1c;">Not recorded</strong></span>
                       </div>
                       <div style="margin-top: 6px;">
-                        <span style="font-size: 10px; color: #64748b; display: block;">ABHA Address:</span>
-                        <strong style="font-size: 12px; color: #0284c7;">rohitsharma@abdm</strong>
+                        <span style="font-size: 10px; color: #64748b; display: block;">Registered contact:</span>
+                        <strong id="abhaCardContact" style="font-size: 12px; color: #0284c7;">Not recorded</strong>
+                        <span id="abhaCardPhone" style="font-size: 10px; color: #64748b; display: block; margin-top: 2px;">Phone not recorded</span>
                       </div>
                     </div>
                   </div>
@@ -2647,11 +2847,11 @@
                 <!-- Card Footer with ABHA Number -->
                 <div style="padding: 12px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                   <div>
-                    <span style="font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 600; display: block;">14-Digit ABHA Number:</span>
-                    <strong style="font-size: 15px; letter-spacing: 1.5px; color: #0f172a;">91-8244-1029-5512</strong>
+                    <span style="font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 600; display: block;">ABHA Health ID:</span>
+                    <strong id="abhaCardNumber" style="font-size: 15px; letter-spacing: 1.5px; color: #0f172a;">Not recorded</strong>
                   </div>
                   <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #047857; font-weight: 600;">
-                    <i class="fa-solid fa-shield-halved"></i> ABDM Secure Locker
+                    <i class="fa-solid fa-spa"></i> <span id="abhaCardPrakriti">Prakriti not recorded</span>
                   </div>
                 </div>
               </div>
@@ -3548,8 +3748,8 @@
             <div class="doctor-select-grid" id="doctorSelectGrid">
               <!-- Dynamically populated -->
             </div>
-            <input type="hidden" id="selectedDoctorName" name="doctor_name" value="Dr. Arindam Sen" required />
-            <input type="hidden" id="selectedDoctorId" name="doctor_id" value="1" />
+            <input type="hidden" id="selectedDoctorName" name="doctor_name" value="" required />
+            <input type="hidden" id="selectedDoctorId" name="doctor_id" value="" />
           </div>
 
           <div class="form-grid">
@@ -3654,6 +3854,22 @@
             <div class="profile-display-item">
               <div class="label">Blood Group</div>
               <div class="value blood-group" id="profileDisplayBlood">Not set</div>
+            </div>
+            <div class="profile-display-item">
+              <div class="label">ABHA Health ID</div>
+              <div class="value" id="profileDisplayAbha">Not set</div>
+            </div>
+            <div class="profile-display-item">
+              <div class="label">Registered Contact</div>
+              <div class="value" id="profileDisplayContact">Not set</div>
+            </div>
+            <div class="profile-display-item">
+              <div class="label">Phone</div>
+              <div class="value" id="profileDisplayPhone">Not set</div>
+            </div>
+            <div class="profile-display-item">
+              <div class="label">Prakriti</div>
+              <div class="value" id="profileDisplayPrakriti">Not set</div>
             </div>
             <div class="profile-display-item">
               <div class="label">Emergency Contact</div>
@@ -3818,75 +4034,89 @@
       </div>
     </div>
 
-    <!-- ================= FLOATING EMERGENCY SOS & HOTLINE BUTTON (#9) ================= -->
-    <button type="button" class="ayur-floating-sos" onclick="openEmergencySosModal()" aria-label="Emergency Vaidya SOS Hotline" title="Urgent Clinical Help & Direct Vaidya Hotline">
-      <i class="fa-solid fa-truck-medical"></i>
-      <span>Emergency SOS</span>
-    </button>
-
-    <!-- ================= EMERGENCY SOS & CLINIC HOTLINE MODAL (#9) ================= -->
-    <div class="profile-modal-overlay" id="emergencySosModal" style="display: none; align-items: center; justify-content: center;">
-      <div class="emergency-modal-card">
-        <!-- Modal Header -->
-        <div style="background: linear-gradient(135deg, #dc2626, #991b1b); color: #fff; padding: 18px 24px; display: flex; justify-content: space-between; align-items: center; border-radius: 18px 18px 0 0;">
+    <!-- ================= HELP & CLINIC CONTACT MODAL ================= -->
+    <div class="profile-modal-overlay" id="clinicHelpModal" style="display: none; align-items: center; justify-content: center;">
+      <section class="patient-help-modal-card" role="dialog" aria-modal="true" aria-labelledby="clinicHelpTitle">
+        <div style="background: linear-gradient(135deg, #2d7350, #1a5c2e); color: #fff; padding: 18px 22px; display: flex; align-items: center; justify-content: space-between; gap: 14px;">
           <div style="display: flex; align-items: center; gap: 12px;">
-            <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 20px;">
-              <i class="fa-solid fa-heart-pulse"></i>
+            <div style="display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.18); font-size: 18px;">
+              <i class="fa-solid fa-headset"></i>
             </div>
             <div>
-              <h3 style="font-family: 'DM Sans', sans-serif; font-size: 17px; margin: 0; font-weight: 700;">Emergency AYUSH Clinical Hotline</h3>
-              <p style="font-size: 11.5px; color: #fecaca; margin: 2px 0 0;">Vedacare 24/7 Rapid Medical Support · Dr. Arindam Sen's Clinical Desk</p>
+              <h3 id="clinicHelpTitle" style="margin: 0; font-size: 17px; font-family: 'DM Sans', sans-serif;">Help &amp; Clinic Contact</h3>
+              <p style="margin: 2px 0 0; color: #e4f4e8; font-size: 11.5px; font-weight: 500;">Vedacare Ayurveda Clinic patient support</p>
             </div>
           </div>
-          <button type="button" onclick="closeEmergencySosModal()" style="background: rgba(255,255,255,0.15); border: none; color: #fff; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+          <button type="button" onclick="closeClinicHelp()" aria-label="Close clinic contact details" style="display: grid; place-items: center; width: 32px; height: 32px; color: #fff; background: rgba(255,255,255,0.15); border: none; border-radius: 8px; cursor: pointer;">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div class="clinic-contact-list">
+          <p class="clinic-help-note" style="margin: 0 0 2px;">Contact the clinic for appointment support, follow-up queries, and help using your patient portal.</p>
+          <a class="clinic-contact-link" href="tel:+919830012345">
+            <i class="fa-solid fa-phone"></i>
+            <div><span>Call the clinic</span><strong>+91 98300 12345</strong></div>
+          </a>
+          <a class="clinic-contact-link whatsapp" href="https://wa.me/919830012345" target="_blank" rel="noopener noreferrer">
+            <i class="fa-brands fa-whatsapp"></i>
+            <div><span>WhatsApp clinic desk</span><strong>Message Vedacare support</strong></div>
+          </a>
+        </div>
+        <div style="padding: 0 20px 18px; background: var(--cream, #f8f8f4);">
+          <button type="button" class="primary-btn" onclick="closeClinicHelp()" style="width: 100%; justify-content: center; padding: 10px; background: #2d7350; border-color: #2d7350;">Close</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- ================= FLOATING PATIENT AI ASSISTANT ================= -->
+    <button type="button" class="patient-ai-trigger" onclick="openPatientAssistant()" aria-label="Open AI Assistant" title="Ask the AYURCASE AI Assistant">
+      <i class="fa-solid fa-wand-magic-sparkles"></i>
+      <span>AI Assistant</span>
+    </button>
+
+    <!-- ================= PATIENT AI ASSISTANT MODAL ================= -->
+    <div class="profile-modal-overlay" id="patientAssistantModal" style="display: none; align-items: center; justify-content: center;">
+      <section class="patient-ai-modal-card" role="dialog" aria-modal="true" aria-labelledby="patientAssistantTitle">
+        <div style="background: linear-gradient(135deg, #2d7350, #1a5c2e); color: #fff; padding: 18px 24px; display: flex; justify-content: space-between; align-items: center; border-radius: 18px 18px 0 0;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,0.18); display: flex; align-items: center; justify-content: center; font-size: 19px;">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </div>
+            <div>
+              <h3 id="patientAssistantTitle" style="font-family: 'DM Sans', sans-serif; font-size: 17px; margin: 0; font-weight: 700;">AYURCASE AI Assistant</h3>
+              <p style="font-size: 12px; color: #e4f4e8; margin: 2px 0 0; font-weight: 500;">Website help, general questions, and health &amp; wellness guidance</p>
+            </div>
+          </div>
+          <button type="button" onclick="closePatientAssistant()" aria-label="Close AI Assistant" style="background: rgba(255,255,255,0.15); border: none; color: #fff; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
 
-        <!-- Modal Body -->
-        <div style="padding: 22px 24px;">
-          <!-- 1-Tap Emergency Actions -->
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
-            <a href="tel:+919830012345" style="text-decoration: none; background: #fee2e2; border: 1.5px solid #fca5a5; padding: 14px; border-radius: 12px; text-align: center; color: #991b1b; display: flex; flex-direction: column; align-items: center; gap: 6px; transition: transform 0.2s;">
-              <i class="fa-solid fa-phone-volume" style="font-size: 24px; color: #dc2626;"></i>
-              <strong style="font-size: 14px;">1-Tap Call Hotline</strong>
-              <span style="font-size: 11px; color: #b91c1c;">+91 98300 12345 (24x7)</span>
-            </a>
-            <a href="https://wa.me/919830012345?text=Hello%20Vedacare%20Clinic,%20I%20am%20Rohit%20Sharma%20(ABHA-9182-4410)%20and%20require%20urgent%20clinical%20assistance." target="_blank" rel="noopener noreferrer" style="text-decoration: none; background: #dcfce7; border: 1.5px solid #86efac; padding: 14px; border-radius: 12px; text-align: center; color: #166534; display: flex; flex-direction: column; align-items: center; gap: 6px; transition: transform 0.2s;">
-              <i class="fa-brands fa-whatsapp" style="font-size: 26px; color: #16a34a;"></i>
-              <strong style="font-size: 14px;">WhatsApp Doctor</strong>
-              <span style="font-size: 11px; color: #15803d;">Instant Clinical Chat</span>
-            </a>
-          </div>
-
-          <!-- Immediate First-Aid Action Steps -->
-          <h4 style="font-size: 13.5px; color: var(--green-950); margin: 0 0 10px; font-weight: 700;">Immediate Home Protocols for Acute Symptoms:</h4>
-          
-          <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
-            <div style="background: var(--bg, #f9fafb); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px;">
-              <strong style="font-size: 12.5px; color: #dc2626; display: block; margin-bottom: 2px;"><i class="fa-solid fa-fire-flame-curved"></i> Severe Acidity / Heartburn (Amlapitta Spike):</strong>
-              <span style="font-size: 11.5px; color: var(--muted); line-height: 1.4;">Sip half a cup of cold unboiled cow's milk with a pinch of cardamom, or fresh tender green coconut water. Sit upright; do not lie down flat.</span>
-            </div>
-
-            <div style="background: var(--bg, #f9fafb); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px;">
-              <strong style="font-size: 12.5px; color: #d97706; display: block; margin-bottom: 2px;"><i class="fa-solid fa-droplet"></i> High Blood Sugar Spike Symptoms (Excess Thirst/Fatigue):</strong>
-              <span style="font-size: 11.5px; color: var(--muted); line-height: 1.4;">Drink 2 glasses of lukewarm water infused with boiled cumin and cinnamon. Rest in a well-ventilated room and alert Dr. Arindam Sen.</span>
-            </div>
-
-            <div style="background: var(--bg, #f9fafb); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px;">
-              <strong style="font-size: 12.5px; color: #2563eb; display: block; margin-bottom: 2px;"><i class="fa-solid fa-head-side-virus"></i> Sudden Dizziness / Dehydration:</strong>
-              <span style="font-size: 11.5px; color: var(--muted); line-height: 1.4;">Dissolve half a teaspoon of rock salt (Saindhava Lavana) and lemon juice in warm water; sip slowly.</span>
-            </div>
-          </div>
-
-          <div style="text-align: center; border-top: 1px solid var(--border); padding-top: 14px;">
-            <p style="font-size: 11px; color: var(--muted); margin: 0 0 12px;">For life-threatening cardiac or traumatic emergencies, immediately dial India's National Ambulance Service: <strong>108 / 102</strong>.</p>
-            <button type="button" class="primary-btn" onclick="closeEmergencySosModal()" style="width: 100%; justify-content: center; padding: 10px;">
-              I Understand / Close
+        <div class="patient-ai-chat" id="patientAssistantChat" aria-live="polite">
+          <div class="patient-ai-message assistant">
+            <span class="patient-ai-message-text">Hi! I’m a general AI assistant. Ask me how to use AYURCASE, a general question, or for general health and wellness suggestions.</span>
+            <button type="button" class="patient-ai-speak" onclick="speakPatientAssistantMessage(this)" aria-label="Read this reply aloud" title="Read aloud">
+              <i class="fa-solid fa-volume-high" aria-hidden="true"></i>
             </button>
           </div>
         </div>
-      </div>
+
+        <div class="patient-ai-composer">
+          <div style="display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px;">
+            <button type="button" class="patient-ai-suggestion" onclick="askPatientAssistantQuestion('How do I book an appointment in AYURCASE?')">Book an appointment</button>
+            <button type="button" class="patient-ai-suggestion" onclick="askPatientAssistantQuestion('How can I update my ABHA profile?')">Update my profile</button>
+            <button type="button" class="patient-ai-suggestion" onclick="askPatientAssistantQuestion('What are some general tips for better sleep?')">Better sleep tips</button>
+          </div>
+          <form onsubmit="sendPatientAssistantQuestion(event)" style="display: flex; gap: 10px; align-items: flex-end;">
+            <label for="patientAssistantInput" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0);">Ask the AI Assistant</label>
+            <textarea id="patientAssistantInput" rows="3" maxlength="4000" placeholder="Ask anything about AYURCASE, wellness, or a general topic…" style="flex: 1; resize: vertical; min-height: 66px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; font: inherit;"></textarea>
+            <button type="submit" class="primary-btn" id="patientAssistantSend" aria-label="Send message" style="padding: 10px 14px; min-height: 42px; background: #2d7350; border-color: #2d7350;">
+              <i class="fa-solid fa-paper-plane"></i>
+            </button>
+          </form>
+          <p style="font-size: 10.5px; color: var(--muted); margin: 10px 0 0; line-height: 1.4;">Health information is general guidance, not a diagnosis or a substitute for professional medical care.</p>
+        </div>
+      </section>
     </div>
 
     <!-- ================= RECIPE DETAILS MODAL (#6) ================= -->
@@ -4088,7 +4318,7 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <!-- Script for Theme Toggle & Appointments -->
-    <script src="auth.js?v=4.1"></script>
+    <script src="auth.js?v=4.5"></script>
 
     <!-- Profile Modal Script -->
     <script>
@@ -4106,6 +4336,109 @@
         localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(data));
       }
 
+      function getStoredPatientAccount() {
+        try {
+          return JSON.parse(localStorage.getItem("ayurcase_user") || "{}");
+        } catch (_) {
+          return {};
+        }
+      }
+
+      function getAbhaCardFallback() {
+        const session = typeof getActivePatientSession === "function"
+          ? getActivePatientSession()
+          : {};
+        const account = getStoredPatientAccount();
+        const details = account.details || {};
+        const profile = getPatientProfile();
+        const prakriti = [details.prakriti_primary, details.prakriti_secondary]
+          .filter(Boolean)
+          .join("-") || session.constitution;
+
+        return {
+          name: details.name || account.full_name || session.fullName,
+          abha_id: details.abha_id || account.identifier || session.identifier,
+          age: details.age || profile.age,
+          gender: details.gender || profile.gender,
+          blood_group: details.blood_group || profile.bloodGroup,
+          email: account.username,
+          phone: details.phone || account.phone,
+          prakriti,
+        };
+      }
+
+      function getPatientInitials(name) {
+        return String(name || "")
+          .split(" ")
+          .filter(Boolean)
+          .map((part) => part[0])
+          .join("")
+          .slice(0, 2)
+          .toUpperCase() || "PT";
+      }
+
+      function setAbhaCardText(id, value, fallback = "Not recorded") {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value || fallback;
+      }
+
+      function renderAbhaHealthCard(patient = {}) {
+        const fallback = getAbhaCardFallback();
+        const details = { ...fallback, ...patient };
+        const prakriti = details.prakriti || [details.prakriti_primary, details.prakriti_secondary]
+          .filter(Boolean)
+          .join("-");
+        const name = details.name || "Patient";
+        const abhaId = details.abha_id || details.identifier || "";
+
+        window.activeAbhaPatient = {
+          name,
+          abhaId,
+          details: { ...details, name, abha_id: abhaId, prakriti },
+        };
+        setAbhaCardText("abhaCardInitials", getPatientInitials(name));
+        setAbhaCardText("abhaCardName", name, "Patient");
+        setAbhaCardText("abhaCardAge", details.age ? `${details.age} years` : "");
+        setAbhaCardText("abhaCardGender", details.gender);
+        setAbhaCardText("abhaCardBlood", details.blood_group || details.bloodGroup);
+        setAbhaCardText("abhaCardContact", details.email || details.username);
+        setAbhaCardText("abhaCardPhone", details.phone, "Phone not recorded");
+        setAbhaCardText("abhaCardNumber", abhaId);
+        setAbhaCardText("abhaCardPrakriti", prakriti, "Prakriti not recorded");
+
+        if (document.getElementById("profileModal")?.classList.contains("active")) {
+          populateProfileDisplay();
+        }
+      }
+
+      async function loadAbhaHealthCard() {
+        // Render the authenticated session immediately, then refresh it from
+        // the patient record so the card stays accurate after registration.
+        renderAbhaHealthCard();
+
+        const session = typeof getActivePatientSession === "function"
+          ? getActivePatientSession()
+          : {};
+        const identifier = session.identifier || session.userId;
+        if (!identifier || typeof getApiHost !== "function") return;
+
+        try {
+          const response = await fetch(
+            `${getApiHost()}/api/patients/${encodeURIComponent(identifier)}`,
+            { cache: "no-store" },
+          );
+          const data = await response.json();
+          if (!response.ok || !data.success || !data.patient) {
+            throw new Error(data.error || "Patient details could not be loaded.");
+          }
+          renderAbhaHealthCard(data.patient);
+        } catch (error) {
+          // The card remains useful with the authenticated session if the
+          // database is temporarily unavailable.
+          console.warn("Unable to refresh ABHA health card:", error);
+        }
+      }
+
       function showProfileToast(msg) {
         const toast = document.getElementById("profileToast");
         toast.textContent = msg;
@@ -4118,17 +4451,26 @@
         const session = typeof getActivePatientSession === "function"
           ? getActivePatientSession()
           : { fullName: "Rohit Sharma", identifier: "ABHA-9182-4410" };
+        const patient = window.activeAbhaPatient?.details || getAbhaCardFallback();
+        const fullName = patient.name || session.fullName || "Patient";
+        const abhaId = patient.abha_id || patient.identifier || session.identifier;
+        const prakriti = patient.prakriti || [patient.prakriti_primary, patient.prakriti_secondary]
+          .filter(Boolean)
+          .join("-");
 
         // Header
-        const initials = session.fullName.split(" ").filter(Boolean).map(w => w[0]).join("").substring(0, 2).toUpperCase();
-        document.getElementById("profileAvatarLarge").textContent = initials || "PT";
-        document.getElementById("profileModalName").textContent = session.fullName;
-        document.getElementById("profileModalAbha").textContent = session.identifier;
+        document.getElementById("profileAvatarLarge").textContent = getPatientInitials(fullName);
+        document.getElementById("profileModalName").textContent = fullName;
+        document.getElementById("profileModalAbha").textContent = abhaId || "Not set";
 
         // Display values
-        setDisplayValue("profileDisplayAge", profile.age ? `${profile.age} years` : null);
-        setDisplayValue("profileDisplayGender", profile.gender || null);
-        setDisplayValue("profileDisplayBlood", profile.bloodGroup || null);
+        setDisplayValue("profileDisplayAge", patient.age ? `${patient.age} years` : profile.age ? `${profile.age} years` : null);
+        setDisplayValue("profileDisplayGender", patient.gender || profile.gender || null);
+        setDisplayValue("profileDisplayBlood", patient.blood_group || patient.bloodGroup || profile.bloodGroup || null);
+        setDisplayValue("profileDisplayAbha", abhaId || null);
+        setDisplayValue("profileDisplayContact", patient.email || patient.username || null);
+        setDisplayValue("profileDisplayPhone", patient.phone || null);
+        setDisplayValue("profileDisplayPrakriti", prakriti || null);
         setDisplayValue("profileDisplayEmergency", profile.emergencyContact || null);
       }
 
@@ -4162,10 +4504,11 @@
 
       function toggleProfileEdit() {
         const profile = getPatientProfile();
+        const patient = window.activeAbhaPatient?.details || getAbhaCardFallback();
         // Populate form fields
-        document.getElementById("profileAge").value = profile.age || "";
-        document.getElementById("profileGender").value = profile.gender || "";
-        document.getElementById("profileBloodGroup").value = profile.bloodGroup || "";
+        document.getElementById("profileAge").value = profile.age || patient.age || "";
+        document.getElementById("profileGender").value = profile.gender || patient.gender || "";
+        document.getElementById("profileBloodGroup").value = profile.bloodGroup || patient.blood_group || patient.bloodGroup || "";
         document.getElementById("profileEmergencyContact").value = profile.emergencyContact || "";
 
         // Toggle visibility
@@ -4206,6 +4549,13 @@
 
         const data = { age, gender, bloodGroup, emergencyContact };
         savePatientProfile(data);
+        const patient = window.activeAbhaPatient?.details || getAbhaCardFallback();
+        renderAbhaHealthCard({
+          ...patient,
+          age: age || patient.age,
+          gender: gender || patient.gender,
+          blood_group: bloodGroup || patient.blood_group || patient.bloodGroup,
+        });
 
         // Switch back to display view
         populateProfileDisplay();
@@ -4219,6 +4569,8 @@
 
         showProfileToast("✓ Profile saved successfully!");
       }
+
+      loadAbhaHealthCard();
 
       // Close modal on overlay click
       document.getElementById("profileModal").addEventListener("click", function (e) {
@@ -5058,28 +5410,207 @@
         }
       }
 
-      // ===== Emergency SOS Controls (#9) =====
-      function openEmergencySosModal() {
-        const modal = document.getElementById("emergencySosModal");
-        if (modal) {
-          modal.style.display = "flex";
-          document.body.style.overflow = "hidden";
+      // ===== Help & Clinic Contact =====
+      let clinicHelpTrigger = null;
+
+      function openClinicHelp() {
+        const modal = document.getElementById("clinicHelpModal");
+        if (!modal) return;
+
+        clinicHelpTrigger = document.activeElement;
+        modal.style.display = "flex";
+        document.body.style.overflow = "hidden";
+      }
+
+      function closeClinicHelp() {
+        const modal = document.getElementById("clinicHelpModal");
+        if (!modal) return;
+
+        modal.style.display = "none";
+        document.body.style.overflow = "";
+        clinicHelpTrigger?.focus?.();
+      }
+
+      const clinicHelpModalEl = document.getElementById("clinicHelpModal");
+      if (clinicHelpModalEl) {
+        clinicHelpModalEl.addEventListener("click", function(event) {
+          if (event.target === this) closeClinicHelp();
+        });
+      }
+
+      // ===== General Patient AI Assistant =====
+      let patientAssistantTrigger = null;
+      let patientAssistantSpeechButton = null;
+
+      function openPatientAssistant() {
+        const modal = document.getElementById("patientAssistantModal");
+        if (!modal) return;
+
+        patientAssistantTrigger = document.activeElement;
+        modal.style.display = "flex";
+        document.body.style.overflow = "hidden";
+        requestAnimationFrame(() => document.getElementById("patientAssistantInput")?.focus());
+      }
+
+      function closePatientAssistant() {
+        const modal = document.getElementById("patientAssistantModal");
+        if (!modal) return;
+
+        modal.style.display = "none";
+        document.body.style.overflow = "";
+        window.speechSynthesis?.cancel();
+        resetPatientAssistantSpeechButton();
+        patientAssistantTrigger?.focus?.();
+      }
+
+      function resetPatientAssistantSpeechButton(button = patientAssistantSpeechButton) {
+        if (!button) return;
+
+        if (patientAssistantSpeechButton === button) {
+          patientAssistantSpeechButton = null;
+        }
+        button.classList.remove("is-speaking");
+        button.setAttribute("aria-label", "Read this reply aloud");
+        button.title = "Read aloud";
+      }
+
+      function appendPatientAssistantMessage(content, role) {
+        const chat = document.getElementById("patientAssistantChat");
+        if (!chat) return null;
+
+        const message = document.createElement("div");
+        message.className = `patient-ai-message ${role}`;
+        const messageText = document.createElement("span");
+        messageText.className = "patient-ai-message-text";
+        messageText.textContent = content;
+        message.appendChild(messageText);
+
+        if (role === "assistant") {
+          const speakButton = document.createElement("button");
+          speakButton.type = "button";
+          speakButton.className = "patient-ai-speak";
+          speakButton.setAttribute("aria-label", "Read this reply aloud");
+          speakButton.title = "Read aloud";
+          speakButton.innerHTML = '<i class="fa-solid fa-volume-high" aria-hidden="true"></i>';
+          speakButton.disabled = content === "Thinking…";
+          speakButton.addEventListener("click", () => speakPatientAssistantMessage(speakButton));
+          message.appendChild(speakButton);
+        }
+
+        chat.appendChild(message);
+        chat.scrollTop = chat.scrollHeight;
+        return message;
+      }
+
+      function updatePatientAssistantMessage(message, content) {
+        if (!message) return;
+
+        const messageText = message.querySelector(".patient-ai-message-text");
+        if (messageText) messageText.textContent = content;
+
+        const speakButton = message.querySelector(".patient-ai-speak");
+        if (speakButton) {
+          speakButton.disabled = content === "Thinking…";
+          speakButton.setAttribute("aria-label", "Read this reply aloud");
+          speakButton.title = "Read aloud";
         }
       }
 
-      function closeEmergencySosModal() {
-        const modal = document.getElementById("emergencySosModal");
-        if (modal) {
-          modal.style.display = "none";
-          document.body.style.overflow = "";
+      function speakPatientAssistantMessage(button) {
+        const message = button?.closest(".patient-ai-message.assistant");
+        const text = message?.querySelector(".patient-ai-message-text")?.textContent.trim();
+        if (!button || !text || !("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
+          showProfileToast("Read-aloud is not supported in this browser.");
+          return;
+        }
+
+        if (window.speechSynthesis.speaking && patientAssistantSpeechButton === button) {
+          window.speechSynthesis.cancel();
+          resetPatientAssistantSpeechButton(button);
+          return;
+        }
+
+        window.speechSynthesis.cancel();
+        resetPatientAssistantSpeechButton();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1;
+        utterance.onstart = () => {
+          patientAssistantSpeechButton = button;
+          button.classList.add("is-speaking");
+          button.setAttribute("aria-label", "Stop reading this reply");
+          button.title = "Stop reading";
+        };
+        const resetSpeechButton = () => {
+          if (patientAssistantSpeechButton !== button) return;
+          resetPatientAssistantSpeechButton(button);
+        };
+        utterance.onend = resetSpeechButton;
+        utterance.onerror = resetSpeechButton;
+        window.speechSynthesis.speak(utterance);
+      }
+
+      function askPatientAssistantQuestion(question) {
+        const input = document.getElementById("patientAssistantInput");
+        if (!input) return;
+
+        input.value = question;
+        sendPatientAssistantQuestion();
+      }
+
+      async function sendPatientAssistantQuestion(event) {
+        event?.preventDefault();
+
+        const input = document.getElementById("patientAssistantInput");
+        const sendButton = document.getElementById("patientAssistantSend");
+        const question = input?.value.trim();
+        if (!question || !sendButton) return;
+
+        appendPatientAssistantMessage(question, "user");
+        input.value = "";
+        sendButton.disabled = true;
+        const originalContent = sendButton.innerHTML;
+        sendButton.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
+        const responseMessage = appendPatientAssistantMessage("Thinking…", "assistant");
+
+        try {
+          const response = await fetch(
+            `${typeof getApiHost === "function" ? getApiHost() : ""}/api/recommend`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ problem: question, mode: "patient-assistant" }),
+            },
+          );
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || "The AI service could not answer right now.");
+          }
+          updatePatientAssistantMessage(
+            responseMessage,
+            data.recommendation || "I couldn’t generate a response. Please try again.",
+          );
+        } catch (error) {
+          updatePatientAssistantMessage(
+            responseMessage,
+            typeof getAssistantFallbackResponse === "function"
+              ? getAssistantFallbackResponse(question)
+              : "I received your question, but the live AI service is temporarily unavailable. Please try again shortly.",
+          );
+        } finally {
+          sendButton.disabled = false;
+          sendButton.innerHTML = originalContent;
+          document.getElementById("patientAssistantChat")?.scrollTo({
+            top: document.getElementById("patientAssistantChat").scrollHeight,
+            behavior: "smooth",
+          });
+          input?.focus();
         }
       }
 
-      // Close Emergency SOS on outside click
-      const sosModalEl = document.getElementById("emergencySosModal");
-      if (sosModalEl) {
-        sosModalEl.addEventListener("click", function(e) {
-          if (e.target === this) closeEmergencySosModal();
+      const patientAssistantModalEl = document.getElementById("patientAssistantModal");
+      if (patientAssistantModalEl) {
+        patientAssistantModalEl.addEventListener("click", function(event) {
+          if (event.target === this) closePatientAssistant();
         });
       }
 
@@ -5109,14 +5640,19 @@
 
 
       // ===== ABHA Digital Card Actions (#8) =====
-      function syncAbhaRecords() {
+      async function syncAbhaRecords() {
         const btn = document.getElementById("btnSyncAbha");
         if (btn) {
           btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Syncing ABDM...';
           btn.disabled = true;
         }
 
-        setTimeout(() => {
+        try {
+          await loadAbhaHealthCard();
+          const patient = window.activeAbhaPatient || {};
+          const reference = patient.abhaId ? ` (${patient.abhaId})` : "";
+          showProfileToast(`✓ ABHA health-card details refreshed for ${patient.name || "your profile"}${reference}.`);
+        } finally {
           if (btn) {
             btn.innerHTML = '<i class="fa-solid fa-check"></i> Synced ✓';
             setTimeout(() => {
@@ -5124,14 +5660,14 @@
               btn.disabled = false;
             }, 2500);
           }
-          showProfileToast("✓ 5 Verified Clinical Records Synced with National Health Authority (ABHA-9182-4410)!");
-        }, 1100);
+        }
       }
 
       function downloadAbhaCard() {
+        const patient = window.activeAbhaPatient || getAbhaCardFallback();
         showProfileToast("📄 Generating official Ayushman Bharat (ABHA) Digital Card...");
         setTimeout(() => {
-          showProfileToast("✓ ABHA Digital Card (Rohit Sharma) ready for OPD Paperless Check-In!");
+          showProfileToast(`✓ ABHA Digital Card (${patient.name || "Patient"}) ready for OPD Paperless Check-In!`);
         }, 800);
       }
 
