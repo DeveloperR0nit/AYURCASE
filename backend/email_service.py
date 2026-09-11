@@ -26,7 +26,7 @@ def get_smtp_config():
         from dotenv import load_dotenv
         env_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
         if os.path.exists(env_file):
-            load_dotenv(env_file, override=True)
+            load_dotenv(env_file)
         else:
             load_dotenv(override=True)
     except Exception:
