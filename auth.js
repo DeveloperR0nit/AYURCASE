@@ -45,6 +45,142 @@ function escapeHtml(value) {
         .replace(/'/g, "&#039;");
 }
 
+function formatAiInline(text) {
+    if (!text) return "";
+    let s = text;
+    s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+    s = s.replace(/\*\*\*(.*?)\*\*\*/g, "<strong><em>$1</em></strong>");
+    s = s.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+    s = s.replace(/__([^_]+)__/g, "<strong>$1</strong>");
+    s = s.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    s = s.replace(/_([^_]+)_/g, "<em>$1</em>");
+    return s;
+}
+
+function fallbackFormatMarkdown(text) {
+    if (!text) return "";
+    const lines = String(text).replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+    const output = [];
+    let inList = null;
+    let inBlockquote = false;
+
+    function closeList() {
+        if (inList) {
+            output.push(`</${inList}>`);
+            inList = null;
+        }
+    }
+
+    function closeBlockquote() {
+        if (inBlockquote) {
+            output.push("</blockquote>");
+            inBlockquote = false;
+        }
+    }
+
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i];
+        line = line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const trimmed = line.trim();
+        if (!trimmed) {
+            closeList();
+            closeBlockquote();
+            continue;
+        }
+
+        const bqMatch = trimmed.match(/^&gt;\s*(.*)$/);
+        if (bqMatch) {
+            closeList();
+            if (!inBlockquote) {
+                output.push("<blockquote>");
+                inBlockquote = true;
+            }
+            output.push(`<p>${formatAiInline(bqMatch[1])}</p>`);
+            continue;
+        } else {
+            closeBlockquote();
+        }
+
+        const hMatch = trimmed.match(/^(#{1,4})\s+(.*)$/);
+        if (hMatch) {
+            closeList();
+            const level = hMatch[1].length;
+            const tag = level === 1 ? "h2" : level === 2 ? "h3" : "h4";
+            output.push(`<${tag} class="ai-heading">${formatAiInline(hMatch[2])}</${tag}>`);
+            continue;
+        }
+
+        const ulMatch = trimmed.match(/^[-*•]\s+(.*)$/);
+        if (ulMatch) {
+            if (inList !== "ul") {
+                closeList();
+                output.push('<ul class="ai-list">');
+                inList = "ul";
+            }
+            output.push(`<li>${formatAiInline(ulMatch[1])}</li>`);
+            continue;
+        }
+
+        const olMatch = trimmed.match(/^\d+\.\s+(.*)$/);
+        if (olMatch) {
+            if (inList !== "ol") {
+                closeList();
+                output.push('<ol class="ai-list">');
+                inList = "ol";
+            }
+            output.push(`<li>${formatAiInline(olMatch[1])}</li>`);
+            continue;
+        }
+
+        if (/^(?:---|\*\*\*|___)$/.test(trimmed)) {
+            closeList();
+            output.push("<hr>");
+            continue;
+        }
+
+        closeList();
+        output.push(`<p>${formatAiInline(trimmed)}</p>`);
+    }
+
+    closeList();
+    closeBlockquote();
+    return output.join("");
+}
+
+window.formatAiAssistantResponse = function(content) {
+    if (!content) return "";
+    
+    // Animated thinking placeholder
+    if (content.includes("Thinking…") || content.includes("Thinking...")) {
+        return `
+            <div class="ai-thinking-indicator">
+                <span class="ai-thinking-dot"></span>
+                <span class="ai-thinking-dot"></span>
+                <span class="ai-thinking-dot"></span>
+                <span class="ai-thinking-label">Consulting AYURCASE AI…</span>
+            </div>
+        `;
+    }
+
+    let html = "";
+    if (typeof window.marked !== "undefined" && typeof window.marked.parse === "function") {
+        try {
+            window.marked.setOptions({
+                breaks: true,
+                gfm: true
+            });
+            html = window.marked.parse(content);
+        } catch (e) {
+            console.warn("Markdown parsing warning:", e);
+            html = fallbackFormatMarkdown(content);
+        }
+    } else {
+        html = fallbackFormatMarkdown(content);
+    }
+
+    return `<div class="ai-formatted-content">${html}</div>`;
+};
+
 // In-Memory Database Fallback Store
 var memoryStore = {};
 var isSyncingToDb = false;
@@ -297,6 +433,13 @@ function updateThemeIcons(isDark) {
         btn.title = isDark ? "Switch to Light Mode" : "Switch to Dark Mode";
         btn.setAttribute("aria-label", isDark ? "Switch to Light Mode" : "Switch to Dark Mode");
     });
+
+    const settingsThemeBtn = document.getElementById("settingsThemeBtn");
+    if (settingsThemeBtn) {
+        settingsThemeBtn.innerHTML = isDark
+            ? `<i class="fa-solid fa-sun"></i> <span>Use Light Mode</span>`
+            : `<i class="fa-solid fa-moon"></i> <span>Use Dark Mode</span>`;
+    }
 }
 
 function applyTheme(isDark, persist = false) {
@@ -446,8 +589,8 @@ async function handlePatientSignup(event) {
     const ageValue = document.getElementById("signupAge")?.value || "";
     const age = parseInt(ageValue, 10);
     const gender = document.getElementById("signupGender")?.value || "";
-    const bloodGroup = document.getElementById("signupBloodGroup")?.value || "B+";
-    const prakriti = document.getElementById("signupPrakriti")?.value || "Pitta";
+    const bloodGroup = document.getElementById("signupBloodGroup")?.value?.trim() || "";
+    const prakriti = document.getElementById("signupPrakriti")?.value?.trim() || "";
     const password = document.getElementById("signupPassword")?.value || "";
     const confirmPassword = document.getElementById("signupConfirmPassword")?.value || "";
 
@@ -469,6 +612,10 @@ async function handlePatientSignup(event) {
     }
     if (!Number.isInteger(age) || age < 1 || age > 120) {
         showToastNotice("Registration failed: enter a valid age between 1 and 120.", "error");
+        return false;
+    }
+    if (!phone) {
+        showToastNotice("Registration failed: please enter your phone number.", "error");
         return false;
     }
     if (!gender) {
@@ -511,7 +658,7 @@ async function handlePatientSignup(event) {
         if (res.ok && data.success) {
             // Registration creates an account only. A fresh sign-in is required
             // before the patient can access their health dashboard.
-            showToastNotice("Account created. Please sign in to continue.");
+            showToastNotice(`Account created! Welcome email sent to ${email}. Please sign in.`);
 
             setTimeout(() => {
                 try {
@@ -519,7 +666,7 @@ async function handlePatientSignup(event) {
                 } catch (_) {
                     window.location.href = `login-patient.html?abhaId=${encodeURIComponent(abhaId)}`;
                 }
-            }, 700);
+            }, 900);
             return false;
         } else {
             if (submitBtn) {
@@ -533,10 +680,22 @@ async function handlePatientSignup(event) {
         console.warn("Backend registration error, using local fallback:", err);
         // Keep the offline fallback on the same sign-in path: it must not
         // create a local authenticated session after registration.
-        showToastNotice(`Account created! Please sign in, ${name}.`);
+        try {
+            const emailList = JSON.parse(safeStorage.getItem("ayurcase_sent_emails") || "[]");
+            emailList.unshift({
+                recipient: email,
+                recipient_name: name,
+                subject: `Welcome to AYURCASE - Digital Health Account Created [ABHA: ${abhaId}]`,
+                sent_at: new Date().toISOString(),
+                details: { name, email, phone, abha_id: abhaId, age, gender, blood_group: bloodGroup, prakriti }
+            });
+            safeStorage.setItem("ayurcase_sent_emails", JSON.stringify(emailList.slice(0, 50)));
+        } catch (_) {}
+
+        showToastNotice(`Account created! Welcome email sent to ${email}.`);
         setTimeout(() => {
             window.location.href = `login-patient.html?abhaId=${encodeURIComponent(abhaId)}`;
-        }, 700);
+        }, 900);
         return false;
     }
 }
@@ -730,14 +889,17 @@ async function authenticateUser(role, username, password, targetUrl, selectedDoc
 
     if (authenticated) {
         const sessionToken = "ayur_sess_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9);
-        let userConstitution = "Pitta-Kapha";
+        let userConstitution = "";
         if (userObj && userObj.details) {
             if (userObj.details.prakriti_primary) {
                 userConstitution = userObj.details.prakriti_secondary
                     ? `${userObj.details.prakriti_primary}-${userObj.details.prakriti_secondary}`
                     : userObj.details.prakriti_primary;
+            } else if (userObj.details.prakriti && userObj.details.prakriti !== "Not set") {
+                userConstitution = userObj.details.prakriti;
             }
         }
+        if (!userConstitution) userConstitution = "Not set";
         const sessionPayload = {
             role: role,
             username: username,
@@ -955,24 +1117,39 @@ function getActivePatientSession() {
     let sess = {};
     let user = {};
     try {
-        sess = JSON.parse(safeStorage.getItem("ayurcase_session") || "{}");
+        const rawSess = safeStorage.getItem("ayurcase_session");
+        if (rawSess && rawSess !== "null" && rawSess !== "undefined") {
+            const parsed = JSON.parse(rawSess);
+            if (parsed && typeof parsed === "object") sess = parsed;
+        }
     } catch (_) {}
     try {
-        user = JSON.parse(safeStorage.getItem("ayurcase_user") || "{}");
+        const rawUser = safeStorage.getItem("ayurcase_user");
+        if (rawUser && rawUser !== "null" && rawUser !== "undefined") {
+            const parsed = JSON.parse(rawUser);
+            if (parsed && typeof parsed === "object") user = parsed;
+        }
     } catch (_) {}
 
+    const details = (user && user.details && typeof user.details === "object") ? user.details : {};
     const fullName = sess.fullName || sess.full_name || sess.name || user.full_name || user.name || "Rohit Sharma";
-    const identifier = sess.identifier || user.identifier || user.abha_id || (user.details && user.details.abha_id) || "ABHA-9182-4410";
+    const identifier = sess.identifier || user.identifier || user.abha_id || details.abha_id || "ABHA-9182-4410";
     const userId = sess.userId || sess.id || user.id || 1;
-    let constitution = sess.constitution;
-    if (!constitution && user.details && user.details.prakriti_primary) {
-        constitution = user.details.prakriti_secondary 
-            ? `${user.details.prakriti_primary}-${user.details.prakriti_secondary}`
-            : user.details.prakriti_primary;
+    const email = sess.username || sess.email || user.username || user.email || details.email || "";
+    const phone = sess.phone || user.phone || details.phone || "";
+    let constitution = "";
+    if (details.prakriti_primary) {
+        constitution = details.prakriti_secondary 
+            ? `${details.prakriti_primary}-${details.prakriti_secondary}`
+            : details.prakriti_primary;
+    } else if (details.prakriti && details.prakriti !== "Not set") {
+        constitution = details.prakriti;
+    } else if (sess.constitution && sess.constitution !== "Pitta-Kapha" && sess.constitution !== "Not set") {
+        constitution = sess.constitution;
     }
-    if (!constitution) constitution = "Pitta-Kapha";
+    if (!constitution) constitution = "Not set";
 
-    return { fullName, identifier, userId, constitution };
+    return { fullName, identifier, userId, constitution, email, phone };
 }
 
 function getActiveDoctorName() {
@@ -1061,6 +1238,119 @@ function renderDoctorAccountDetails(doctor) {
     setDetail("doctorProfileStatus", profile.status, "Active");
 }
 
+function getDoctorDetails(doctorName) {
+    const raw = String(doctorName || "").trim();
+    const lower = raw.toLowerCase();
+
+    if (lower.includes("priyadarshini") || lower.includes("rao")) {
+        return {
+            name: "Dr. Priyadarshini Rao",
+            subText: "Panchakarma Specialist · 11 Years Experience",
+            qualification: "(BAMS, MS - Panchakarma)"
+        };
+    }
+    if (lower.includes("meera") || lower.includes("kapoor")) {
+        return {
+            name: "Dr. Meera Kapoor",
+            subText: "Dravyaguna & Lifestyle Medicine · 9 Years Experience",
+            qualification: "(BAMS, MD - Dravyaguna)"
+        };
+    }
+    if (lower.includes("kunal") || lower.includes("bose")) {
+        return {
+            name: "Dr. Kunal Bose",
+            subText: "Shalya Tantra Specialist · 8 Years Experience",
+            qualification: "(BAMS, MS - Shalya)"
+        };
+    }
+    if (lower.includes("arindam") || lower.includes("sen")) {
+        return {
+            name: "Dr. Arindam Sen",
+            subText: "Kayachikitsa · 13 Years Experience",
+            qualification: "(BAMS, MD - Kayachikitsa)"
+        };
+    }
+
+    const pool = (typeof window !== "undefined" && window.DEFAULT_DOCTORS) || (typeof DEFAULT_DOCTORS !== "undefined" ? DEFAULT_DOCTORS : []);
+    const match = pool.find(d => {
+        const dName = String(d.full_name || "").toLowerCase();
+        return dName && (dName === lower || dName.includes(lower) || lower.includes(dName));
+    });
+
+    if (match) {
+        const spec = match.specialization ? match.specialization.split("(")[0].trim() : "AYUSH Medicine";
+        return {
+            name: match.full_name,
+            subText: `${spec} · Senior Consultant`,
+            qualification: match.qualification ? `(${match.qualification})` : "(BAMS, MD)"
+        };
+    }
+
+    const cleanName = raw.startsWith("Dr.") ? raw : (raw ? `Dr. ${raw}` : "Dr. Arindam Sen");
+    return {
+        name: cleanName,
+        subText: "AYUSH Specialist · Senior Consultant",
+        qualification: "(BAMS, MD - Ayurveda)"
+    };
+}
+
+function getRelativeDaysLabel(dateStr) {
+    if (!dateStr) return "";
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const target = new Date(dateStr + "T00:00:00");
+        const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays === 0) return "Today";
+        if (diffDays === 1) return "Tomorrow";
+        if (diffDays > 1) return `In ${diffDays} days`;
+        if (diffDays === -1) return "Yesterday";
+        if (diffDays < -1) return `${Math.abs(diffDays)} days ago`;
+    } catch (_) {}
+    return "";
+}
+
+function updateAttendingDoctorDisplay(doctorName) {
+    const details = getDoctorDetails(doctorName);
+
+    // 1. Attending Doctor Stat Card
+    const statNameEl = document.getElementById("patientAttendingDoctorStat");
+    if (statNameEl) {
+        statNameEl.textContent = details.name;
+    }
+    const statSubEl = document.getElementById("patientAttendingDoctorSub");
+    if (statSubEl) {
+        statSubEl.textContent = details.subText;
+    }
+
+    // 2. Patient Welcome Banner Note
+    const welcomeNoteEl = document.getElementById("patientDoctorNote");
+    if (welcomeNoteEl) {
+        welcomeNoteEl.textContent = `Your current AYUSH treatment plan is managed by ${details.name}.`;
+    }
+
+    // 3. Primary Attending Doctor in Medical Records Case File
+    const recordsDocEl = document.getElementById("patientRecordsAttendingDoctor");
+    if (recordsDocEl) {
+        recordsDocEl.textContent = details.name;
+    }
+    const recordsDocSubEl = document.getElementById("patientRecordsAttendingDoctorSub");
+    if (recordsDocSubEl) {
+        recordsDocSubEl.textContent = details.qualification;
+    }
+
+    // 4. Therapy advice heading in Panchakarma panel
+    const therapyDocEl = document.getElementById("patientTherapyDocName");
+    if (therapyDocEl) {
+        therapyDocEl.textContent = details.name;
+    }
+
+    // Cache attending doctor info for immediate reload rendering
+    try {
+        safeStorage.setItem("ayurcase_attending_doctor", JSON.stringify(details));
+    } catch (_) {}
+}
+
 function renderPatientProfile() {
     const session = getActivePatientSession();
     const fullName = session.fullName;
@@ -1089,20 +1379,52 @@ function renderPatientProfile() {
     // Welcome banner greeting
     const welcomeEl = document.getElementById("patientWelcomeName");
     if (welcomeEl) {
-        welcomeEl.textContent = `Namaste, ${fullName}`;
+        const formattedName = String(fullName || "")
+            .trim()
+            .split(/\s+/)
+            .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+            .join(" ");
+        welcomeEl.textContent = `Namaste, ${formattedName || "Patient"}`;
+    }
+
+    // Case File Patient Name & ABHA ID
+    const casePatientEl = document.getElementById("caseFilePatientName");
+    if (casePatientEl) {
+        const formattedName = String(fullName || "")
+            .trim()
+            .split(/\s+/)
+            .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+            .join(" ");
+        casePatientEl.textContent = formattedName || "Patient";
+    }
+    const caseAbhaEl = document.getElementById("caseFileAbhaBadge");
+    if (caseAbhaEl && identifier) {
+        caseAbhaEl.innerHTML = `<i class="fa-solid fa-id-badge"></i> ${identifier}`;
     }
 
     // Constitution badge
     const constBadge = document.getElementById("patientConstitutionBadge");
     if (constBadge) {
-        constBadge.innerHTML = `<i class="fa-solid fa-spa"></i> ${constitution}`;
+        constBadge.innerHTML = `<i class="fa-solid fa-spa"></i> ${constitution || "Not set"}`;
     }
 
     // Prakriti score card if present
     const prakritiScoreEl = document.getElementById("patientPrakritiScore");
     if (prakritiScoreEl) {
-        prakritiScoreEl.textContent = constitution;
+        prakritiScoreEl.textContent = constitution || "Not set";
     }
+    const prakritiSubEl = document.getElementById("patientPrakritiSub");
+    if (prakritiSubEl && (!constitution || constitution === "Not set")) {
+        prakritiSubEl.textContent = "Pending assessment →";
+    }
+
+    // Sync Attending Doctor display from cache if previously loaded
+    try {
+        const cachedDoc = JSON.parse(safeStorage.getItem("ayurcase_attending_doctor") || "null");
+        if (cachedDoc && cachedDoc.name) {
+            updateAttendingDoctorDisplay(cachedDoc.name);
+        }
+    } catch (_) {}
 }
 
 window.handleAppointmentBooking = async function(event) {
@@ -1144,6 +1466,9 @@ window.handleAppointmentBooking = async function(event) {
 
     const newAppointment = {
         patient_name: patientName,
+        patient_email: session.email || "",
+        patient_phone: session.phone || "",
+        patient_abha_id: session.identifier || "",
         doctor_name: doctorName,
         appointment_date: appointmentDate,
         appointment_time: appointmentTime,
@@ -1188,7 +1513,12 @@ window.handleAppointmentBooking = async function(event) {
     const form = document.getElementById("appointmentForm");
     if (form) form.reset();
 
-    showToastNotice(`Appointment confirmed with ${doctorName} on ${formatDisplayDate(appointmentDate)}!`);
+    showToastNotice(`Appointment confirmed with ${doctorName} on ${formatDisplayDate(appointmentDate)}! Confirmation email sent.`);
+
+    // Immediately sync attending doctor to newly booked doctor
+    if (typeof updateAttendingDoctorDisplay === "function") {
+        updateAttendingDoctorDisplay(doctorName);
+    }
 
     loadPatientAppointments();
     loadDoctorAppointments();
@@ -1200,10 +1530,10 @@ function formatDisplayDate(dateStr) {
     try {
         const parts = dateStr.split("-");
         if (parts.length === 3) {
-            const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
             const year = parts[0];
             const monthIndex = parseInt(parts[1], 10) - 1;
-            const day = parts[2];
+            const day = parseInt(parts[2], 10);
             return `${day} ${months[monthIndex] || parts[1]} ${year}`;
         }
     } catch (_) {}
@@ -1231,9 +1561,16 @@ async function loadPatientAppointments() {
         const data = await res.json();
         if (data.success && Array.isArray(data.appointments)) {
             appointments = data.appointments;
+            try {
+                safeStorage.setItem("ayurcase_cached_appointments", JSON.stringify(appointments));
+            } catch (_) {}
         }
     } catch (e) {
         console.warn("Using offline cached appointments:", e);
+        try {
+            const cached = safeStorage.getItem("ayurcase_cached_appointments");
+            if (cached) appointments = JSON.parse(cached);
+        } catch (_) {}
     }
 
     const patientApts = appointments.filter(a => {
@@ -1251,21 +1588,50 @@ async function loadPatientAppointments() {
         return false;
     });
 
-    // Update Follow-up stat card if elements exist
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    // Chronological sort: earliest upcoming appointments first
+    patientApts.sort((a, b) => {
+        const dComp = (a.appointment_date || "").localeCompare(b.appointment_date || "");
+        if (dComp !== 0) return dComp;
+        return (a.appointment_time || "").localeCompare(b.appointment_time || "");
+    });
+
+    // Upcoming appointments (today or later)
+    const upcomingApts = patientApts.filter(a => !a.appointment_date || a.appointment_date >= todayStr);
+    const nextApt = upcomingApts.length > 0 ? upcomingApts[0] : (patientApts.length > 0 ? patientApts[patientApts.length - 1] : null);
+
+    // Update Next Follow-up stat card & Attending Doctor stat card in lockstep
     const nextStat = document.getElementById("patientNextAppointmentStat");
     const nextStatSub = document.getElementById("patientNextAppointmentStatSub");
-    if (nextStat) {
-        if (patientApts.length > 0) {
-            const nextApt = patientApts[0];
+    if (nextApt) {
+        const attendingDoctor = nextApt.doctor_name || "Dr. Arindam Sen";
+        if (nextStat) {
             nextStat.textContent = formatDisplayDate(nextApt.appointment_date);
-            if (nextStatSub) {
-                nextStatSub.textContent = `${nextApt.appointment_time} • ${nextApt.doctor_name || "Doctor"}`;
-            }
-        } else {
+        }
+        if (nextStatSub) {
+            const relDays = getRelativeDaysLabel(nextApt.appointment_date);
+            const timeLabel = relDays ? `${relDays} • ` : (nextApt.appointment_time ? `${nextApt.appointment_time} • ` : "");
+            nextStatSub.textContent = `${timeLabel}${attendingDoctor}`;
+        }
+        // Always show the attending doctor name same as the next follow up doctor
+        updateAttendingDoctorDisplay(attendingDoctor);
+    } else {
+        if (nextStat) {
             nextStat.textContent = "None Scheduled";
-            if (nextStatSub) {
-                nextStatSub.textContent = "Book your consultation";
+        }
+        if (nextStatSub) {
+            nextStatSub.textContent = "Book your consultation";
+        }
+        try {
+            const cached = JSON.parse(safeStorage.getItem("ayurcase_attending_doctor") || "null");
+            if (cached && cached.name) {
+                updateAttendingDoctorDisplay(cached.name);
+            } else {
+                updateAttendingDoctorDisplay("Dr. Arindam Sen");
             }
+        } catch (_) {
+            updateAttendingDoctorDisplay("Dr. Arindam Sen");
         }
     }
 
@@ -1499,8 +1865,8 @@ function renderDoctorFollowUps(appointments) {
         return;
     }
 
-    container.innerHTML = appointments.slice(0, 4).map((appointment, index) => `
-        <div class="patient-row">
+    container.innerHTML = appointments.map((appointment, index) => `
+        <div class="patient-row" data-index="${index}">
             <div class="patient-avatar avatar-${(index % 4) + 1}">${escapeHtml(doctorInitials(appointment.patient_name))}</div>
             <div class="patient-info">
                 <strong>${escapeHtml(appointment.patient_name)}</strong>
@@ -1514,6 +1880,18 @@ function renderDoctorFollowUps(appointments) {
             <i class="fa-solid fa-chevron-right more-btn" aria-hidden="true"></i>
         </div>
     `).join("");
+
+    container.querySelectorAll(".patient-row").forEach(row => {
+        const idx = Number(row.getAttribute("data-index"));
+        const appointment = appointments[idx];
+        if (appointment) {
+            row.addEventListener("click", () => {
+                if (typeof window.openDoctorPatientProfile === "function") {
+                    window.openDoctorPatientProfile(appointment.patient_name, appointment);
+                }
+            });
+        }
+    });
 }
 
 const RECENT_PATIENT_DEMOS = [
@@ -1575,10 +1953,10 @@ function renderRecentPatients(patients = []) {
     const liveNames = new Set(livePatients.map(patient => patient.patient_name.toLocaleLowerCase()));
     const demos = RECENT_PATIENT_DEMOS.filter(patient => !liveNames.has(patient.patient_name.toLocaleLowerCase()));
     // Live records take priority once a practitioner has patients in care.
-    const visiblePatients = livePatients.length ? livePatients.slice(0, 4) : demos;
+    const visiblePatients = livePatients.length ? livePatients : demos;
 
     container.innerHTML = visiblePatients.map((patient, index) => `
-        <article class="recent-patient-card ${patient.is_demo ? "is-demo" : ""}">
+        <article class="recent-patient-card ${patient.is_demo ? "is-demo" : ""}" data-index="${index}">
             <div class="recent-patient-heading">
                 <div class="patient-avatar avatar-${(index % 4) + 1}">${escapeHtml(doctorInitials(patient.patient_name))}</div>
                 <div>
@@ -1594,6 +1972,18 @@ function renderRecentPatients(patients = []) {
             </div>
         </article>
     `).join("");
+
+    container.querySelectorAll(".recent-patient-card").forEach(card => {
+        const idx = Number(card.getAttribute("data-index"));
+        const patient = visiblePatients[idx];
+        if (patient) {
+            card.addEventListener("click", () => {
+                if (typeof window.openDoctorPatientProfile === "function") {
+                    window.openDoctorPatientProfile(patient.patient_name, patient);
+                }
+            });
+        }
+    });
 }
 
 async function loadDoctorAppointments() {
@@ -1629,12 +2019,13 @@ async function loadDoctorAppointments() {
         if (recentContainer) renderRecentPatients();
     }
 }
+window.loadDoctorAppointments = loadDoctorAppointments;
 
 function renderFollowUpsModal(appointments) {
     const container = document.getElementById("doctorFollowUpsModalList");
     if (!container) return;
-    container.innerHTML = appointments.length ? appointments.map(appointment => `
-        <article class="follow-up-modal-item">
+    container.innerHTML = appointments.length ? appointments.map((appointment, index) => `
+        <article class="follow-up-modal-item" data-index="${index}">
             <div class="date-box">
                 <strong>${escapeHtml((appointment.appointment_date || "").split("-")[2] || "—")}</strong>
                 <span>${escapeHtml(formatDisplayDate(appointment.appointment_date || "").split(" ")[1] || "DATE")}</span>
@@ -1647,6 +2038,21 @@ function renderFollowUpsModal(appointments) {
             <span class="status Active-status">${escapeHtml(appointment.status || "Confirmed")}</span>
         </article>
     `).join("") : doctorEmptyState("No upcoming follow-up visits. New bookings with you will appear here.");
+
+    container.querySelectorAll(".follow-up-modal-item").forEach(item => {
+        const idx = Number(item.getAttribute("data-index"));
+        const appointment = appointments[idx];
+        if (appointment) {
+            item.addEventListener("click", () => {
+                if (typeof window.closeDoctorFollowUps === "function") {
+                    window.closeDoctorFollowUps();
+                }
+                if (typeof window.openDoctorPatientProfile === "function") {
+                    window.openDoctorPatientProfile(appointment.patient_name, appointment);
+                }
+            });
+        }
+    });
 }
 
 window.openDoctorFollowUps = async function(event) {
@@ -1694,6 +2100,277 @@ function initDoctorFollowUpsModal() {
     });
 }
 
+window.closeDoctorPatientProfile = function() {
+    const modal = document.getElementById("doctorPatientProfileModal");
+    if (!modal) return;
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+    const workspace = document.getElementById("ayurcaseWorkspace");
+    const followUpsModal = document.getElementById("doctorFollowUpsModal");
+    if (workspace || (followUpsModal && followUpsModal.classList.contains("show"))) {
+        document.body.style.overflow = "hidden";
+    } else {
+        document.body.style.overflow = "";
+    }
+};
+
+window.openDoctorPatientProfile = async function(patientIdentifier, fallbackData = {}) {
+    const modal = document.getElementById("doctorPatientProfileModal");
+    const avatar = document.getElementById("doctorPatientModalAvatar");
+    const nameEl = document.getElementById("doctorPatientModalName");
+    const badgeEl = document.getElementById("doctorPatientModalBadge");
+    const subEl = document.getElementById("doctorPatientModalSubtitle");
+    const contentEl = document.getElementById("doctorPatientModalContent");
+    if (!modal || !contentEl) return;
+
+    // Show modal immediately with loading state
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+
+    const displayName = (patientIdentifier || fallbackData.patient_name || fallbackData.name || "Patient Profile").trim();
+    if (nameEl) nameEl.textContent = displayName;
+    if (avatar) avatar.textContent = doctorInitials(displayName);
+    if (subEl) subEl.textContent = "Retrieving complete clinical records & demographics…";
+    if (badgeEl) {
+        badgeEl.className = "patient-source-tag verified";
+        badgeEl.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Loading';
+    }
+    contentEl.innerHTML = `
+        <div style="padding: 36px 18px; text-align: center; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 10px;">
+            <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 26px; color: var(--green-600);"></i>
+            <span style="font-size: 13px;">Loading patient details from records…</span>
+        </div>
+    `;
+
+    let patient = null;
+    try {
+        const response = await fetch(`${getApiHost()}/api/patients/${encodeURIComponent(displayName)}`, { cache: "no-store" });
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.patient) {
+                patient = data.patient;
+            }
+        }
+    } catch (e) {
+        console.warn("Unable to fetch patient record from API:", e);
+    }
+
+    // Merge API patient with fallbackData
+    const resolvedName = patient?.name || fallbackData.patient_name || fallbackData.name || displayName;
+    const age = (patient?.age != null) ? patient.age : fallbackData.age;
+    const gender = patient?.gender || fallbackData.gender;
+    const bloodGroup = patient?.blood_group || fallbackData.blood_group;
+    const email = patient?.email || fallbackData.email;
+    const phone = patient?.phone || fallbackData.phone;
+    const abhaId = patient?.abha_id || fallbackData.abha_id;
+    const prakriti = [patient?.prakriti_primary, patient?.prakriti_secondary].filter(Boolean).join("-") ||
+                     patient?.prakriti || fallbackData.prakriti;
+    const createdAt = patient?.created_at || fallbackData.created_at || fallbackData.case_date || fallbackData.appointment_date;
+    const isDemo = Boolean(fallbackData.is_demo);
+    const isRegistered = Boolean(patient && (patient.blood_group || patient.phone || patient.user_id || patient.email) && !isDemo);
+    const isWalkin = !isRegistered && !isDemo;
+
+    // Update Header
+    if (nameEl) nameEl.textContent = resolvedName;
+    if (avatar) avatar.textContent = doctorInitials(resolvedName);
+    
+    let subParts = [];
+    if (age != null && String(age).trim() !== "") subParts.push(`${age} years`);
+    if (gender && gender !== "Not recorded") subParts.push(gender);
+    if (isDemo) subParts.push("Demo Case Record");
+    else if (isRegistered) subParts.push("Patient Portal Profile");
+    else subParts.push("In-Clinic Clinical Record");
+    if (subEl) subEl.textContent = subParts.join(" • ") || "Clinical Patient Record";
+
+    if (badgeEl) {
+        if (isDemo) {
+            badgeEl.className = "patient-source-tag demo";
+            badgeEl.innerHTML = '<i class="fa-solid fa-id-badge"></i> Demo Patient';
+        } else if (isRegistered) {
+            badgeEl.className = "patient-source-tag verified";
+            badgeEl.innerHTML = '<i class="fa-solid fa-circle-check"></i> Verified Patient Profile';
+        } else {
+            badgeEl.className = "patient-source-tag walkin";
+            badgeEl.innerHTML = '<i class="fa-solid fa-clipboard-user"></i> In-Clinic / Walk-in';
+        }
+    }
+
+    // Prepare Appointments
+    const appointments = (patient?.appointments && patient.appointments.length) ? patient.appointments : (
+        (fallbackData.appointment_date) ? [{
+            appointment_date: fallbackData.appointment_date,
+            appointment_time: fallbackData.appointment_time || "Scheduled",
+            consultation_type: fallbackData.consultation_type || "Follow-up Consultation",
+            symptoms_notes: fallbackData.symptoms_notes || fallbackData.detail,
+            status: fallbackData.status || "Confirmed"
+        }] : (Array.isArray(fallbackData.upcoming) ? fallbackData.upcoming : [])
+    );
+
+    // Prepare Cases
+    const cases = (patient?.cases && patient.cases.length) ? patient.cases : (
+        (fallbackData.diagnosis || fallbackData.chief_complaint || fallbackData.complaint) ? [{
+            diagnosis: fallbackData.diagnosis || "Under AYUSH evaluation",
+            chief_complaint: fallbackData.chief_complaint || fallbackData.complaint || fallbackData.symptoms_notes,
+            prakriti: fallbackData.prakriti,
+            created_at: fallbackData.created_at || fallbackData.case_date || fallbackData.appointment_date,
+            status: fallbackData.status || "Active"
+        }] : (Array.isArray(fallbackData.cases) ? fallbackData.cases : [])
+    );
+
+    // Prepare Prescriptions
+    const prescriptions = patient?.prescriptions || [];
+
+    // Active Complaint / Concern
+    const chiefComplaint = fallbackData.chief_complaint || fallbackData.complaint || fallbackData.symptoms_notes || fallbackData.detail || (cases[0]?.chief_complaint) || (appointments[0]?.symptoms_notes);
+
+    // Render HTML
+    contentEl.innerHTML = `
+        <!-- Demographics Section -->
+        <div class="patient-modal-section">
+            <h4 class="patient-modal-section-title"><i class="fa-solid fa-id-card"></i> Patient Demographics & Identification</h4>
+            <div class="patient-demographics-grid">
+                <div class="demographic-card">
+                    <div class="demo-label"><i class="fa-solid fa-envelope"></i> Email Address</div>
+                    <div class="demo-value ${email ? 'email-val' : 'not-recorded'}">
+                        ${email ? `<a href="mailto:${escapeHtml(email)}" class="demo-value email-val">${escapeHtml(email)}</a>` : 'Not recorded'}
+                    </div>
+                </div>
+
+                <div class="demographic-card">
+                    <div class="demo-label"><i class="fa-solid fa-droplet"></i> Blood Group</div>
+                    <div class="demo-value ${bloodGroup ? 'blood-highlight' : 'not-recorded'}">
+                        ${bloodGroup ? `<i class="fa-solid fa-droplet"></i> ${escapeHtml(bloodGroup)}` : 'Not recorded'}
+                    </div>
+                </div>
+
+                <div class="demographic-card">
+                    <div class="demo-label"><i class="fa-solid fa-address-card"></i> ABHA Health ID</div>
+                    <div class="demo-value ${abhaId ? 'mono-val' : 'not-recorded'}">
+                        ${abhaId ? escapeHtml(abhaId) : 'Not recorded'}
+                    </div>
+                </div>
+
+                <div class="demographic-card">
+                    <div class="demo-label"><i class="fa-solid fa-venus-mars"></i> Age & Gender</div>
+                    <div class="demo-value">
+                        ${(age != null && String(age).trim() !== '') ? `${escapeHtml(age)} years` : 'Age not recorded'} • ${gender ? escapeHtml(gender) : 'Not specified'}
+                    </div>
+                </div>
+
+                <div class="demographic-card">
+                    <div class="demo-label"><i class="fa-solid fa-phone"></i> Contact Phone</div>
+                    <div class="demo-value ${phone ? '' : 'not-recorded'}">
+                        ${phone ? escapeHtml(phone) : 'Not recorded'}
+                    </div>
+                </div>
+
+                <div class="demographic-card">
+                    <div class="demo-label"><i class="fa-solid fa-spa"></i> Ayurvedic Prakriti</div>
+                    <div class="demo-value ${(prakriti && prakriti !== 'Not set') ? 'prakriti-tag' : 'not-recorded'}">
+                        ${(prakriti && prakriti !== 'Not set') ? escapeHtml(prakriti) : 'Not set'}
+                    </div>
+                </div>
+
+                <div class="demographic-card">
+                    <div class="demo-label"><i class="fa-solid fa-calendar-plus"></i> Record Date</div>
+                    <div class="demo-value">
+                        ${createdAt ? escapeHtml(formatDisplayDate(createdAt)) : 'Active record'}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Walk-in Notice if not fully self-registered -->
+        ${isWalkin ? `
+            <div class="patient-walkin-note">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>This profile was created via in-clinic practitioner intake. Demographics like Blood Group, Email, and ABHA ID will automatically link once the patient activates their Patient Portal profile.</span>
+            </div>
+        ` : ''}
+
+        <!-- Primary Clinical Concern -->
+        ${chiefComplaint ? `
+            <div class="patient-complaint-box">
+                <i class="fa-solid fa-comment-medical"></i>
+                <div>
+                    <strong>Primary Clinical Concern / Reason</strong>
+                    <p>${escapeHtml(chiefComplaint)}</p>
+                </div>
+            </div>
+        ` : ''}
+
+        <!-- Consultations & Follow-up Schedule -->
+        <div class="patient-modal-section">
+            <h4 class="patient-modal-section-title"><i class="fa-solid fa-calendar-check"></i> Consultation & Follow-up Schedule (${appointments.length})</h4>
+            <div class="patient-modal-list">
+                ${appointments.length ? appointments.map(item => `
+                    <div class="patient-modal-card-item">
+                        <div class="patient-modal-card-info">
+                            <strong>${escapeHtml(formatDisplayDate(item.appointment_date || ""))} • ${escapeHtml(item.appointment_time || "Time to be confirmed")}</strong>
+                            <span>${escapeHtml(item.consultation_type || "Follow-up Consultation")}${item.doctor_name ? ` · Attending: ${escapeHtml(item.doctor_name)}` : ""}</span>
+                            ${item.symptoms_notes ? `<p>${escapeHtml(item.symptoms_notes)}</p>` : ""}
+                        </div>
+                        <span class="status Active-status">${escapeHtml(item.status || "Confirmed")}</span>
+                    </div>
+                `).join("") : '<div class="patient-empty-hint">No scheduled consultation visits recorded for this patient.</div>'}
+            </div>
+        </div>
+
+        <!-- Clinical Cases & Assessment Records -->
+        <div class="patient-modal-section">
+            <h4 class="patient-modal-section-title"><i class="fa-solid fa-clipboard-prescription"></i> Clinical Cases & Assessment History (${cases.length})</h4>
+            <div class="patient-modal-list">
+                ${cases.length ? cases.map(c => `
+                    <div class="patient-modal-card-item">
+                        <div class="patient-modal-card-info">
+                            <strong>${escapeHtml(c.diagnosis || "Under AYUSH clinical evaluation")}</strong>
+                            <span>${escapeHtml(formatDisplayDate(c.created_at || c.case_date || ""))} · Prakriti: ${escapeHtml(c.prakriti || "Not specified")}</span>
+                            ${c.chief_complaint ? `<p><strong>Chief Complaint:</strong> ${escapeHtml(c.chief_complaint)}</p>` : ""}
+                        </div>
+                        <span class="status ${String(c.status || "").toLowerCase().includes("complete") ? "Active-status" : "Follow-up-status"}">${escapeHtml(c.status || "Active")}</span>
+                    </div>
+                `).join("") : '<div class="patient-empty-hint">No case assessment records on file for this patient.</div>'}
+            </div>
+        </div>
+
+        <!-- Prescriptions (if any) -->
+        ${prescriptions.length ? `
+            <div class="patient-modal-section">
+                <h4 class="patient-modal-section-title"><i class="fa-solid fa-pills"></i> Active Prescriptions (${prescriptions.length})</h4>
+                <div class="patient-modal-list">
+                    ${prescriptions.map(p => `
+                        <div class="patient-modal-card-item">
+                            <div class="patient-modal-card-info">
+                                <strong>${escapeHtml(p.medicine_name || "Prescription Item")} · ${escapeHtml(p.dosage || "")}</strong>
+                                <span>Frequency: ${escapeHtml(p.frequency || "As directed")} · Duration: ${escapeHtml(p.duration || "Standard course")}</span>
+                                ${p.instructions ? `<p>${escapeHtml(p.instructions)}</p>` : ""}
+                            </div>
+                            <span class="status Active-status">Active</span>
+                        </div>
+                    `).join("")}
+                </div>
+            </div>
+        ` : ''}
+    `;
+};
+
+function initDoctorPatientProfileModal() {
+    const modal = document.getElementById("doctorPatientProfileModal");
+    const closeButton = document.getElementById("closeDoctorPatientModal") || document.getElementById("closeDoctorPatientProfileModal");
+    if (!modal) return;
+    if (closeButton) closeButton.addEventListener("click", window.closeDoctorPatientProfile);
+    modal.addEventListener("click", event => {
+        if (event.target === modal) window.closeDoctorPatientProfile();
+    });
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && modal.classList.contains("show")) {
+            event.stopPropagation();
+            window.closeDoctorPatientProfile();
+        }
+    });
+}
+
 function initDoctorAccountMenu() {
     const trigger = document.getElementById("doctorProfileTrigger");
     const menu = document.getElementById("doctorAccountMenu");
@@ -1738,10 +2415,36 @@ window.logoutDoctor = async function() {
     window.location.replace("login-doctor.html");
 };
 
+window.handleSwitchAccount = function() {
+    let session = {};
+    try { session = JSON.parse(safeStorage.getItem("ayurcase_session") || "{}"); } catch (_) {}
+
+    if (session.token && typeof getApiHost === "function") {
+        try {
+            fetch(`${getApiHost()}/api/auth/logout`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token: session.token })
+            }).catch(() => {});
+        } catch (_) {}
+    }
+
+    try {
+        safeStorage.removeItem("ayurcase_session");
+        safeStorage.removeItem("ayurcase_user");
+        safeStorage.removeItem("ayurcase_patient_profile");
+        safeStorage.removeItem("ayurcase_active_abha_patient");
+    } catch (_) {}
+
+    window.location.href = "login-patient.html";
+};
+
 
 /* =====================================================
    6. TOAST NOTIFICATION HELPER
    ===================================================== */
+
+let toastNoticeTimer = null;
 
 function showToastNotice(message, type = "success") {
     let toast = document.getElementById("toast");
@@ -1774,7 +2477,8 @@ function showToastNotice(message, type = "success") {
     if (toastIcon) toastIcon.className = type === "error" ? "fa-solid fa-circle-xmark" : "fa-solid fa-circle-check";
 
     toast.classList.add("show");
-    setTimeout(() => {
+    if (toastNoticeTimer) clearTimeout(toastNoticeTimer);
+    toastNoticeTimer = setTimeout(() => {
         toast.classList.remove("show");
     }, 3500);
 }
@@ -1793,6 +2497,7 @@ function initApp() {
     renderDoctorDashboardProfile();
     initDoctorAccountMenu();
     initDoctorFollowUpsModal();
+    initDoctorPatientProfileModal();
     loadPatientAppointments();
     loadDoctorAppointments();
 }
@@ -1801,6 +2506,8 @@ window.getActivePatientSession = getActivePatientSession;
 window.renderPatientProfile = renderPatientProfile;
 window.renderDoctorDashboardProfile = renderDoctorDashboardProfile;
 window.loadPatientAppointments = loadPatientAppointments;
+window.updateAttendingDoctorDisplay = updateAttendingDoctorDisplay;
+window.getDoctorDetails = getDoctorDetails;
 
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initApp);

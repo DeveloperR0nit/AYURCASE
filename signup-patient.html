@@ -220,7 +220,7 @@
                     name="age"
                     min="1"
                     max="120"
-                    value="28"
+                    placeholder="e.g. 28"
                     required
                   />
                   <i class="fa-solid fa-calendar-days field-icon"></i>
@@ -230,7 +230,8 @@
               <div class="form-field">
                 <label for="signupGender">Gender</label>
                 <div class="input-with-icon">
-                  <select id="signupGender" name="gender" class="form-select-field">
+                  <select id="signupGender" name="gender" class="form-select-field" required>
+                    <option value="" selected disabled>Select Gender</option>
                     <option value="Female">Female</option>
                     <option value="Male">Male</option>
                     <option value="Other">Other</option>
@@ -246,13 +247,14 @@
                 <label for="signupBloodGroup">Blood Group</label>
                 <div class="input-with-icon">
                   <select id="signupBloodGroup" name="bloodGroup" class="form-select-field">
-                    <option value="B+">B+</option>
+                    <option value="" selected>Select Blood Group</option>
                     <option value="A+">A+</option>
-                    <option value="O+">O+</option>
-                    <option value="AB+">AB+</option>
-                    <option value="B-">B-</option>
                     <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="O+">O+</option>
                     <option value="O-">O-</option>
+                    <option value="AB+">AB+</option>
                     <option value="AB-">AB-</option>
                   </select>
                   <i class="fa-solid fa-droplet field-icon"></i>
@@ -263,6 +265,7 @@
                 <label for="signupPrakriti">Prakriti (Dosha Constitution)</label>
                 <div class="input-with-icon">
                   <select id="signupPrakriti" name="prakriti" class="form-select-field">
+                    <option value="" selected>Select Prakriti</option>
                     <option value="Pitta">Pitta Dominant</option>
                     <option value="Vata">Vata Dominant</option>
                     <option value="Kapha">Kapha Dominant</option>
