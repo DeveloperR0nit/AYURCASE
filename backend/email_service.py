@@ -10,6 +10,11 @@ import html
 import threading
 import urllib.request
 import urllib.error
+import smtplib
+import ssl
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import formatdate, make_msgid
 from datetime import datetime
 
 
@@ -34,6 +39,7 @@ def send_via_brevo(recipient, recipient_name, subject, body_text, body_html):
     from_email = (
         os.getenv("BREVO_FROM_EMAIL")
         or os.getenv("SMTP_FROM_EMAIL")
+        or os.getenv("SMTP_USER")
         or ""
     ).strip()
 
@@ -127,15 +133,16 @@ def get_smtp_config():
     except Exception:
         pass
 
-    host = os.getenv("SMTP_HOST", "").strip()
+    user = os.getenv("SMTP_USER", "").strip()
+    password = (os.getenv("SMTP_PASSWORD") or os.getenv("SMTP_PASS") or "").strip().replace(" ", "")
+
+    default_host = "smtp.gmail.com" if (user and "@gmail.com" in user.lower()) else ""
+    host = os.getenv("SMTP_HOST", default_host).strip()
     port_str = os.getenv("SMTP_PORT", "587").strip()
     try:
         port = int(port_str)
     except ValueError:
         port = 587
-
-    user = os.getenv("SMTP_USER", "").strip()
-    password = (os.getenv("SMTP_PASSWORD") or os.getenv("SMTP_PASS") or "").strip().replace(" ", "")
     from_email = os.getenv("SMTP_FROM_EMAIL", "").strip() or user or "no-reply@ayurcase.gov.in"
     from_name = os.getenv("SMTP_FROM_NAME", "AYURCASE Digital Health Portal").strip()
 
@@ -488,11 +495,166 @@ def record_email_log(recipient, subject, email_type, status, details_dict, body_
         print(f"[EMAIL SERVICE] Database logging error: {e}")
 
 
+def deliver_email(recipient, recipient_name, subject, body_text, body_html, email_type, details_summary):
+    """
+    Unified email delivery coordinator.
+    Priority order:
+      1. Brevo HTTPS API (if BREVO_API_KEY is configured in .env)
+      2. Live SMTP (if SMTP_USER and SMTP_PASSWORD are configured in .env)
+      3. Local Development Simulation (logs to console and SQLite email_logs)
+    """
+    recipient = (recipient or "").strip()
+    if not recipient or "@" not in recipient:
+        print(f"[EMAIL SERVICE] Skipping {email_type}: Invalid or missing recipient email ('{recipient}').")
+        return {"success": False, "error": f"Invalid or missing recipient email: '{recipient}'"}
+
+    # Provider 1: Brevo HTTPS API
+    brevo_api_key = os.getenv("BREVO_API_KEY", "").strip()
+    if brevo_api_key:
+        print(f"[EMAIL SERVICE] Attempting Brevo HTTPS API dispatch to {recipient}...")
+        result = send_via_brevo(
+            recipient=recipient,
+            recipient_name=recipient_name,
+            subject=subject,
+            body_text=body_text,
+            body_html=body_html
+        )
+        if result.get("success"):
+            record_email_log(
+                recipient=recipient,
+                subject=subject,
+                email_type=email_type,
+                status="SENT",
+                details_dict={**details_summary, "provider": "BREVO_API"},
+                body_text=body_text,
+                body_html=body_html,
+            )
+            return {
+                "success": True,
+                "status": "SENT",
+                "provider": "BREVO_API",
+                "recipient": recipient,
+                "message_id": result.get("message_id")
+            }
+        else:
+            print(f"[EMAIL SERVICE] Brevo API error: {result.get('error')}. Checking SMTP fallback...")
+            record_email_log(
+                recipient=recipient,
+                subject=subject,
+                email_type=email_type,
+                status="FAILED",
+                details_dict={**details_summary, "provider": "BREVO_API"},
+                body_text=body_text,
+                body_html=body_html,
+                error_message=result.get("error"),
+            )
+
+    # Provider 2: Live SMTP (TLS / SSL)
+    cfg = get_smtp_config()
+    if cfg["configured"]:
+        print(f"[EMAIL SERVICE] Attempting live SMTP dispatch ({cfg['host']}:{cfg['port']}) to {recipient}...")
+        try:
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = f"{cfg['from_name']} <{cfg['from_email']}>"
+            msg["To"] = f"{recipient_name} <{recipient}>" if recipient_name else recipient
+            msg["Date"] = formatdate(localtime=True)
+            msg["Message-ID"] = make_msgid(domain=cfg["host"] or "ayurcase.com")
+
+            part_text = MIMEText(body_text, "plain", "utf-8")
+            part_html = MIMEText(body_html, "html", "utf-8")
+            msg.attach(part_text)
+            msg.attach(part_html)
+
+            if cfg["use_ssl"]:
+                context = ssl.create_default_context()
+                with smtplib.SMTP_SSL(cfg["host"], cfg["port"], context=context, timeout=20) as server:
+                    server.login(cfg["user"], cfg["password"])
+                    server.sendmail(cfg["from_email"], [recipient], msg.as_string())
+            else:
+                with smtplib.SMTP(cfg["host"], cfg["port"], timeout=20) as server:
+                    server.ehlo()
+                    if cfg["use_tls"]:
+                        context = ssl.create_default_context()
+                        server.starttls(context=context)
+                        server.ehlo()
+                    server.login(cfg["user"], cfg["password"])
+                    server.sendmail(cfg["from_email"], [recipient], msg.as_string())
+
+            print(f"[EMAIL SERVICE] Successfully dispatched live SMTP email to {recipient} [{subject}]")
+            record_email_log(
+                recipient=recipient,
+                subject=subject,
+                email_type=email_type,
+                status="SENT",
+                details_dict={**details_summary, "provider": "SMTP"},
+                body_text=body_text,
+                body_html=body_html,
+            )
+            return {
+                "success": True,
+                "status": "SENT",
+                "provider": "SMTP",
+                "recipient": recipient
+            }
+        except Exception as smtp_err:
+            err_msg = str(smtp_err)
+            print(f"[EMAIL SERVICE] SMTP delivery failed: {err_msg}")
+            record_email_log(
+                recipient=recipient,
+                subject=subject,
+                email_type=email_type,
+                status="FAILED",
+                details_dict={**details_summary, "provider": "SMTP"},
+                body_text=body_text,
+                body_html=body_html,
+                error_message=err_msg,
+            )
+            return {
+                "success": False,
+                "status": "FAILED",
+                "provider": "SMTP",
+                "recipient": recipient,
+                "error": f"SMTP Error: {err_msg}"
+            }
+
+    # Provider 3: Simulated Local Delivery
+    print("\n" + "=" * 78)
+    print(f"[AYURCASE EMAIL SIMULATION] {email_type} to: {recipient}")
+    print(f"Subject: {subject}")
+    print("-" * 78)
+    for k, v in (details_summary or {}).items():
+        if v:
+            print(f"{str(k).replace('_', ' ').title():<20}: {v}")
+    print("-" * 78)
+    print("[NOTICE] Logged to SQLite 'email_logs'.")
+    print("To send REAL emails over the internet, configure credentials in .env:")
+    print("  SMTP:  SMTP_HOST=smtp.gmail.com, SMTP_PORT=587, SMTP_USER=..., SMTP_PASSWORD=...")
+    print("  Brevo: BREVO_API_KEY=..., BREVO_FROM_EMAIL=...")
+    print("=" * 78 + "\n")
+
+    record_email_log(
+        recipient=recipient,
+        subject=subject,
+        email_type=email_type,
+        status="SIMULATED_LOCAL",
+        details_dict={**details_summary, "provider": "SIMULATED_LOCAL"},
+        body_text=body_text,
+        body_html=body_html,
+    )
+    return {
+        "success": True,
+        "status": "SIMULATED_LOCAL",
+        "provider": "SIMULATED_LOCAL",
+        "recipient": recipient,
+        "note": "Email logged locally. Configure SMTP or BREVO_API_KEY in .env to deliver to real inboxes."
+    }
+
+
 def send_welcome_email(user_data, user_info=None):
     """
     Sends the welcome email to the newly created user account.
-    If SMTP credentials are provided in .env, sends via live SMTP.
-    Otherwise, simulates delivery locally and logs cleanly to console & database.
+    Uses Brevo API, live SMTP, or local simulation fallback.
     """
     try:
         content = build_welcome_email_content(user_data, user_info)
@@ -502,7 +664,6 @@ def send_welcome_email(user_data, user_info=None):
             print("[EMAIL SERVICE] No recipient email provided. Skipping welcome email.")
             return {"success": False, "error": "Missing recipient email"}
 
-        cfg = get_smtp_config()
         details_summary = {
             "name": content["recipient_name"],
             "email": recipient,
@@ -514,69 +675,15 @@ def send_welcome_email(user_data, user_info=None):
             "prakriti": user_data.get("prakriti_primary") or user_data.get("prakriti") or "Not set",
         }
 
-        # Case 1: SMTP credentials are configured in .env -> Real delivery
-               # Send through Brevo HTTPS API
-        if os.getenv("BREVO_API_KEY"):
-            result = send_via_brevo(
-                recipient=recipient,
-                recipient_name=content["recipient_name"],
-                subject=content["subject"],
-                body_text=content["body_text"],
-                body_html=content["body_html"]
-            )
-
-            if result["success"]:
-                record_email_log(
-                    recipient=recipient,
-                    subject=content["subject"],
-                    email_type="WELCOME_EMAIL",
-                    status="SENT",
-                    details_dict=details_summary,
-                    body_text=content["body_text"],
-                    body_html=content["body_html"],
-                )
-
-                return result
-
-            else:
-                record_email_log(
-                    recipient=recipient,
-                    subject=content["subject"],
-                    email_type="WELCOME_EMAIL",
-                    status="FAILED",
-                    details_dict=details_summary,
-                    body_text=content["body_text"],
-                    body_html=content["body_html"],
-                    error_message=result.get("error"),
-                )
-
-                return result
-        # Case 2: Local development fallback (no SMTP credentials configured)
-        else:
-            print("\n" + "=" * 78)
-            print(f"[AYURCASE EMAIL DISPATCH] Welcome Email to: {recipient}")
-            print(f"Subject: {content['subject']}")
-            print("-" * 78)
-            print(f"Dear {content['recipient_name']}, welcome to AYURCASE!")
-            print(f"ABHA ID:      {content['abha_id']}")
-            print(f"Phone Number: {user_data.get('phone') or 'Not provided'}")
-            print(f"Age / Gender: {user_data.get('age') or 'Not specified'} / {user_data.get('gender') or 'Not specified'}")
-            print(f"Blood Group:  {user_data.get('blood_group') or user_data.get('bloodGroup') or 'Not recorded'}")
-            print(f"Prakriti:     {user_data.get('prakriti_primary') or user_data.get('prakriti') or 'Not set'}")
-            print("-" * 78)
-            print("[NOTE] Logged to SQLite 'email_logs'. To send via live SMTP, configure SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD in .env")
-            print("=" * 78 + "\n")
-
-            record_email_log(
-                recipient=recipient,
-                subject=content["subject"],
-                email_type="WELCOME_EMAIL",
-                status="SIMULATED_LOCAL",
-                details_dict=details_summary,
-                body_text=content["body_text"],
-                body_html=content["body_html"],
-            )
-            return {"success": True, "status": "SIMULATED_LOCAL", "recipient": recipient}
+        return deliver_email(
+            recipient=recipient,
+            recipient_name=content["recipient_name"],
+            subject=content["subject"],
+            body_text=content["body_text"],
+            body_html=content["body_html"],
+            email_type="WELCOME_EMAIL",
+            details_summary=details_summary
+        )
 
     except Exception as general_err:
         print(f"[EMAIL SERVICE] Unexpected error during email preparation: {general_err}")
@@ -968,8 +1075,7 @@ National Digital Ayush Health Platform • ABDM Compliant
 def send_appointment_confirmation_email(appointment_data, patient_data=None, doctor_data=None):
     """
     Sends an appointment confirmation email to the patient.
-    If SMTP credentials are configured in .env, sends via live SMTP.
-    Otherwise, logs locally to console and SQLite email_logs.
+    Uses Brevo API, live SMTP, or local simulation fallback.
     """
     try:
         content = build_appointment_email_content(appointment_data, patient_data, doctor_data)
@@ -979,7 +1085,6 @@ def send_appointment_confirmation_email(appointment_data, patient_data=None, doc
             print("[EMAIL SERVICE] No recipient email found for appointment confirmation. Skipping.")
             return {"success": False, "error": "Missing recipient email"}
 
-        cfg = get_smtp_config()
         details_summary = {
             "appointment_id": appointment_data.get("id") or appointment_data.get("appointment_id"),
             "ref_code": content["ref_code"],
@@ -992,65 +1097,15 @@ def send_appointment_confirmation_email(appointment_data, patient_data=None, doc
             "status": "Confirmed",
         }
 
-        # Case 1: SMTP credentials are configured -> Real delivery
-               # Send through Brevo HTTPS API
-        if os.getenv("BREVO_API_KEY"):
-            result = send_via_brevo(
-                recipient=recipient,
-                recipient_name=content["recipient_name"],
-                subject=content["subject"],
-                body_text=content["body_text"],
-                body_html=content["body_html"]
-            )
-
-            if result["success"]:
-                record_email_log(
-                    recipient=recipient,
-                    subject=content["subject"],
-                    email_type="APPOINTMENT_CONFIRMATION",
-                    status="SENT",
-                    details_dict=details_summary,
-                    body_text=content["body_text"],
-                    body_html=content["body_html"],
-                )
-
-                return result
-
-            else:
-                record_email_log(
-                    recipient=recipient,
-                    subject=content["subject"],
-                    email_type="APPOINTMENT_CONFIRMATION",
-                    status="FAILED",
-                    details_dict=details_summary,
-                    body_text=content["body_text"],
-                    body_html=content["body_html"],
-                    error_message=result.get("error"),
-                )
-
-                return result
-        # Case 2: Local development fallback
-        else:
-            print("\n" + "=" * 78)
-            print(f"[AYURCASE EMAIL DISPATCH] Appointment Confirmation to: {recipient}")
-            print(f"Subject: {content['subject']}")
-            print("-" * 78)
-            print(f"Doctor:       {content['doctor_name']}")
-            print(f"Date & Time:  {content['date']} at {content['time']}")
-            print(f"Patient:      {content['recipient_name']}")
-            print(f"Chamber:      Vedacare Ayurveda Clinic & Wellness Centre")
-            print("=" * 78 + "\n")
-
-            record_email_log(
-                recipient=recipient,
-                subject=content["subject"],
-                email_type="APPOINTMENT_CONFIRMATION",
-                status="SIMULATED_LOCAL",
-                details_dict=details_summary,
-                body_text=content["body_text"],
-                body_html=content["body_html"],
-            )
-            return {"success": True, "status": "SIMULATED_LOCAL", "recipient": recipient}
+        return deliver_email(
+            recipient=recipient,
+            recipient_name=content["recipient_name"],
+            subject=content["subject"],
+            body_text=content["body_text"],
+            body_html=content["body_html"],
+            email_type="APPOINTMENT_CONFIRMATION",
+            details_summary=details_summary
+        )
 
     except Exception as general_err:
         print(f"[EMAIL SERVICE] Unexpected error during appointment email dispatch: {general_err}")
@@ -1314,8 +1369,7 @@ Automated account closure notice sent to {recipient_email}.
 def send_account_deletion_email(user_data):
     """
     Sends an account deletion confirmation email to the user.
-    If SMTP credentials are configured in .env, sends via live SMTP.
-    Otherwise, logs locally to console and SQLite email_logs table.
+    Uses Brevo API, live SMTP, or local simulation fallback.
     """
     try:
         content = build_account_deletion_email_content(user_data)
@@ -1325,7 +1379,6 @@ def send_account_deletion_email(user_data):
             print("[EMAIL SERVICE] No recipient email found for account deletion. Skipping.")
             return {"success": False, "error": "Missing recipient email"}
 
-        cfg = get_smtp_config()
         details_summary = {
             "recipient_name": content["recipient_name"],
             "recipient_email": recipient,
@@ -1335,65 +1388,15 @@ def send_account_deletion_email(user_data):
             "status": "CLOSED"
         }
 
-        # Case 1: SMTP credentials are configured -> Real delivery
-                # Send through Brevo HTTPS API
-        if os.getenv("BREVO_API_KEY"):
-            result = send_via_brevo(
-                recipient=recipient,
-                recipient_name=content["recipient_name"],
-                subject=content["subject"],
-                body_text=content["body_text"],
-                body_html=content["body_html"]
-            )
-
-            if result["success"]:
-                record_email_log(
-                    recipient=recipient,
-                    subject=content["subject"],
-                    email_type="ACCOUNT_DELETION",
-                    status="SENT",
-                    details_dict=details_summary,
-                    body_text=content["body_text"],
-                    body_html=content["body_html"],
-                )
-
-                return result
-
-            else:
-                record_email_log(
-                    recipient=recipient,
-                    subject=content["subject"],
-                    email_type="ACCOUNT_DELETION",
-                    status="FAILED",
-                    details_dict=details_summary,
-                    body_text=content["body_text"],
-                    body_html=content["body_html"],
-                    error_message=result.get("error"),
-                )
-
-                return result
-        # Case 2: Local development fallback
-        else:
-            print("\n" + "=" * 78)
-            print(f"[AYURCASE EMAIL DISPATCH] Account Deletion Confirmation to: {recipient}")
-            print(f"Subject: {content['subject']}")
-            print("-" * 78)
-            print(f"Patient:       {content['recipient_name']}")
-            print(f"ABHA ID:       {content['abha_id']}")
-            print(f"Date & Time:   {content['deletion_date']}")
-            print(f"Account:       Permanently Closed & Purged")
-            print("=" * 78 + "\n")
-
-            record_email_log(
-                recipient=recipient,
-                subject=content["subject"],
-                email_type="ACCOUNT_DELETION",
-                status="SIMULATED_LOCAL",
-                details_dict=details_summary,
-                body_text=content["body_text"],
-                body_html=content["body_html"],
-            )
-            return {"success": True, "status": "SIMULATED_LOCAL", "recipient": recipient}
+        return deliver_email(
+            recipient=recipient,
+            recipient_name=content["recipient_name"],
+            subject=content["subject"],
+            body_text=content["body_text"],
+            body_html=content["body_html"],
+            email_type="ACCOUNT_DELETION",
+            details_summary=details_summary
+        )
 
     except Exception as general_err:
         print(f"[EMAIL SERVICE] Unexpected error during deletion email dispatch: {general_err}")
@@ -1410,6 +1413,151 @@ def send_account_deletion_email_async(user_data):
         args=(user_data,),
         daemon=True,
         name="AYURCASE-AccountDeletionEmail-Worker"
+    )
+    thread.start()
+    return thread
+
+
+# ==============================================================================
+# 4. CLINICAL LAB REPORT EMAIL
+# ==============================================================================
+
+def build_lab_report_email_content(report_data):
+    """
+    Constructs plain text and rich HTML email contents for clinical lab investigation results.
+    """
+    patient_name = report_data.get("patient_name") or "Valued Patient"
+    recipient = (report_data.get("patient_email") or "").strip()
+    doctor_name = report_data.get("doctor_name") or "Attending Physician"
+    report_id = report_data.get("report_id") or "LAB"
+    sugar = report_data.get("sugar") or "Not recorded"
+    pressure = report_data.get("pressure") or "Not recorded"
+    hemoglobin = report_data.get("hemoglobin") or "Not recorded"
+    notes = report_data.get("notes") or "Routine clinical pathology evaluation."
+    date_str = datetime.now().strftime("%d %B %Y, %I:%M %p")
+
+    subject = f"AYURCASE - Diagnostic Lab Investigation Report [Report #{report_id}]"
+
+    body_text = f"""AYURCASE - Clinical Lab Investigation Report
+================================================================================
+Patient Name:        {patient_name}
+Attending Doctor:    {doctor_name}
+Report Reference:    #{report_id}
+Recorded Date:       {date_str}
+
+DIAGNOSTIC LAB FINDINGS:
+--------------------------------------------------------------------------------
+- Blood Glucose:     {sugar}
+- Blood Pressure:    {pressure}
+- Hemoglobin (Hb):   {hemoglobin}
+- Clinical Notes:    {notes}
+================================================================================
+This diagnostic report has been safely synchronized to your AYURCASE patient portal.
+"""
+
+    safe_name = html.escape(patient_name)
+    safe_doctor = html.escape(doctor_name)
+    safe_sugar = html.escape(str(sugar))
+    safe_bp = html.escape(str(pressure))
+    safe_hb = html.escape(str(hemoglobin))
+    safe_notes = html.escape(str(notes))
+    safe_date = html.escape(date_str)
+
+    body_html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AYURCASE Lab Report</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f5; margin: 0; padding: 24px; color: #1e293b;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 14px; overflow: hidden; border: 1px solid #e2ece6; box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
+    <tr>
+      <td style="background: linear-gradient(135deg, #1b4d36 0%, #2d7350 100%); padding: 28px 24px; text-align: center; color: #ffffff;">
+        <h2 style="margin: 0; font-size: 22px; font-weight: 800;">Diagnostic Lab Report #{report_id}</h2>
+        <p style="margin: 6px 0 0; color: #d4ebd9; font-size: 13px;">AYURCASE National Digital Ayush Health Platform</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 26px 28px;">
+        <p style="margin: 0 0 16px; font-size: 14px;">Dear <strong>{safe_name}</strong>,</p>
+        <p style="margin: 0 0 20px; font-size: 13.5px; color: #475569; line-height: 1.6;">
+          Your diagnostic lab investigations requested by <strong>{safe_doctor}</strong> have been recorded into your Ayurcase clinical record on <strong>{safe_date}</strong>.
+        </p>
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8faf9; border: 1px solid #e2ece6; border-radius: 10px; margin-bottom: 22px; overflow: hidden;">
+          <tr style="border-bottom: 1px solid #e2ece6;">
+            <td style="padding: 10px 16px; font-weight: 600; font-size: 13px; color: #64748b; width: 40%;">Blood Glucose:</td>
+            <td style="padding: 10px 16px; font-weight: 700; font-size: 13px; color: #0f172a;">{safe_sugar}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2ece6;">
+            <td style="padding: 10px 16px; font-weight: 600; font-size: 13px; color: #64748b;">Blood Pressure:</td>
+            <td style="padding: 10px 16px; font-weight: 700; font-size: 13px; color: #0f172a;">{safe_bp}</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2ece6;">
+            <td style="padding: 10px 16px; font-weight: 600; font-size: 13px; color: #64748b;">Hemoglobin (Hb):</td>
+            <td style="padding: 10px 16px; font-weight: 700; font-size: 13px; color: #0f172a;">{safe_hb}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 16px; font-weight: 600; font-size: 13px; color: #64748b;">Clinical Notes:</td>
+            <td style="padding: 10px 16px; font-size: 13px; color: #334155;">{safe_notes}</td>
+          </tr>
+        </table>
+        <p style="margin: 0; font-size: 12px; color: #64748b; line-height: 1.5;">
+          This evaluation has been automatically updated in your personal health portal under your active consultations.
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td style="background-color: #f8faf8; padding: 18px 24px; text-align: center; font-size: 11.5px; color: #94a3b8; border-top: 1px solid #edf2ee;">
+        <p style="margin: 0;">Vedacare Ayurveda Clinic &bull; Powered by AYURCASE Digital Health</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
+
+    return {
+        "subject": subject,
+        "body_text": body_text,
+        "body_html": body_html,
+        "recipient": recipient,
+        "recipient_name": patient_name
+    }
+
+
+def send_lab_report_email(report_data):
+    """
+    Sends a clinical lab investigation report email to the patient.
+    Uses Brevo API, live SMTP, or local simulation fallback.
+    """
+    try:
+        content = build_lab_report_email_content(report_data)
+        recipient = content["recipient"]
+        if not recipient:
+            return {"success": False, "error": "Missing patient email for lab report"}
+
+        return deliver_email(
+            recipient=recipient,
+            recipient_name=content["recipient_name"],
+            subject=content["subject"],
+            body_text=content["body_text"],
+            body_html=content["body_html"],
+            email_type="LAB_REPORT",
+            details_summary=report_data
+        )
+    except Exception as e:
+        print(f"[EMAIL SERVICE] Lab report email error: {e}")
+        return {"success": False, "error": str(e)}
+
+
+def send_lab_report_email_async(report_data):
+    """
+    Dispatches lab report email in a background daemon thread.
+    """
+    thread = threading.Thread(
+        target=send_lab_report_email,
+        args=(report_data,),
+        daemon=True,
+        name="AYURCASE-LabReportEmail-Worker"
     )
     thread.start()
     return thread

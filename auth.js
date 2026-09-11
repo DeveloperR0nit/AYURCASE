@@ -1033,6 +1033,16 @@ window.openAppointmentModal = function() {
         }
     }
 
+    const emailInput = document.getElementById("appointmentPatientEmail");
+    if (emailInput) {
+        const session = typeof getActivePatientSession === "function" ? getActivePatientSession() : {};
+        const candidateEmail = (session.email && session.email.includes("@")) ? session.email :
+                               (session.username && session.username.includes("@")) ? session.username : "";
+        if (!emailInput.value && candidateEmail) {
+            emailInput.value = candidateEmail;
+        }
+    }
+
     loadAvailableDoctors();
 };
 
@@ -1465,9 +1475,13 @@ window.handleAppointmentBooking = async function(event) {
         submitBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Scheduling...`;
     }
 
+    const patientEmail = document.getElementById("appointmentPatientEmail")?.value.trim()
+        || session.email
+        || (session.username && session.username.includes("@") ? session.username : "");
+
     const newAppointment = {
         patient_name: patientName,
-        patient_email: session.email || "",
+        patient_email: patientEmail,
         patient_phone: session.phone || "",
         patient_abha_id: session.identifier || "",
         doctor_name: doctorName,
@@ -1514,7 +1528,8 @@ window.handleAppointmentBooking = async function(event) {
     const form = document.getElementById("appointmentForm");
     if (form) form.reset();
 
-    showToastNotice(`Appointment confirmed with ${doctorName} on ${formatDisplayDate(appointmentDate)}! Confirmation email sent.`);
+    const emailNotice = patientEmail ? ` Confirmation email sent to ${patientEmail}.` : " Confirmation scheduled.";
+    showToastNotice(`Appointment confirmed with ${doctorName} on ${formatDisplayDate(appointmentDate)}!${emailNotice}`);
 
     // Immediately sync attending doctor to newly booked doctor
     if (typeof updateAttendingDoctorDisplay === "function") {

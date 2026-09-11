@@ -2706,7 +2706,7 @@ def create_appointment(patient_name, doctor_name, appointment_date, appointment_
         resolved_patient_phone = (patient_phone or "").strip()
         resolved_abha_id = (patient_abha_id or "").strip()
 
-        if patient_id and (not resolved_patient_email or not resolved_abha_id or not resolved_patient_phone):
+        if patient_id and (not resolved_patient_email or "@" not in resolved_patient_email or not resolved_abha_id or not resolved_patient_phone):
             try:
                 cursor.execute(
                     """
@@ -2719,7 +2719,7 @@ def create_appointment(patient_name, doctor_name, appointment_date, appointment_
                 )
                 p_row = cursor.fetchone()
                 if p_row:
-                    if not resolved_patient_email and p_row["username"]:
+                    if (not resolved_patient_email or "@" not in resolved_patient_email) and p_row["username"] and "@" in p_row["username"]:
                         resolved_patient_email = p_row["username"].strip()
                     if not resolved_patient_phone:
                         resolved_patient_phone = (p_row["u_phone"] or p_row["p_phone"] or "").strip()
@@ -2727,6 +2727,23 @@ def create_appointment(patient_name, doctor_name, appointment_date, appointment_
                         resolved_abha_id = p_row["abha_id"].strip()
             except Exception as p_err:
                 print("[APPOINTMENT DB] Patient detail lookup notice:", p_err)
+
+        if not resolved_patient_email or "@" not in resolved_patient_email:
+            try:
+                cursor.execute(
+                    """
+                    SELECT username FROM users
+                    WHERE role = 'patient' AND username LIKE '%@%'
+                      AND (full_name LIKE ? OR identifier = ? OR identifier LIKE ?)
+                    ORDER BY id DESC LIMIT 1;
+                    """,
+                    (f"%{patient_name}%", resolved_abha_id, f"%{resolved_abha_id}%")
+                )
+                u_match = cursor.fetchone()
+                if u_match and u_match["username"] and "@" in u_match["username"]:
+                    resolved_patient_email = u_match["username"].strip()
+            except Exception as u_err:
+                print("[APPOINTMENT DB] Users fallback lookup notice:", u_err)
 
         # Idempotency / duplicate check: avoid duplicate appointments for same patient, doctor, date, and time
         cursor.execute(
