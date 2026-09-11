@@ -899,9 +899,11 @@ async function authenticateUser(role, username, password, targetUrl, selectedDoc
             }
         }
         if (!userConstitution) userConstitution = "Not set";
+        const registeredEmail = (userObj && (userObj.email || userObj.username)) || (username && username.includes("@") ? username : "");
         const sessionPayload = {
             role: role,
             username: username,
+            email: registeredEmail,
             fullName: displayName,
             userId: userObj ? userObj.id : 1,
             identifier: userObj ? (userObj.identifier || "") : (role === "patient" ? "ABHA-9182-4410" : ""),
@@ -1033,16 +1035,6 @@ window.openAppointmentModal = function() {
         }
     }
 
-    const emailInput = document.getElementById("appointmentPatientEmail");
-    if (emailInput) {
-        const session = typeof getActivePatientSession === "function" ? getActivePatientSession() : {};
-        const candidateEmail = (session.email && session.email.includes("@")) ? session.email :
-                               (session.username && session.username.includes("@")) ? session.username : "";
-        if (!emailInput.value && candidateEmail) {
-            emailInput.value = candidateEmail;
-        }
-    }
-
     loadAvailableDoctors();
 };
 
@@ -1143,8 +1135,18 @@ function getActivePatientSession() {
     const details = (user && user.details && typeof user.details === "object") ? user.details : {};
     const fullName = sess.fullName || sess.full_name || sess.name || user.full_name || user.name || "Rohit Sharma";
     const identifier = sess.identifier || user.identifier || user.abha_id || details.abha_id || "ABHA-9182-4410";
-    const userId = sess.userId || sess.id || user.id || 1;
-    const email = sess.username || sess.email || user.username || user.email || details.email || "";
+    let email = "";
+    if (sess.email && sess.email.includes("@")) {
+        email = sess.email.trim();
+    } else if (sess.username && sess.username.includes("@")) {
+        email = sess.username.trim();
+    } else if (user.username && user.username.includes("@")) {
+        email = user.username.trim();
+    } else if (user.email && user.email.includes("@")) {
+        email = user.email.trim();
+    } else if (details.email && details.email.includes("@")) {
+        email = details.email.trim();
+    }
     const phone = sess.phone || user.phone || details.phone || "";
     let constitution = "";
     if (details.prakriti_primary) {
@@ -1475,9 +1477,7 @@ window.handleAppointmentBooking = async function(event) {
         submitBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Scheduling...`;
     }
 
-    const patientEmail = document.getElementById("appointmentPatientEmail")?.value.trim()
-        || session.email
-        || (session.username && session.username.includes("@") ? session.username : "");
+    const patientEmail = session.email || (session.username && session.username.includes("@") ? session.username : "");
 
     const newAppointment = {
         patient_name: patientName,
@@ -1528,7 +1528,7 @@ window.handleAppointmentBooking = async function(event) {
     const form = document.getElementById("appointmentForm");
     if (form) form.reset();
 
-    const emailNotice = patientEmail ? ` Confirmation email sent to ${patientEmail}.` : " Confirmation scheduled.";
+    const emailNotice = patientEmail ? ` Confirmation email sent to your registered email (${patientEmail}).` : " Confirmation email sent to your registered email.";
     showToastNotice(`Appointment confirmed with ${doctorName} on ${formatDisplayDate(appointmentDate)}!${emailNotice}`);
 
     // Immediately sync attending doctor to newly booked doctor

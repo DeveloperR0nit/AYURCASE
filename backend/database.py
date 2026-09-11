@@ -2719,7 +2719,7 @@ def create_appointment(patient_name, doctor_name, appointment_date, appointment_
                 )
                 p_row = cursor.fetchone()
                 if p_row:
-                    if (not resolved_patient_email or "@" not in resolved_patient_email) and p_row["username"] and "@" in p_row["username"]:
+                    if p_row["username"] and "@" in p_row["username"]:
                         resolved_patient_email = p_row["username"].strip()
                     if not resolved_patient_phone:
                         resolved_patient_phone = (p_row["u_phone"] or p_row["p_phone"] or "").strip()
