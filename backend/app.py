@@ -23,12 +23,15 @@ try:
         delete_case,
         sync_cases_batch,
         get_patient_data,
+        update_patient_profile,
+        delete_patient_account,
         get_admin_summary,
         get_admin_doctor_patients,
         get_doctor_dashboard,
         get_doctors_list,
         create_appointment,
         get_appointments,
+        delete_appointment,
         save_storage_key,
         get_storage_key,
         get_all_storage,
@@ -40,6 +43,22 @@ try:
         create_user_session,
         validate_user_session,
         delete_user_session,
+        add_notice,
+        get_notices,
+        delete_notice,
+        add_notice_comment,
+        get_notice_comments,
+        get_recent_history,
+        get_hospital_patient_inflow,
+        update_patient_case_record,
+        merge_patient_records,
+        deactivate_patient_record,
+        reassign_patient_doctor,
+        add_doctor_record,
+        update_doctor_record,
+        remove_doctor_record,
+        get_emergency_cases,
+        get_all_registered_patients,
     )
 except ImportError:
     from database import (
@@ -51,12 +70,15 @@ except ImportError:
         delete_case,
         sync_cases_batch,
         get_patient_data,
+        update_patient_profile,
+        delete_patient_account,
         get_admin_summary,
         get_admin_doctor_patients,
         get_doctor_dashboard,
         get_doctors_list,
         create_appointment,
         get_appointments,
+        delete_appointment,
         save_storage_key,
         get_storage_key,
         get_all_storage,
@@ -68,6 +90,22 @@ except ImportError:
         create_user_session,
         validate_user_session,
         delete_user_session,
+        add_notice,
+        get_notices,
+        delete_notice,
+        add_notice_comment,
+        get_notice_comments,
+        get_recent_history,
+        get_hospital_patient_inflow,
+        update_patient_case_record,
+        merge_patient_records,
+        deactivate_patient_record,
+        reassign_patient_doctor,
+        add_doctor_record,
+        update_doctor_record,
+        remove_doctor_record,
+        get_emergency_cases,
+        get_all_registered_patients,
     )
 
 load_dotenv()
@@ -403,9 +441,49 @@ def api_auth_logout():
 
 
 
-@app.route("/api/patients/<identifier>", methods=["GET"])
+@app.route("/api/patients/<identifier>", methods=["GET", "PUT", "POST", "DELETE"])
 def api_patient_detail(identifier):
-    """Fetches patient profile, active prescriptions, and case history from database."""
+    """Fetches, updates, or deletes patient profile, active prescriptions, and case history."""
+    if request.method == "DELETE":
+        deleted = delete_patient_account(identifier)
+        if not deleted:
+            return jsonify({"success": False, "error": "Patient record could not be found or deleted."}), 404
+        
+        # If client provided email and deleted didn't have one in DB:
+        req_data = request.get_json(silent=True) or {}
+        client_email = request.args.get("email") or req_data.get("email")
+        if isinstance(deleted, dict) and not deleted.get("email") and client_email:
+            deleted["email"] = client_email
+            try:
+                try:
+                    from email_service import send_account_deletion_email_async
+                except ImportError:
+                    from backend.email_service import send_account_deletion_email_async
+                send_account_deletion_email_async(deleted)
+            except Exception as em_err:
+                print(f"[ACCOUNT DELETION] Failed to dispatch deletion email: {em_err}")
+
+        return jsonify({
+            "success": True,
+            "message": "Patient account and associated records deleted permanently. Confirmation email sent.",
+            "deleted": deleted if isinstance(deleted, dict) else {}
+        })
+
+    if request.method in ["PUT", "POST"]:
+        data = request.get_json(silent=True) or {}
+        # Strictly enforce lock on email and gender
+        data.pop("email", None)
+        data.pop("username", None)
+        data.pop("gender", None)
+        updated = update_patient_profile(identifier, data)
+        if not updated:
+            return jsonify({"success": False, "error": "Patient record could not be updated."}), 404
+        return jsonify({
+            "success": True,
+            "message": "Patient profile updated successfully.",
+            "patient": updated
+        })
+
     patient = get_patient_data(identifier)
     if not patient:
         return jsonify({"success": False, "error": "Patient record not found."}), 404
@@ -416,14 +494,132 @@ def api_patient_detail(identifier):
     })
 
 
+@app.route("/api/patient/update-profile", methods=["POST", "PUT"])
+def api_update_patient_profile():
+    """Direct alias endpoint for updating patient profile."""
+    data = request.get_json(silent=True) or {}
+    identifier = data.get("identifier") or data.get("abha_id") or data.get("abhaId") or data.get("id") or data.get("user_id")
+    if not identifier:
+        return jsonify({"success": False, "error": "Patient identifier required."}), 400
+    # Strictly enforce lock on email and gender
+    data.pop("email", None)
+    data.pop("username", None)
+    data.pop("gender", None)
+    updated = update_patient_profile(identifier, data)
+    if not updated:
+        return jsonify({"success": False, "error": "Patient record could not be updated."}), 404
+    return jsonify({
+        "success": True,
+        "message": "Patient profile updated successfully.",
+        "patient": updated
+    })
+
+
+@app.route("/api/patient/delete-account", methods=["POST", "DELETE"])
+def api_delete_patient_account():
+    """Endpoint to permanently delete patient account and send confirmation email."""
+    data = request.get_json(silent=True) or {}
+    identifier = data.get("identifier") or data.get("abha_id") or data.get("abhaId") or data.get("id") or data.get("user_id")
+    if not identifier:
+        return jsonify({"success": False, "error": "Patient identifier required."}), 400
+    deleted = delete_patient_account(identifier)
+    if not deleted:
+        return jsonify({"success": False, "error": "Patient record could not be found or deleted."}), 404
+    
+    # If client passed email in body and deleted didn't have one:
+    client_email = data.get("email")
+    if isinstance(deleted, dict) and not deleted.get("email") and client_email:
+        deleted["email"] = client_email
+        try:
+            try:
+                from email_service import send_account_deletion_email_async
+            except ImportError:
+                from backend.email_service import send_account_deletion_email_async
+            send_account_deletion_email_async(deleted)
+        except Exception as em_err:
+            print(f"[ACCOUNT DELETION] Failed to dispatch deletion email: {em_err}")
+
+    return jsonify({
+        "success": True,
+        "message": "Patient account deleted permanently. Confirmation email dispatched.",
+        "deleted": deleted if isinstance(deleted, dict) else {}
+    })
+
+
 @app.route("/api/admin/summary", methods=["GET"])
 def api_admin_summary():
     """Returns aggregated hospital and AYUSH clinic summary for administrators."""
     summary = get_admin_summary()
+    history = get_recent_history()
+    summary["recent_history"] = history
+    summary["history"] = history
+    summary["inflow_daily"] = get_hospital_patient_inflow("daily", 14)
+    summary["inflow_weekly"] = get_hospital_patient_inflow("weekly", 8)
     return jsonify({
         "success": True,
         "summary": summary
     })
+
+
+@app.route("/api/admin/emergency", methods=["GET"])
+def api_admin_emergency():
+    """Returns active emergency triage cases for immediate clinical attention."""
+    try:
+        cases = get_emergency_cases()
+        return jsonify({
+            "success": True,
+            "emergency_cases": cases,
+            "count": len(cases)
+        })
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/admin/registered-patients", methods=["GET"])
+def api_admin_registered_patients():
+    """Returns all registered patient profiles and accounts in the hospital database."""
+    try:
+        patients = get_all_registered_patients()
+        return jsonify({
+            "success": True,
+            "patients": patients,
+            "count": len(patients)
+        })
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/admin/history", methods=["GET"])
+def api_admin_history():
+    """Returns recent patient consultation history, including issue and prescribed medicines."""
+    try:
+        history = get_recent_history()
+        return jsonify({
+            "success": True,
+            "history": history,
+            "recent_history": history,
+            "count": len(history)
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/admin/inflow", methods=["GET"])
+def api_admin_inflow():
+    """Returns patient footfall / inflow analytics (daily or weekly) for trading-style chart."""
+    period = request.args.get("period", "daily").lower()
+    try:
+        count = int(request.args.get("count", 14 if period == "daily" else 8))
+    except (TypeError, ValueError):
+        count = 14 if period == "daily" else 8
+    try:
+        inflow = get_hospital_patient_inflow(period=period, count=count)
+        return jsonify({
+            "success": True,
+            "data": inflow
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/api/admin/doctors/<int:doctor_id>/patients", methods=["GET"])
@@ -433,6 +629,208 @@ def api_admin_doctor_patients(doctor_id):
     if not doctor:
         return jsonify({"success": False, "error": "Doctor not found."}), 404
     return jsonify({"success": True, "doctor": doctor})
+
+
+@app.route("/api/admin/patients/update", methods=["POST"])
+def api_admin_patient_update():
+    """Updates clinical and demographic details for a patient record."""
+    body = request.get_json(silent=True) or {}
+    case_id = body.get("case_id") or body.get("id")
+    if not case_id:
+        return jsonify({"success": False, "error": "case_id is required."}), 400
+
+    try:
+        res = update_patient_case_record(int(case_id), body)
+        status_code = 200 if res.get("success") else 400
+        return jsonify(res), status_code
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/admin/patients/merge", methods=["POST"])
+def api_admin_patient_merge():
+    """Merges duplicate patient case into primary patient case."""
+    body = request.get_json(silent=True) or {}
+    primary_id = body.get("primary_id") or body.get("primary_case_id")
+    duplicate_id = body.get("duplicate_id") or body.get("duplicate_case_id")
+
+    if not primary_id or not duplicate_id:
+        return jsonify({"success": False, "error": "Both primary_id and duplicate_id are required."}), 400
+
+    try:
+        res = merge_patient_records(int(primary_id), int(duplicate_id))
+        status_code = 200 if res.get("success") else 400
+        return jsonify(res), status_code
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/admin/patients/deactivate", methods=["POST"])
+def api_admin_patient_deactivate():
+    """Toggles patient case status to 'Deactivated' or 'Completed'."""
+    body = request.get_json(silent=True) or {}
+    case_id = body.get("case_id") or body.get("id")
+    action = body.get("action", "deactivate")
+
+    if not case_id:
+        return jsonify({"success": False, "error": "case_id is required."}), 400
+
+    try:
+        res = deactivate_patient_record(int(case_id), action=action)
+        status_code = 200 if res.get("success") else 400
+        return jsonify(res), status_code
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/admin/patients/reassign-doctor", methods=["POST"])
+def api_admin_patient_reassign_doctor():
+    """Reassigns appointed doctor for a patient in follow-up activity or case registry."""
+    body = request.get_json(silent=True) or {}
+    try:
+        res = reassign_patient_doctor(body)
+        status_code = 200 if res.get("success") else 400
+        return jsonify(res), status_code
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/admin/doctors/add", methods=["POST"])
+def api_admin_doctor_add():
+    """Adds a new verified practitioner to the AYUSH wing."""
+    body = request.get_json(silent=True) or {}
+    try:
+        res = add_doctor_record(body)
+        status_code = 200 if res.get("success") else 400
+        return jsonify(res), status_code
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/admin/doctors/update", methods=["POST"])
+def api_admin_doctor_update():
+    """Updates practitioner credentials, qualification, and specialization."""
+    body = request.get_json(silent=True) or {}
+    doc_id = body.get("doctor_id") or body.get("id")
+    if not doc_id:
+        return jsonify({"success": False, "error": "doctor_id is required."}), 400
+    try:
+        res = update_doctor_record(int(doc_id), body)
+        status_code = 200 if res.get("success") else 400
+        return jsonify(res), status_code
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/admin/doctors/remove", methods=["POST"])
+def api_admin_doctor_remove():
+    """Sets doctor status to 'Past Doctor' (or reactivates), safely preserving all clinical data."""
+    body = request.get_json(silent=True) or {}
+    doc_id = body.get("doctor_id") or body.get("id")
+    action = body.get("action", "remove")
+    if not doc_id:
+        return jsonify({"success": False, "error": "doctor_id is required."}), 400
+    try:
+        res = remove_doctor_record(int(doc_id), action=action)
+        status_code = 200 if res.get("success") else 400
+        return jsonify(res), status_code
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# =====================================================
+# EMAIL & NOTIFICATION APIS
+# =====================================================
+
+@app.route("/api/admin/emails", methods=["GET"])
+def api_admin_emails():
+    """Returns recent dispatched emails and delivery status from SQLite."""
+    try:
+        from database import get_db_connection
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, recipient, subject, email_type, status, details_json, error_message, sent_at FROM email_logs ORDER BY id DESC LIMIT 50;")
+        rows = cursor.fetchall()
+        emails = [dict(r) for r in rows]
+        conn.close()
+        return jsonify({"success": True, "emails": emails, "count": len(emails)})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/emails/latest", methods=["GET"])
+def api_latest_email():
+    """Returns the most recent email sent to a given recipient or ABHA ID."""
+    recipient = request.args.get("recipient") or request.args.get("email") or ""
+    try:
+        from database import get_db_connection
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        if recipient:
+            cursor.execute("SELECT * FROM email_logs WHERE recipient = ? ORDER BY id DESC LIMIT 1;", (recipient.strip(),))
+        else:
+            cursor.execute("SELECT * FROM email_logs ORDER BY id DESC LIMIT 1;")
+        row = cursor.fetchone()
+        conn.close()
+        if not row:
+            return jsonify({"success": False, "message": "No emails found"}), 404
+        return jsonify({"success": True, "email": dict(row)})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/admin/test-email", methods=["GET", "POST"])
+def api_test_email():
+    """Sends a test email to verify SMTP configuration and returns status."""
+    data = request.get_json(silent=True) or {}
+    recipient = request.args.get("to") or data.get("to") or os.getenv("SMTP_USER")
+    try:
+        from email_service import send_welcome_email
+        test_payload = {
+            "name": "AYURCASE Test User",
+            "email": recipient,
+            "phone": "+91 98765 43210",
+            "abha_id": "ABHA-TEST-0001",
+            "age": 28,
+            "gender": "Other",
+            "blood_group": "O+",
+            "prakriti_primary": "Tridoshic"
+        }
+        res = send_welcome_email(test_payload)
+        status_code = 200 if res.get("success") else 400
+        return jsonify(res), status_code
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/admin/test-appointment-email", methods=["GET", "POST"])
+def api_test_appointment_email():
+    """Sends a test appointment confirmation email to verify email styling and delivery."""
+    data = request.get_json(silent=True) or {}
+    recipient = request.args.get("to") or data.get("to") or os.getenv("SMTP_USER")
+    try:
+        from email_service import send_appointment_confirmation_email
+        test_apt = {
+            "id": 999,
+            "patient_name": "Ronit Saha",
+            "patient_email": recipient,
+            "patient_phone": "+91 98765 43210",
+            "patient_abha_id": "ABHA-2088-3764",
+            "doctor_name": "Dr. Arindam Sen",
+            "specialization": "Kayachikitsa & Nadi Pariksha Specialist",
+            "qualification": "BAMS, MD (Ayurveda)",
+            "council_reg_no": "AYUSH-WB-2014-0891",
+            "appointment_date": str(date.today()),
+            "appointment_time": "11:30 AM",
+            "consultation_type": "In-Clinic Consultation",
+            "symptoms_notes": "Ayurvedic pulse diagnosis and clinical assessment for digestive balance",
+            "status": "Confirmed"
+        }
+        res = send_appointment_confirmation_email(test_apt)
+        status_code = 200 if res.get("success") else 400
+        return jsonify(res), status_code
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 # =====================================================
@@ -475,6 +873,9 @@ def api_appointments():
         symptoms_notes = data.get("symptoms_notes", "")
         patient_id = data.get("patient_id")
         doctor_id = data.get("doctor_id")
+        patient_email = data.get("patient_email")
+        patient_phone = data.get("patient_phone")
+        patient_abha_id = data.get("patient_abha_id") or data.get("abha_id")
 
         if not patient_name or not doctor_name or not appointment_date or not appointment_time:
             return jsonify({
@@ -499,7 +900,12 @@ def api_appointments():
                 consultation_type=consultation_type,
                 symptoms_notes=symptoms_notes,
                 patient_id=patient_id,
-                doctor_id=doctor_id
+                doctor_id=doctor_id,
+                age=data.get("age"),
+                gender=data.get("gender"),
+                patient_email=patient_email,
+                patient_phone=patient_phone,
+                patient_abha_id=patient_abha_id,
             )
             return jsonify({"success": True, "appointment": new_apt}), 201
         except ValueError as e:
@@ -526,6 +932,19 @@ def api_appointments():
         except Exception as e:
             print("Error fetching appointments:", e)
             return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/appointments/<int:appointment_id>", methods=["DELETE"])
+def api_delete_appointment(appointment_id):
+    """Cancels or deletes a clinical appointment by its integer ID."""
+    try:
+        success = delete_appointment(appointment_id)
+        if not success:
+            return jsonify({"success": False, "error": f"Appointment #{appointment_id} not found or already deleted."}), 404
+        return jsonify({"success": True, "message": f"Appointment #{appointment_id} successfully cancelled and removed."})
+    except Exception as e:
+        print(f"Error deleting appointment #{appointment_id}:", e)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 # =====================================================
@@ -642,6 +1061,99 @@ Important rules:
             "source": "fallback",
             "reason": "provider_unavailable",
         })
+
+
+# =====================================================
+# NOTICES & CLINICAL ORDERS ENDPOINTS
+# =====================================================
+
+@app.get("/api/notices")
+def api_get_notices():
+    """Retrieves all hospital notices, meetings, and orders."""
+    order = request.args.get("order", "desc")
+    try:
+        notices = get_notices(order=order)
+        return jsonify({
+            "success": True,
+            "notices": notices,
+            "count": len(notices),
+            "order": order,
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.post("/api/notices")
+def api_create_notice():
+    """Creates a new administrative notice/order."""
+    data = request.get_json(silent=True) or {}
+    title = data.get("title", "").strip()
+    content = data.get("content", "").strip()
+    notice_type = data.get("notice_type", "General").strip()
+    priority = data.get("priority", "Normal").strip()
+    posted_by = data.get("posted_by", "Hospital Administration").strip()
+
+    if not title:
+        return jsonify({"success": False, "error": "Notice title is required."}), 400
+    if not content:
+        return jsonify({"success": False, "error": "Notice content is required."}), 400
+
+    try:
+        notice = add_notice(
+            title=title,
+            content=content,
+            notice_type=notice_type,
+            priority=priority,
+            posted_by=posted_by
+        )
+        return jsonify({"success": True, "notice": notice}), 201
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.delete("/api/notices/<int:notice_id>")
+def api_delete_notice(notice_id):
+    """Deletes an administrative notice."""
+    try:
+        success = delete_notice(notice_id)
+        return jsonify({"success": success})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.post("/api/notices/<int:notice_id>/comments")
+def api_add_notice_comment(notice_id):
+    """Allows a doctor to post a comment / reply / acknowledgement on a notice."""
+    data = request.get_json(silent=True) or {}
+    comment_text = data.get("comment_text", "").strip()
+    author_name = data.get("author_name", "Doctor").strip()
+    doctor_id = data.get("doctor_id")
+    author_role = data.get("author_role", "doctor").strip()
+
+    if not comment_text:
+        return jsonify({"success": False, "error": "Comment text cannot be empty."}), 400
+
+    try:
+        comment = add_notice_comment(
+            notice_id=notice_id,
+            doctor_id=doctor_id,
+            author_name=author_name,
+            comment_text=comment_text,
+            author_role=author_role
+        )
+        return jsonify({"success": True, "comment": comment}), 201
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.get("/api/notices/<int:notice_id>/comments")
+def api_get_notice_comments(notice_id):
+    """Retrieves all comments for a specific notice."""
+    try:
+        comments = get_notice_comments(notice_id)
+        return jsonify({"success": True, "comments": comments})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 # =====================================================

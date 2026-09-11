@@ -27,7 +27,30 @@
 
     <!-- CSS -->
     <link rel="stylesheet" href="style.css" />
-    <link rel="stylesheet" href="auth.css" />
+    <link rel="stylesheet" href="auth.css?v=4.6" />
+
+    <style>
+      .input-with-icon select#doctorAccount {
+        width: 100% !important;
+        padding-left: 44px !important;
+        padding-right: 36px !important;
+        -webkit-appearance: none !important;
+        -moz-appearance: none !important;
+        appearance: none !important;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%2392a299'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E") !important;
+        background-repeat: no-repeat !important;
+        background-position: right 14px center !important;
+        background-size: 14px 14px !important;
+        cursor: pointer !important;
+      }
+      body.dark .input-with-icon select#doctorAccount,
+      html.dark .input-with-icon select#doctorAccount {
+        background-color: #121c16 !important;
+        border-color: #29362f !important;
+        color: #e6eee8 !important;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23b7c7be'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E") !important;
+      }
+    </style>
 
     <!-- Immediate Theme Restore (Prevents Flash of Light Mode) -->
     <script>
@@ -87,7 +110,7 @@
             <div class="form-field">
               <label for="doctorAccount">Choose practitioner account</label>
               <div class="input-with-icon">
-                <select id="doctorAccount" name="doctorAccount" required>
+                <select id="doctorAccount" name="doctorAccount" required style="padding-left: 44px !important;">
                   <option value="">Select the practitioner who is signing in</option>
                   <option value="dr.sen@ayurcase.com" data-council="AYUSH-WB-2018-0941">Dr. Arindam Sen — Kayachikitsa</option>
                   <option value="dr.rao@ayurcase.com" data-council="AYUSH-KA-2019-1120">Dr. Priyadarshini Rao — Panchakarma</option>
@@ -136,23 +159,6 @@
               </div>
             </div>
 
-            <div class="form-field">
-              <label for="councilId">
-                <span>AYUSH State Council Number</span>
-                <small style="font-weight: 400; color: var(--muted);">(Optional)</small>
-              </label>
-              <div class="input-with-icon">
-                <input
-                  type="text"
-                  id="councilId"
-                  name="councilId"
-                  placeholder="e.g. AYUSH-WB-2018-0941"
-                  onkeydown="if(event.key==='Enter'){event.preventDefault(); handleDoctorLogin(event);}"
-                />
-                <i class="fa-solid fa-id-badge field-icon"></i>
-              </div>
-            </div>
-
             <div class="form-options">
               <label class="remember-me">
                 <input type="checkbox" checked />
@@ -194,6 +200,14 @@
 
     <!-- Scripts -->
     <script src="auth.js?v=4.5"></script>
+    <script>
+      document.getElementById("doctorAccount")?.addEventListener("change", function () {
+        const usernameEl = document.getElementById("username");
+        if (usernameEl && this.value) {
+          usernameEl.value = this.value;
+        }
+      });
+    </script>
 </body>
 </html>
 

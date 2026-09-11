@@ -26,8 +26,8 @@
     />
 
     <!-- CSS -->
-    <link rel="stylesheet" href="style.css" />
-    <link rel="stylesheet" href="auth.css" />
+    <link rel="stylesheet" href="style.css?v=4.6" />
+    <link rel="stylesheet" href="auth.css?v=4.6" />
 
     <!-- Immediate Theme Restore (Prevents Flash of Light Mode) -->
     <script>
@@ -90,6 +90,12 @@
           <a href="#" class="nav-item" data-page="learn">
             <i class="fa-solid fa-book-open-reader"></i>
             <span>Learn</span>
+          </a>
+
+          <a href="#" class="nav-item" data-page="notices" id="doctorNavNotices">
+            <i class="fa-solid fa-bullhorn"></i>
+            <span>Notices</span>
+            <span id="doctorNoticeNavBadge" style="margin-left:auto; background:#286247; color:#fff; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px; display:none;">0</span>
           </a>
 
           <div class="menu-title second">MANAGEMENT</div>
@@ -223,19 +229,19 @@
             </button>
           </div>
 
-          <section aria-label="Practice snapshot" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0 0 22px;">
-            <article style="background: #edf6ef; border: 1px solid #d5e8d9; border-radius: 13px; padding: 14px 16px;">
-              <span style="font-size: 10px; color: var(--green-700); font-weight: 700; letter-spacing: .7px;">PATIENT DIRECTORY</span>
-              <strong id="doctorPracticePatients" style="display: block; font-size: 18px; color: var(--green-950); margin-top: 5px;">Loading...</strong>
+          <section class="practice-snapshot" aria-label="Practice snapshot">
+            <article class="practice-snapshot-card green">
+              <span class="snapshot-label"><i class="fa-solid fa-address-book" aria-hidden="true"></i> PATIENT DIRECTORY</span>
+              <strong id="doctorPracticePatients" class="snapshot-value">Loading...</strong>
             </article>
-            <article style="background: #f0f5fb; border: 1px solid #d8e5f4; border-radius: 13px; padding: 14px 16px;">
-              <span style="font-size: 10px; color: #2f5f92; font-weight: 700; letter-spacing: .7px;">NEXT CONSULTATION</span>
-              <strong id="doctorNextVisit" style="display: block; font-size: 15px; color: var(--green-950); margin-top: 5px;">Loading...</strong>
-              <small id="doctorNextVisitMeta" style="display: block; color: var(--muted); margin-top: 3px; font-size: 11px;"></small>
+            <article class="practice-snapshot-card blue">
+              <span class="snapshot-label"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i> NEXT CONSULTATION</span>
+              <strong id="doctorNextVisit" class="snapshot-value">Loading...</strong>
+              <small id="doctorNextVisitMeta" class="snapshot-meta"></small>
             </article>
-            <article style="background: #faf5ed; border: 1px solid #f1e4cc; border-radius: 13px; padding: 14px 16px;">
-              <span style="font-size: 10px; color: #a26b2c; font-weight: 700; letter-spacing: .7px;">CARE OVERVIEW</span>
-              <strong id="doctorCareOverview" style="display: block; font-size: 15px; color: var(--green-950); margin-top: 5px;">Loading...</strong>
+            <article class="practice-snapshot-card amber">
+              <span class="snapshot-label"><i class="fa-solid fa-clipboard-list" aria-hidden="true"></i> CARE OVERVIEW</span>
+              <strong id="doctorCareOverview" class="snapshot-value">Loading...</strong>
             </article>
           </section>
 
@@ -311,6 +317,28 @@
 
               <p id="doctorAiCasesSub">Loading clinical records</p>
             </button>
+          </div>
+
+          <!-- ================= NOTICE BOARD PREVIEW ================= -->
+          <div class="panel doctor-notice-preview" id="doctorNoticePreviewPanel" style="border: 1px solid var(--border); border-radius: 14px; padding: 16px 20px; margin-bottom: 22px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+              <div style="display: flex; align-items: center; gap: 14px;">
+                <div class="notice-preview-icon" style="width: 42px; height: 42px; border-radius: 12px; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                  <i class="fa-solid fa-bullhorn"></i>
+                </div>
+                <div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 10px; text-transform: uppercase; letter-spacing: .7px; color: var(--green-700); font-weight: 700;">ADMINISTRATION NOTICES</span>
+                    <span id="doctorNoticeCountTag" style="font-size: 10px; background: #edf6ef; color: var(--green-800); font-weight: 700; padding: 2px 7px; border-radius: 10px;">Loading…</span>
+                  </div>
+                  <strong id="doctorRecentNoticeSnippet" style="display: block; font-size: 14px; color: var(--green-950); margin-top: 2px;">Loading recent orders &amp; meetings…</strong>
+                </div>
+              </div>
+              <button type="button" class="primary-btn" id="doctorOpenNoticesBtn" style="padding: 8px 16px; font-size: 12px;">
+                <i class="fa-solid fa-comments"></i>
+                <span>Open Notice Board &amp; Comment</span>
+              </button>
+            </div>
           </div>
 
           <!-- ================= GRID ================= -->
@@ -444,24 +472,10 @@
           </div>
         </div>
 
-        <div class="progress">
+        <div class="progress single-step">
           <div class="progress-step active">
-            <span>01</span>
-            Patient
-          </div>
-
-          <div class="line active-line"></div>
-
-          <div class="progress-step">
-            <span>02</span>
-            Complaints
-          </div>
-
-          <div class="line"></div>
-
-          <div class="progress-step">
-            <span>03</span>
-            Assessment
+            <span><i class="fa-solid fa-user-group"></i></span>
+            Patients
           </div>
         </div>
 
@@ -536,6 +550,31 @@
       </div>
     </div>
 
+    <!-- ================= PATIENT PROFILE / DETAILS MODAL ================= -->
+
+    <div class="modal-overlay" id="doctorPatientProfileModal" aria-hidden="true">
+      <div class="case-modal doctor-patient-modal" role="dialog" aria-modal="true" aria-labelledby="doctorPatientModalName">
+        <button type="button" class="close-modal" id="closeDoctorPatientModal" aria-label="Close patient details">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <div class="patient-modal-header">
+          <div class="patient-modal-avatar" id="doctorPatientModalAvatar">PT</div>
+          <div class="patient-modal-title-box">
+            <div class="patient-modal-name-row">
+              <h2 id="doctorPatientModalName">Patient Profile</h2>
+              <span class="patient-source-tag verified" id="doctorPatientModalBadge">Verified Patient</span>
+            </div>
+            <p id="doctorPatientModalSubtitle">Loading clinical profile…</p>
+          </div>
+        </div>
+
+        <div class="doctor-patient-modal-content" id="doctorPatientModalContent">
+          <!-- Populated dynamically by openDoctorPatientProfile -->
+        </div>
+      </div>
+    </div>
+
     <!-- ================= FLOATING AI ASSISTANT ================= -->
 
     <button type="button" class="doctor-ai-trigger" onclick="openDoctorAssistant()" aria-label="Open AI Assistant" title="Ask the AYURCASE AI Assistant">
@@ -564,7 +603,7 @@
 
         <div class="doctor-ai-chat" id="doctorAssistantChat" aria-live="polite">
           <div class="doctor-ai-message assistant">
-            <span class="doctor-ai-message-text">Hi! I’m a general AI assistant. Ask me how to use AYURCASE, a general question, or for general health and wellness suggestions.</span>
+            <span class="doctor-ai-message-text"><div class="ai-formatted-content"><p>Hi! I’m your AYURCASE AI Assistant. Ask me how to use the dashboard, look up clinical references, or ask general wellness questions.</p></div></span>
             <button type="button" class="doctor-ai-speak" onclick="speakDoctorAssistantMessage(this)" aria-label="Read this reply aloud" title="Read aloud">
               <i class="fa-solid fa-volume-high" aria-hidden="true"></i>
             </button>
@@ -604,7 +643,7 @@
 
     <script src="learn-data.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="auth.js?v=4.5"></script>
-    <script src="script.js"></script>
+    <script src="auth.js?v=4.6"></script>
+    <script src="script.js?v=4.6"></script>
 </body>
 </html>

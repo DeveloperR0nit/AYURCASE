@@ -31,10 +31,16 @@ const navItems = document.querySelectorAll(".nav-item");
 
 let toastTimer;
 
-function showToast(message) {
+function showToast(message, type = "success") {
   if (!toast || !toastMessage) return;
 
   toastMessage.textContent = message;
+  const isError = type === "error" || /failed|error|unavailable|danger|invalid/i.test(message);
+  toast.classList.toggle("toast-error", isError);
+  const toastTitle = toast.querySelector("strong");
+  const toastIcon = toast.querySelector(".toast-icon i");
+  if (toastTitle) toastTitle.textContent = isError ? "Failed" : "Success";
+  if (toastIcon) toastIcon.className = isError ? "fa-solid fa-circle-xmark" : "fa-solid fa-check";
 
   toast.classList.add("show");
 
@@ -42,7 +48,7 @@ function showToast(message) {
 
   toastTimer = setTimeout(() => {
     toast.classList.remove("show");
-  }, 3000);
+  }, 3500);
 }
 
 /* =====================================================
@@ -118,59 +124,77 @@ if (localStorage.getItem("ayurcase-cases") === null) {
 }
 renderPatientsdashboard();
 if (caseForm) {
-  caseForm.addEventListener("submit", function (event) {
+  caseForm.addEventListener("submit", async function (event) {
     event.preventDefault();
 
     const inputs = caseForm.querySelectorAll("input, select, textarea");
-
     const patientName = inputs[0]?.value.trim() || "";
-
     const age = inputs[1]?.value || "";
-
     const gender = inputs[2]?.value || "";
-
     const complaint = inputs[3]?.value.trim() || "";
 
     if (!patientName || !age || !gender || !complaint) {
       showToast("Please complete all patient details.");
-
       return;
     }
 
-    const newCase = {
-      id: Date.now(),
+    const doctorId = typeof getActiveDoctorId === "function" ? getActiveDoctorId() : 1;
+    const doctorName = typeof getActiveDoctorName === "function" ? getActiveDoctorName() : "Attending Doctor";
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const nowTime = new Date().toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
 
-      name: patientName,
-
+    const followUpPayload = {
+      patient_name: patientName,
+      doctor_name: doctorName,
+      doctor_id: doctorId,
       age: age,
-
       gender: gender,
-
-      complaint: complaint,
-
-      date: new Date().toLocaleDateString(),
-
-      status: localStorage.getItem("ayurcase-default-case-status") || "New",
-
-      doctor_id:
-        typeof getActiveDoctorId === "function" ? getActiveDoctorId() : null,
+      appointment_date: todayIso,
+      appointment_time: nowTime,
+      consultation_type: "Follow-up Consultation",
+      symptoms_notes: complaint,
+      status: "Confirmed",
     };
 
-    let cases = JSON.parse(localStorage.getItem("ayurcase-cases")) || [];
+    const submitBtn = caseForm.querySelector("button[type='submit']");
+    const origBtnHtml = submitBtn ? submitBtn.innerHTML : "";
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Scheduling...`;
+    }
 
-    cases.push(newCase);
+    try {
+      const api = typeof getApiHost === "function" ? getApiHost() : "";
+      const response = await fetch(`${api}/api/appointments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(followUpPayload),
+      });
 
-    localStorage.setItem("ayurcase-cases", JSON.stringify(cases));
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to schedule follow-up consultation.");
+      }
 
-    renderPatientsdashboard();
+      // Refresh doctor dashboard follow-up appointments and stats
+      if (typeof loadDoctorAppointments === "function") {
+        await loadDoctorAppointments();
+      } else if (typeof window.loadDoctorAppointments === "function") {
+        await window.loadDoctorAppointments();
+      }
 
-    moreButton();
-
-    closeCaseModal();
-
-    caseForm.reset();
-
-    showToast(`${patientName}'s case created successfully.`);
+      closeCaseModal();
+      caseForm.reset();
+      showToast(`${patientName}'s follow-up scheduled successfully.`);
+    } catch (error) {
+      console.error("Error creating follow-up:", error);
+      showToast(error.message || "Unable to schedule follow-up. Please try again.");
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = origBtnHtml;
+      }
+    }
   });
 }
 
@@ -761,6 +785,27 @@ function openWorkspace(title, description, icon) {
     box-shadow: 0 0 0 0 rgba(178, 212, 252, 0.7);
   }
 }
+
+body.dark .doctor-notice-card {
+  background: #18231d !important;
+  border-color: #27372e !important;
+}
+body.dark .doctor-notice-card h3 {
+  color: #f2f7f3 !important;
+}
+body.dark .doctor-comment-box {
+  background: #202e26 !important;
+  border-color: #2c3f35 !important;
+}
+body.dark .doctor-comment-form {
+  background: #192720 !important;
+  border-color: #2a3d31 !important;
+}
+body.dark .doctor-comment-form textarea {
+  background: #1f3027 !important;
+  border-color: #2f493b !important;
+  color: #e8f5e9 !important;
+}
         `;
 
     document.head.appendChild(style);
@@ -854,6 +899,12 @@ navItems.forEach((item) => {
 
       return;
     }
+
+    if (page === "notices") {
+      openNoticesWorkspace();
+
+      return;
+    }
   });
 });
 
@@ -878,6 +929,8 @@ function updateBreadcrumb(page) {
     prakriti: "Prakriti",
 
     learn: "Learn",
+
+    notices: "Notices & Circulars",
 
     analytics: "Analytics",
 
@@ -1029,6 +1082,8 @@ function buildPatientDirectory(cases, appointments) {
   appointments.forEach((record) => {
     const patient = getPatient(record);
     if (!patient) return;
+    patient.age = patient.age || record.age || record.patient_age;
+    patient.gender = patient.gender || record.gender || record.patient_gender;
     const status = String(record.status || "").toLowerCase();
     const isUpcoming =
       String(record.appointment_date || "") >= today &&
@@ -1055,8 +1110,23 @@ function buildPatientDirectory(cases, appointments) {
       ),
     }))
     .sort((a, b) => {
-      const aDate = getRecordDate(a.upcoming[0] || a.cases[0] || a.previousAppointments[0]);
-      const bDate = getRecordDate(b.upcoming[0] || b.cases[0] || b.previousAppointments[0]);
+      // 1. Follow-up patients strictly at the top of the list!
+      const aHasFollowUp = a.upcoming && a.upcoming.length > 0;
+      const bHasFollowUp = b.upcoming && b.upcoming.length > 0;
+      if (aHasFollowUp && !bHasFollowUp) return -1;
+      if (!aHasFollowUp && bHasFollowUp) return 1;
+
+      // 2. If both have follow-ups, sort by soonest scheduled follow-up
+      if (aHasFollowUp && bHasFollowUp) {
+        const aDate = String(a.upcoming[0]?.appointment_date || "") + " " + String(a.upcoming[0]?.appointment_time || "");
+        const bDate = String(b.upcoming[0]?.appointment_date || "") + " " + String(b.upcoming[0]?.appointment_time || "");
+        const cmp = aDate.localeCompare(bDate);
+        if (cmp !== 0) return cmp;
+      }
+
+      // 3. Otherwise sort by most recent activity date descending
+      const aDate = getRecordDate(a.cases[0] || a.previousAppointments[0]);
+      const bDate = getRecordDate(b.cases[0] || b.previousAppointments[0]);
       return bDate.localeCompare(aDate);
     });
 }
@@ -1068,21 +1138,27 @@ function renderPatientDirectoryCard(patient, index) {
     patient.gender ? escapeHTML(patient.gender) : "Gender not recorded",
   ].join(" • ");
   const latestCase = patient.cases[0];
-  const latestStatus = latestCase?.status ||
-    patient.upcoming[0]?.status ||
-    patient.previousAppointments[0]?.status ||
-    "Patient";
+  const hasFollowUp = patient.upcoming.length > 0;
+  const latestStatus = hasFollowUp
+    ? "Follow-up"
+    : (latestCase?.status ||
+       patient.previousAppointments[0]?.status ||
+       "Patient");
+
+  const latestConcernText = hasFollowUp
+    ? (patient.upcoming[0]?.symptoms_notes || patient.upcoming[0]?.consultation_type || latestCase?.chief_complaint || latestCase?.complaint || "Follow-up consultation scheduled.")
+    : (latestCase?.chief_complaint || latestCase?.complaint || patient.previousAppointments[0]?.symptoms_notes || "Clinical record updated.");
 
   const upcoming = patient.upcoming.length
     ? `
       <section class="patient-record-group upcoming-records">
-        <h4><i class="fa-solid fa-calendar-check"></i> Upcoming consultations <span>${patient.upcoming.length}</span></h4>
+        <h4><i class="fa-solid fa-calendar-check"></i> Follow-up consultations <span>${patient.upcoming.length}</span></h4>
         ${patient.upcoming
           .map(
             (appointment) => `
               <div class="patient-record-line">
                 <strong>${escapeHTML(formatClinicalDate(appointment.appointment_date))} · ${escapeHTML(appointment.appointment_time || "Time to be confirmed")}</strong>
-                <span>${escapeHTML(appointment.consultation_type || "Consultation")} · ${escapeHTML(appointment.symptoms_notes || "No visit note recorded")}</span>
+                <span>${escapeHTML(appointment.consultation_type || "Follow-up Consultation")} · ${escapeHTML(appointment.symptoms_notes || "No visit note recorded")}</span>
               </div>`,
           )
           .join("")}
@@ -1122,7 +1198,7 @@ function renderPatientDirectoryCard(patient, index) {
     : "";
 
   return `
-    <article class="patient-directory-card" data-patient-search="${escapeHTML(patient.name.toLowerCase())}">
+    <article class="patient-directory-card ${hasFollowUp ? "has-followup" : ""}" data-patient-search="${escapeHTML(patient.name.toLowerCase())}">
       <div class="patient-directory-header">
         <div class="patient-avatar avatar-${(index % 4) + 1}">${escapeHTML(getInitials(patient.name))}</div>
         <div>
@@ -1131,7 +1207,7 @@ function renderPatientDirectoryCard(patient, index) {
         </div>
         <span class="status ${clinicalStatusClass(latestStatus)}">${escapeHTML(latestStatus)}</span>
       </div>
-      ${latestCase ? `<p class="patient-directory-summary"><strong>Latest concern:</strong> ${escapeHTML(latestCase.chief_complaint || latestCase.complaint || "Clinical record updated.")}</p>` : ""}
+      <p class="patient-directory-summary"><strong>Latest concern:</strong> ${escapeHTML(latestConcernText)}</p>
       <div class="patient-records">
         ${upcoming}
         ${caseHistory}
@@ -1184,7 +1260,7 @@ async function openPatientsWorkspace() {
       <div class="workspace-toolbar">
         <div class="workspace-counts">
           <span><strong>${patients.length}</strong> patients</span>
-          <span><strong>${upcomingCount}</strong> upcoming</span>
+          <span><strong>${upcomingCount}</strong> follow-up${upcomingCount === 1 ? "" : "s"}</span>
           <span><strong>${previousCount}</strong> previous records</span>
         </div>
         <label class="workspace-search" for="patientDirectorySearch">
@@ -1204,6 +1280,18 @@ async function openPatientsWorkspace() {
           card.hidden = !card.dataset.patientSearch.includes(query);
         });
       });
+
+    document.querySelectorAll(".patient-directory-card").forEach((card, index) => {
+      const patient = patients[index];
+      if (patient) {
+        card.addEventListener("click", (event) => {
+          if (event.target.closest("details summary") || event.target.closest("summary")) return;
+          if (typeof window.openDoctorPatientProfile === "function") {
+            window.openDoctorPatientProfile(patient.name, patient);
+          }
+        });
+      }
+    });
   } catch (error) {
     content.innerHTML = `
       <div class="workspace-empty-state error-state">
@@ -1244,6 +1332,17 @@ function renderPatientsdashboard() {
     </div>`,
     )
     .join("");
+
+  patientList.querySelectorAll(".patient-row").forEach((row, index) => {
+    const patient = cases[index];
+    if (patient) {
+      row.addEventListener("click", () => {
+        if (typeof window.openDoctorPatientProfile === "function") {
+          window.openDoctorPatientProfile(patient.name, patient);
+        }
+      });
+    }
+  });
 }
 function getInitials(name) {
   let initial = "";
@@ -1374,6 +1473,18 @@ async function openHistoryWorkspace() {
         card.hidden = !card.dataset.caseSearch.includes(query);
       });
     });
+
+  document.querySelectorAll(".case-history-card").forEach((card, index) => {
+    const record = cases[index];
+    if (record) {
+      card.addEventListener("click", () => {
+        const patientName = getRecordPatientName(record);
+        if (typeof window.openDoctorPatientProfile === "function") {
+          window.openDoctorPatientProfile(patientName, record);
+        }
+      });
+    }
+  });
 }
 
 /* =====================================================
@@ -1562,7 +1673,13 @@ function appendDoctorAssistantMessage(content, role) {
   message.className = `doctor-ai-message ${role}`;
   const messageText = document.createElement("span");
   messageText.className = "doctor-ai-message-text";
-  messageText.textContent = content;
+  if (role === "assistant") {
+    messageText.innerHTML = typeof window.formatAiAssistantResponse === "function"
+      ? window.formatAiAssistantResponse(content)
+      : content;
+  } else {
+    messageText.textContent = content;
+  }
   message.appendChild(messageText);
 
   if (role === "assistant") {
@@ -1572,7 +1689,7 @@ function appendDoctorAssistantMessage(content, role) {
     speakButton.setAttribute("aria-label", "Read this reply aloud");
     speakButton.title = "Read aloud";
     speakButton.innerHTML = '<i class="fa-solid fa-volume-high" aria-hidden="true"></i>';
-    speakButton.disabled = content === "Thinking…";
+    speakButton.disabled = content === "Thinking…" || content.includes("Thinking");
     speakButton.addEventListener("click", () => speakDoctorAssistantMessage(speakButton));
     message.appendChild(speakButton);
   }
@@ -1586,11 +1703,15 @@ function updateDoctorAssistantMessage(message, content) {
   if (!message) return;
 
   const messageText = message.querySelector(".doctor-ai-message-text");
-  if (messageText) messageText.textContent = content;
+  if (messageText) {
+    messageText.innerHTML = typeof window.formatAiAssistantResponse === "function"
+      ? window.formatAiAssistantResponse(content)
+      : content;
+  }
 
   const speakButton = message.querySelector(".doctor-ai-speak");
   if (speakButton) {
-    speakButton.disabled = content === "Thinking…";
+    speakButton.disabled = content === "Thinking…" || content.includes("Thinking");
     speakButton.setAttribute("aria-label", "Read this reply aloud");
     speakButton.title = "Read aloud";
   }
@@ -2899,3 +3020,249 @@ document.querySelectorAll(".prakriti-help-btn").forEach((button) => {
                 `;
   });
 });
+
+/* =====================================================
+   DOCTOR NOTICES & CLINICAL ORDERS WORKSPACE
+   ===================================================== */
+
+/**
+ * Safely parse a fetch Response as JSON.
+ * If the server returns an HTML error page instead of JSON
+ * (e.g. a 404 or 500 with <!doctype …>) this throws a
+ * descriptive error instead of the cryptic
+ * "Unexpected token '<' … is not valid JSON".
+ */
+async function safeResJson(res) {
+  const ct = res.headers.get("content-type") || "";
+  if (!ct.includes("application/json")) {
+    const text = await res.text().catch(() => "");
+    throw new Error(
+      `Server returned HTTP ${res.status} with non-JSON response` +
+      (text ? `: ${text.slice(0, 120)}` : ".")
+    );
+  }
+  return res.json();
+}
+
+function formatDoctorNoticeTime(val) {
+  if (!val) return "Recent";
+  const dt = new Date(String(val).replace(" ", "T"));
+  if (isNaN(dt.getTime())) return String(val);
+  return dt.toLocaleDateString(undefined, {
+    day: "numeric", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit"
+  });
+}
+
+function renderDoctorNoticeCard(notice, currentDocName) {
+  const comments = Array.isArray(notice.comments) ? notice.comments : [];
+
+  const commentsHtml = comments.length
+    ? comments.map(c => `
+        <div class="doctor-comment-box" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+            <strong style="font-size: 12px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+              <i class="fa-solid fa-user-doctor" style="color: var(--green-700);"></i>
+              ${escapeHTML(c.author_name)}
+            </strong>
+            <span style="font-size: 11px; color: var(--muted);">${escapeHTML(formatDoctorNoticeTime(c.created_at))}</span>
+          </div>
+          <p style="margin: 0; font-size: 12.5px; color: #334155; line-height: 1.5;">${escapeHTML(c.comment_text)}</p>
+        </div>
+      `).join("")
+    : `<p style="font-size: 12px; color: var(--muted); font-style: italic; margin: 0 0 10px;">No comments or acknowledgements posted yet. Leave your reply below.</p>`;
+
+  return `
+    <article class="doctor-notice-card" style="background: white; border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+      <div style="margin-bottom: 6px;">
+        <h3 style="font-size: 16.5px; font-weight: 700; color: #1e293b; margin: 0 0 6px; line-height: 1.35;">
+          ${escapeHTML(notice.title)}
+        </h3>
+        <div style="font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; margin-bottom: 12px;">
+          <i class="fa-regular fa-clock"></i> ${escapeHTML(formatDoctorNoticeTime(notice.created_at))} &bull; Posted by <strong>${escapeHTML(notice.posted_by || "Hospital Admin")}</strong>
+        </div>
+      </div>
+
+      <div style="font-size: 13.5px; line-height: 1.6; color: #334155; white-space: pre-line; margin-bottom: 16px;">
+        ${escapeHTML(notice.content)}
+      </div>
+
+      <!-- COMMENTS SECTION -->
+      <div style="border-top: 1px solid var(--border); padding-top: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <strong style="font-size: 12px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-comments"></i>
+            Doctor Acknowledgements (${comments.length})
+          </strong>
+        </div>
+
+        <div class="doctor-comments-list" style="margin-bottom: 12px;">
+          ${commentsHtml}
+        </div>
+
+        <!-- COMMENT COMPOSER -->
+        <form id="doctorCommentForm_${notice.id}" class="doctor-comment-form" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label for="doctorCommentInput_${notice.id}" style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted);">
+              Reply / Acknowledge as <strong>${escapeHTML(currentDocName)}</strong>
+            </label>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: flex-end;">
+            <textarea id="doctorCommentInput_${notice.id}" rows="2" placeholder="Write acknowledgement, meeting RSVP, or clinical inquiry..." required style="flex: 1; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 12.5px; resize: vertical; box-sizing: border-box;"></textarea>
+            <button type="submit" id="doctorCommentSubmit_${notice.id}" class="primary-btn" style="padding: 8px 14px; font-size: 12px; white-space: nowrap; height: 38px;">
+              <i class="fa-solid fa-paper-plane"></i>
+              <span>Post</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </article>
+  `;
+}
+
+async function openNoticesWorkspace() {
+  const content = openWorkspace(
+    "Hospital & Clinical Notices",
+    "Official orders, clinical meetings, and administrative directives from hospital leadership arranged with newest notices first.",
+    "fa-solid fa-bullhorn"
+  );
+
+  content.innerHTML = `
+    <div class="workspace-loading">
+      <i class="fa-solid fa-circle-notch fa-spin"></i>
+      Loading hospital notices…
+    </div>`;
+
+  try {
+    const api = typeof getApiHost === "function" ? getApiHost() : "";
+    const res = await fetch(`${api}/api/notices?order=desc`, { cache: "no-store" });
+    const data = await safeResJson(res);
+    if (!res.ok || !data.success) throw new Error(data.error || "Unable to load notices.");
+    const notices = Array.isArray(data.notices) ? data.notices : [];
+
+    updateDoctorNoticeBadges(notices);
+
+    if (!notices.length) {
+      content.innerHTML = `
+        <div class="workspace-empty-state">
+          <i class="fa-solid fa-bullhorn"></i>
+          <strong>No active hospital notices</strong>
+          <span>There are currently no administrative directives or meeting calls.</span>
+        </div>`;
+      return;
+    }
+
+    const currentDocName = typeof getActiveDoctorName === "function" ? getActiveDoctorName() : "Doctor";
+    const currentDocId = typeof getActiveDoctorId === "function" ? getActiveDoctorId() : null;
+
+    content.innerHTML = `
+      <div class="workspace-toolbar" style="margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center;">
+        <div class="workspace-counts">
+          <span><strong>${notices.length}</strong> active notice${notices.length === 1 ? "" : "s"}</span>
+          <span style="color: var(--green-700); font-weight: 600; margin-left: 12px;">
+            <i class="fa-solid fa-arrow-down-wide-short"></i> Newest Notices First
+          </span>
+        </div>
+        <button type="button" class="workspace-action" id="refreshDoctorNoticesBtn" style="margin: 0; padding: 7px 14px; font-size: 11px;">
+          <i class="fa-solid fa-arrows-rotate"></i> Refresh
+        </button>
+      </div>
+      <div class="doctor-notices-feed" style="display: flex; flex-direction: column; gap: 20px;">
+        ${notices.map((notice) => renderDoctorNoticeCard(notice, currentDocName)).join("")}
+      </div>`;
+
+    document.getElementById("refreshDoctorNoticesBtn")?.addEventListener("click", openNoticesWorkspace);
+
+    // Bind comment forms for each notice
+    notices.forEach((notice) => {
+      const form = document.getElementById(`doctorCommentForm_${notice.id}`);
+      if (form) {
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const textarea = document.getElementById(`doctorCommentInput_${notice.id}`);
+          const submitBtn = document.getElementById(`doctorCommentSubmit_${notice.id}`);
+          const text = textarea?.value.trim();
+          if (!text) return;
+
+          const origHtml = submitBtn.innerHTML;
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Posting…';
+
+          try {
+            const postRes = await fetch(`${api}/api/notices/${notice.id}/comments`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                author_name: currentDocName,
+                doctor_id: currentDocId,
+                comment_text: text,
+                author_role: "doctor"
+              })
+            });
+            const postData = await safeResJson(postRes);
+            if (!postRes.ok || !postData.success) throw new Error(postData.error || "Failed to post comment.");
+
+            showToast("Comment submitted successfully.");
+            openNoticesWorkspace();
+          } catch (err) {
+            showToast("Error: " + err.message);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = origHtml;
+          }
+        });
+      }
+    });
+
+  } catch (err) {
+    content.innerHTML = `
+      <div class="workspace-empty-state error-state">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <strong>Notices unavailable</strong>
+        <span>${escapeHTML(err.message || "Please refresh and try again.")}</span>
+      </div>`;
+  }
+}
+
+async function updateDoctorNoticeBadges(noticesList) {
+  try {
+    let notices = noticesList;
+    if (!notices) {
+      const api = typeof getApiHost === "function" ? getApiHost() : "";
+      const res = await fetch(`${api}/api/notices?order=desc`, { cache: "no-store" });
+      const data = await safeResJson(res);
+      notices = Array.isArray(data.notices) ? data.notices : [];
+    }
+    const count = notices.length;
+    const badge = document.getElementById("doctorNoticeNavBadge");
+    if (badge) {
+      badge.textContent = count;
+      badge.style.display = count ? "inline-block" : "none";
+    }
+    const tag = document.getElementById("doctorNoticeCountTag");
+    if (tag) {
+      tag.textContent = `${count} Active`;
+    }
+    const snippet = document.getElementById("doctorRecentNoticeSnippet");
+    if (snippet) {
+      if (count > 0) {
+        const latestNotice = notices[0];
+        snippet.textContent = `Latest: ${latestNotice.title} (${latestNotice.notice_type || "Notice"})`;
+      } else {
+        snippet.textContent = "No pending notices or orders at this time.";
+      }
+    }
+  } catch (err) {
+    console.error("Notice badge update error:", err);
+  }
+}
+
+// Wire up notice button on doctor dashboard
+document.getElementById("doctorOpenNoticesBtn")?.addEventListener("click", () => {
+  openNoticesWorkspace();
+});
+
+// Update notice badges on page load
+if (document.getElementById("doctorNoticePreviewPanel") || document.getElementById("doctorNavNotices")) {
+  updateDoctorNoticeBadges();
+}
+

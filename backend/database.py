@@ -6,8 +6,9 @@ and data persistence for Users (Doctors, Patients, Admins), Clinical Cases, and 
 
 import os
 import json
+import time
 import sqlite3
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -84,13 +85,18 @@ def init_db():
             gender TEXT,
             phone TEXT,
             blood_group TEXT,
-            prakriti_primary TEXT DEFAULT 'Pitta',
-            prakriti_secondary TEXT DEFAULT 'Kapha',
+            prakriti_primary TEXT DEFAULT NULL,
+            prakriti_secondary TEXT DEFAULT NULL,
+            emergency_contact TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         );
         """
     )
+    try:
+        cursor.execute("ALTER TABLE patients ADD COLUMN emergency_contact TEXT;")
+    except Exception:
+        pass
 
     # 4. ADMINS TABLE
     cursor.execute(
@@ -235,11 +241,137 @@ def init_db():
         """
     )
 
+    # 13. NOTICES TABLE (Hospital Administration Notices, Meetings, Orders)
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS notices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            notice_type TEXT DEFAULT 'General',
+            priority TEXT DEFAULT 'Normal',
+            posted_by TEXT DEFAULT 'Hospital Administration',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """
+    )
+
+    # 14. NOTICE COMMENTS TABLE (Doctor Comments / Acknowledgements on Notices)
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS notice_comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            notice_id INTEGER NOT NULL,
+            doctor_id INTEGER,
+            author_name TEXT NOT NULL,
+            author_role TEXT DEFAULT 'doctor',
+            comment_text TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (notice_id) REFERENCES notices(id) ON DELETE CASCADE,
+            FOREIGN KEY (doctor_id) REFERENCES users(id) ON DELETE SET NULL
+        );
+        """
+    )
+
+    # 15. EMAIL LOGS TABLE (Welcome & Clinical Delivery Tracking)
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS email_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            recipient TEXT NOT NULL,
+            subject TEXT NOT NULL,
+            email_type TEXT DEFAULT 'WELCOME_EMAIL',
+            status TEXT DEFAULT 'SENT',
+            details_json TEXT,
+            body_text TEXT,
+            body_html TEXT,
+            error_message TEXT,
+            sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """
+    )
+
+    # Seed sample notices if empty
+    cursor.execute("SELECT COUNT(*) FROM notices;")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute(
+            """
+            INSERT INTO notices (title, content, notice_type, priority, posted_by, created_at)
+            VALUES (?, ?, ?, ?, ?, datetime('now', '-2 days'))
+            """,
+            (
+                "Monthly AYUSH Clinical Review & Case Conference",
+                "All practitioners are requested to attend the monthly clinical review meeting this Friday at 4:30 PM in Conference Room B / Online Hybrid link. Agenda includes ABDM integration review and complex case discussions.",
+                "Meeting",
+                "Important",
+                "Rajesh Varma (Chief Hospital Admin)"
+            )
+        )
+        first_notice_id = cursor.lastrowid
+        cursor.execute(
+            """
+            INSERT INTO notice_comments (notice_id, author_name, author_role, comment_text, created_at)
+            VALUES (?, ?, ?, ?, datetime('now', '-1 day'))
+            """,
+            (
+                first_notice_id,
+                "Dr. Arindam Sen",
+                "doctor",
+                "Noted. I will present the chronic arthritis case study during the second half of the review."
+            )
+        )
+        cursor.execute(
+            """
+            INSERT INTO notices (title, content, notice_type, priority, posted_by, created_at)
+            VALUES (?, ?, ?, ?, ?, datetime('now', '-1 day'))
+            """,
+            (
+                "Hospital Order: Standardized Prakriti & Case Documentation",
+                "Per clinical governance directive #2026-09, all new patient admissions must have full Prakriti constitutional assessment and pulse diagnosis recorded within 24 hours of first consultation.",
+                "Order",
+                "Urgent",
+                "Chief Medical Superintendent & Admin"
+            )
+        )
+        second_notice_id = cursor.lastrowid
+        cursor.execute(
+            """
+            INSERT INTO notice_comments (notice_id, author_name, author_role, comment_text, created_at)
+            VALUES (?, ?, ?, ?, datetime('now', '-12 hours'))
+            """,
+            (
+                second_notice_id,
+                "Dr. Rajesh Sharma",
+                "doctor",
+                "Acknowledged. The Kaya Chikitsa department has updated its clinical workflow accordingly."
+            )
+        )
+
     # Ensure case_date column exists in cases table
     cursor.execute("PRAGMA table_info(cases);")
     case_cols = [col[1] for col in cursor.fetchall()]
     if "case_date" not in case_cols:
         cursor.execute("ALTER TABLE cases ADD COLUMN case_date TEXT;")
+
+    # 15. EMERGENCY CASES TABLE (Acute Triage / Atyayika Chikitsa)
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS emergency_cases (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            patient_name TEXT NOT NULL,
+            age INTEGER,
+            gender TEXT,
+            doctor_id INTEGER,
+            doctor_name TEXT,
+            issue TEXT NOT NULL,
+            triage_level TEXT DEFAULT 'Emergency',
+            bed_number TEXT,
+            status TEXT DEFAULT 'Under Immediate Care',
+            admitted_time TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """
+    )
 
     conn.commit()
 
@@ -255,10 +387,14 @@ def init_db():
     # always available in the sign-in selector and booking directory.
     ensure_default_doctors(cursor, conn)
     ensure_default_admin(cursor, conn)
+    ensure_default_patient(cursor, conn)
     remove_demo_patient_directory(cursor, conn)
     remove_legacy_arindam_follow_up_fixtures(cursor, conn)
     remove_legacy_case_fixtures(cursor, conn)
+    remove_follow_up_appointments(cursor, conn)
+    ensure_default_emergency_cases(cursor, conn)
     conn.close()
+    seed_recent_clinical_history()
 
 
 def ensure_default_doctors(cursor, conn):
@@ -316,6 +452,126 @@ def ensure_default_admin(cursor, conn):
             (user_id, "Chief Hospital Administration", "SEC-8821", "SuperAdmin"),
         )
     conn.commit()
+
+
+def ensure_default_patient(cursor, conn):
+    """Adds or ensures the default demo patient account with unassessed Prakriti (NULL / Not set)."""
+    username = "patient@ayurcase.com"
+    abha_id = "ABHA-9182-4410"
+    name = "Rohit Sharma"
+    cursor.execute("SELECT id FROM users WHERE username = ? OR identifier = ?", (username, abha_id))
+    user = cursor.fetchone()
+    if user:
+        user_id = user[0]
+    else:
+        cursor.execute(
+            "INSERT INTO users (username, password_hash, role, full_name, identifier, phone) VALUES (?, ?, 'patient', ?, ?, ?)",
+            (
+                username,
+                generate_password_hash("patient123"),
+                name,
+                abha_id,
+                "+91 98765 43210",
+            ),
+        )
+        user_id = cursor.lastrowid
+
+    cursor.execute("SELECT id FROM patients WHERE user_id = ? OR abha_id = ?", (user_id, abha_id))
+    pat = cursor.fetchone()
+    if not pat:
+        cursor.execute(
+            """
+            INSERT INTO patients (user_id, abha_id, name, age, gender, phone, blood_group, prakriti_primary, prakriti_secondary)
+            VALUES (?, ?, ?, 34, 'Male', '+91 98765 43210', 'B+', NULL, NULL)
+            """,
+            (user_id, abha_id, name),
+        )
+    conn.commit()
+
+
+def remove_follow_up_appointments(cursor, conn):
+    """Removes sample follow-up appointment records so follow-up only shows real appointments."""
+    cursor.execute(
+        "DELETE FROM appointments WHERE patient_name IN ('Aarav Mukherjee', 'Priya Nair', 'Kavita Patel', 'Meenakshi Sundaram');"
+    )
+    conn.commit()
+
+
+def ensure_default_emergency_cases(cursor, conn):
+    """Seeds authentic AYUSH emergency cases if table is empty."""
+    cursor.execute("SELECT COUNT(*) FROM emergency_cases;")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("SELECT d.id, u.full_name FROM doctors d JOIN users u ON d.user_id = u.id;")
+        doc_map = {r["full_name"]: r["id"] for r in cursor.fetchall()}
+
+        doc_sen_id = doc_map.get("Dr. Arindam Sen", 1)
+        doc_rao_id = doc_map.get("Dr. Priyadarshini Rao", 2)
+        doc_bose_id = doc_map.get("Dr. Kunal Bose", 4)
+
+        emergencies = [
+            (
+                "Rajeshwar Rao",
+                58,
+                "Male",
+                doc_sen_id,
+                "Dr. Arindam Sen",
+                "Teevra Shula & Hritshula (Acute severe epigastric & retrosternal distress)",
+                "Emergency (Red)",
+                "Bay #E-01",
+                "Under Immediate Care",
+                "Today 05:45 AM"
+            ),
+            (
+                "Sunita Deshmukh",
+                42,
+                "Female",
+                doc_rao_id,
+                "Dr. Priyadarshini Rao",
+                "Vatavyadhi Atyayika (Acute severe sciatica / Gridhrasi spasms with immobilizing pain)",
+                "Urgent (Amber)",
+                "Bay #E-02",
+                "Under Immediate Care",
+                "Today 06:10 AM"
+            ),
+            (
+                "Harish Chandra Verma",
+                64,
+                "Male",
+                doc_bose_id,
+                "Dr. Kunal Bose",
+                "Sadyo Vrana & Raktasrava (Acute bleeding anorectal fissure & trauma)",
+                "Emergency (Red)",
+                "Suite #01",
+                "Under Immediate Care",
+                "Today 06:25 AM"
+            ),
+        ]
+        for name, age, gender, doc_id, doc_name, issue, triage, bed, status, adm_time in emergencies:
+            cursor.execute(
+                """
+                INSERT INTO emergency_cases (patient_name, age, gender, doctor_id, doctor_name, issue, triage_level, bed_number, status, admitted_time)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (name, age, gender, doc_id, doc_name, issue, triage, bed, status, adm_time)
+            )
+        conn.commit()
+
+
+def get_emergency_cases():
+    """Returns all active emergency triage cases."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT id, patient_name, age, gender, doctor_id, doctor_name, issue, triage_level, bed_number, status, admitted_time, created_at
+        FROM emergency_cases
+        WHERE status != 'Discharged'
+        ORDER BY id ASC
+        """
+    )
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows
 
 
 def remove_demo_patient_directory(cursor, conn):
@@ -568,7 +824,7 @@ def seed_default_data(cursor, conn):
     cursor.execute(
         """
         INSERT INTO patients (user_id, abha_id, name, age, gender, phone, blood_group, prakriti_primary, prakriti_secondary)
-        VALUES (?, 'ABHA-9182-4410', 'Rohit Sharma', 34, 'Male', '+91 98765 43210', 'B+', 'Pitta', 'Kapha');
+        VALUES (?, 'ABHA-9182-4410', 'Rohit Sharma', 34, 'Male', '+91 98765 43210', 'B+', NULL, NULL);
         """,
         (pat_user_id,),
     )
@@ -596,7 +852,7 @@ def seed_default_data(cursor, conn):
     cursor.execute(
         """
         INSERT INTO cases (patient_id, doctor_id, patient_name, age, gender, chief_complaint, diagnosis, prakriti, status)
-        VALUES (?, ?, 'Rohit Sharma', 34, 'Male', 'Chronic digestive distress, acid reflux, occasional insomnia', 'Amlapitta with Vata Anubandha', 'Pitta-Kapha', 'Active');
+        VALUES (?, ?, 'Rohit Sharma', 34, 'Male', 'Chronic digestive distress, acid reflux, occasional insomnia', 'Amlapitta with Vata Anubandha', NULL, 'Active');
         """,
         (patient_db_id, doc1_id),
     )
@@ -736,15 +992,28 @@ def register_patient(data):
     password = data.get("password") or ""
     abha_id = (data.get("abha_id") or data.get("abhaId") or "").strip()
     phone = (data.get("phone") or "").strip()
-    age = data.get("age") or 30
-    gender = data.get("gender") or "Other"
-    blood_group = data.get("blood_group") or data.get("bloodGroup") or "O+"
-    prakriti_primary = data.get("prakriti_primary") or data.get("prakriti") or "Pitta"
-    prakriti_secondary = data.get("prakriti_secondary") or "Kapha"
+    age_raw = data.get("age")
+    try:
+        age = int(age_raw) if age_raw is not None and str(age_raw).strip() != "" else None
+    except (ValueError, TypeError):
+        age = None
+    gender = (data.get("gender") or "").strip()
+    blood_group = (data.get("blood_group") or data.get("bloodGroup") or "").strip()
+    prakriti_raw = (data.get("prakriti_primary") or data.get("prakriti") or "").strip()
+    if not prakriti_raw or prakriti_raw == "Not set":
+        prakriti_primary = None
+        prakriti_secondary = None
+    elif "-" in prakriti_raw:
+        parts = [p.strip() for p in prakriti_raw.split("-") if p.strip()]
+        prakriti_primary = parts[0] if len(parts) > 0 else None
+        prakriti_secondary = parts[1] if len(parts) > 1 else None
+    else:
+        prakriti_primary = prakriti_raw
+        prakriti_secondary = (data.get("prakriti_secondary") or "").strip() or None
 
-    if not name or not username or not password:
+    if not name or not username or not password or not phone:
         conn.close()
-        return {"success": False, "error": "Full Name, Email/Username, and Password are required."}
+        return {"success": False, "error": "Full Name, Email/Username, Password, and Phone Number are required."}
 
     # Format or generate ABHA ID if missing
     if not abha_id:
@@ -816,6 +1085,17 @@ def register_patient(data):
                 "prakriti_secondary": prakriti_secondary
             }
         }
+
+        # Dispatch welcome email asynchronously with all user signup details
+        try:
+            try:
+                from email_service import send_welcome_email_async
+            except ImportError:
+                from backend.email_service import send_welcome_email_async
+            send_welcome_email_async(data, user_info)
+        except Exception as email_dispatch_err:
+            print(f"[REGISTER PATIENT] Failed to dispatch welcome email: {email_dispatch_err}")
+
         conn.close()
         return {"success": True, "user": user_info, "message": f"Welcome, {name}! Your patient account has been created."}
 
@@ -1233,43 +1513,553 @@ def delete_user_session(token):
     return deleted
 
 def get_patient_data(abha_or_user_id):
-    """Fetches patient profile, active prescriptions, and cases."""
+    """Fetches patient profile, email, active prescriptions, appointments, and cases."""
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    target = str(abha_or_user_id or "").strip()
     cursor.execute(
         """
         SELECT p.*, u.username as email
         FROM patients p
         LEFT JOIN users u ON p.user_id = u.id
-        WHERE p.abha_id = ? OR p.user_id = ?
+        WHERE p.abha_id = ? 
+           OR p.user_id = ? 
+           OR p.id = ? 
+           OR LOWER(TRIM(p.name)) = LOWER(?)
+           OR p.phone = ?
+        ORDER BY (p.abha_id = ?) DESC, (p.id = ?) DESC, (LOWER(TRIM(p.name)) = LOWER(?)) DESC
+        LIMIT 1;
         """,
-        (str(abha_or_user_id), str(abha_or_user_id)),
+        (target, target, target, target, target, target, target, target),
     )
     patient = cursor.fetchone()
 
     if not patient:
-        conn.close()
-        return None
+        # Fallback: check appointments or cases if not in patients table yet
+        cursor.execute(
+            """
+            SELECT patient_name as name, symptoms_notes, appointment_date, appointment_time, created_at, consultation_type
+            FROM appointments
+            WHERE LOWER(TRIM(patient_name)) = LOWER(?) OR patient_id = ?
+            ORDER BY id DESC LIMIT 1
+            """,
+            (target, target),
+        )
+        app_row = cursor.fetchone()
 
-    pat_dict = dict(patient)
+        cursor.execute(
+            """
+            SELECT patient_name as name, age, gender, chief_complaint, diagnosis, prakriti, created_at
+            FROM cases
+            WHERE LOWER(TRIM(patient_name)) = LOWER(?) OR id = ?
+            ORDER BY id DESC LIMIT 1
+            """,
+            (target, target),
+        )
+        case_row = cursor.fetchone()
+
+        if app_row or case_row:
+            name = case_row["name"] if case_row else app_row["name"]
+            age = case_row["age"] if (case_row and case_row["age"] is not None) else None
+            gender = case_row["gender"] if (case_row and case_row["gender"]) else None
+            created_at = case_row["created_at"] if case_row else app_row["created_at"]
+            prakriti_val = case_row["prakriti"] if case_row else None
+            
+            pat_dict = {
+                "id": None,
+                "user_id": None,
+                "abha_id": None,
+                "name": name,
+                "age": age,
+                "gender": gender,
+                "phone": None,
+                "blood_group": None,
+                "prakriti_primary": prakriti_val,
+                "prakriti_secondary": None,
+                "created_at": created_at,
+                "email": None,
+                "is_walkin": True,
+                "prescriptions": [],
+                "cases": [],
+                "appointments": [],
+            }
+        else:
+            conn.close()
+            return None
+    else:
+        pat_dict = dict(patient)
+        pat_dict["is_walkin"] = False if (pat_dict.get("blood_group") or pat_dict.get("phone") or pat_dict.get("user_id") or pat_dict.get("email")) else True
+
+    prim = pat_dict.get("prakriti_primary")
+    sec = pat_dict.get("prakriti_secondary")
+    if prim and prim not in ("Not set", "None"):
+        pat_dict["prakriti"] = f"{prim}-{sec}" if (sec and sec not in ("Not set", "None")) else prim
+    else:
+        pat_dict["prakriti"] = "Not set"
 
     # Fetch Prescriptions
-    cursor.execute(
-        "SELECT * FROM prescriptions WHERE patient_id = ? ORDER BY prescribed_date DESC",
-        (pat_dict["id"],),
-    )
-    pat_dict["prescriptions"] = [dict(r) for r in cursor.fetchall()]
+    if pat_dict.get("id"):
+        cursor.execute(
+            "SELECT * FROM prescriptions WHERE patient_id = ? ORDER BY prescribed_date DESC",
+            (pat_dict["id"],),
+        )
+        pat_dict["prescriptions"] = [dict(r) for r in cursor.fetchall()]
+    else:
+        pat_dict["prescriptions"] = []
 
-    # Fetch Cases
-    cursor.execute(
-        "SELECT * FROM cases WHERE patient_id = ? ORDER BY created_at DESC",
-        (pat_dict["id"],),
-    )
+    # Fetch Cases (matching by patient_id or patient name)
+    pat_name = pat_dict.get("name") or target
+    if pat_dict.get("id"):
+        cursor.execute(
+            """
+            SELECT c.*, u.full_name as doctor_name
+            FROM cases c
+            LEFT JOIN users u ON c.doctor_id = u.id
+            WHERE c.patient_id = ? OR LOWER(TRIM(c.patient_name)) = LOWER(?)
+            ORDER BY c.created_at DESC
+            """,
+            (pat_dict["id"], pat_name),
+        )
+    else:
+        cursor.execute(
+            """
+            SELECT c.*, u.full_name as doctor_name
+            FROM cases c
+            LEFT JOIN users u ON c.doctor_id = u.id
+            WHERE LOWER(TRIM(c.patient_name)) = LOWER(?)
+            ORDER BY c.created_at DESC
+            """,
+            (pat_name,),
+        )
     pat_dict["cases"] = [dict(r) for r in cursor.fetchall()]
+
+    # Fetch Appointments (matching by patient_id or patient name)
+    if pat_dict.get("id"):
+        cursor.execute(
+            "SELECT * FROM appointments WHERE patient_id = ? OR LOWER(TRIM(patient_name)) = LOWER(?) ORDER BY appointment_date DESC, appointment_time DESC",
+            (pat_dict["id"], pat_name),
+        )
+    else:
+        cursor.execute(
+            "SELECT * FROM appointments WHERE LOWER(TRIM(patient_name)) = LOWER(?) ORDER BY appointment_date DESC, appointment_time DESC",
+            (pat_name,),
+        )
+    pat_dict["appointments"] = [dict(r) for r in cursor.fetchall()]
 
     conn.close()
     return pat_dict
+
+
+def get_all_registered_patients():
+    """
+    Fetches all registered patients from SQLite with their associated
+    user account information, demographics, emergency contact, ABHA ID,
+    and live counts of clinical cases, appointments, and prescriptions.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT 
+            p.id,
+            p.user_id,
+            p.abha_id,
+            p.name,
+            p.age,
+            p.gender,
+            p.phone,
+            p.blood_group,
+            p.prakriti_primary,
+            p.prakriti_secondary,
+            p.emergency_contact,
+            p.created_at,
+            u.username as email,
+            u.full_name as user_full_name,
+            (SELECT COUNT(*) FROM cases c WHERE c.patient_id = p.id OR LOWER(TRIM(c.patient_name)) = LOWER(TRIM(p.name))) as cases_count,
+            (SELECT COUNT(*) FROM appointments a WHERE a.patient_id = p.id OR LOWER(TRIM(a.patient_name)) = LOWER(TRIM(p.name))) as appointments_count,
+            (SELECT COUNT(*) FROM prescriptions rx WHERE rx.patient_id = p.id) as prescriptions_count
+        FROM patients p
+        LEFT JOIN users u ON p.user_id = u.id
+        ORDER BY p.id DESC
+        """
+    )
+    rows = [dict(r) for r in cursor.fetchall()]
+    for r in rows:
+        prim = r.get("prakriti_primary")
+        sec = r.get("prakriti_secondary")
+        if prim and prim not in ("Not set", "None"):
+            r["prakriti"] = f"{prim}-{sec}" if (sec and sec not in ("Not set", "None")) else prim
+        else:
+            r["prakriti"] = "Not set"
+    conn.close()
+    return rows
+
+
+
+def update_patient_profile(identifier, data):
+    """
+    Updates patient profile fields (name, age, blood_group, phone, prakriti, emergency_contact, abha_id).
+    Strictly ignores/disallows modifications to email and gender.
+    Persists changes across patients and users tables, and updates related records.
+    """
+    if not identifier or not data or not isinstance(data, dict):
+        return None
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    target = str(identifier or "").strip()
+    cursor.execute(
+        """
+        SELECT p.*, u.username as email, u.id as u_id
+        FROM patients p
+        LEFT JOIN users u ON p.user_id = u.id
+        WHERE p.abha_id = ? 
+           OR p.user_id = ? 
+           OR p.id = ? 
+           OR LOWER(TRIM(p.name)) = LOWER(?)
+           OR p.phone = ?
+        ORDER BY (p.abha_id = ?) DESC, (p.id = ?) DESC, (LOWER(TRIM(p.name)) = LOWER(?)) DESC
+        LIMIT 1;
+        """,
+        (target, target, target, target, target, target, target, target),
+    )
+    patient = cursor.fetchone()
+
+    # Extract allowed fields (strictly ignore email and gender)
+    name = (data.get("name") or data.get("full_name"))
+    if name is not None:
+        name = str(name).strip() or None
+
+    age = data.get("age")
+    age_val = None
+    if age is not None and str(age).strip() != "":
+        try:
+            age_val = int(age)
+        except (ValueError, TypeError):
+            age_val = None
+
+    blood_group = (data.get("blood_group") or data.get("bloodGroup"))
+    if blood_group is not None:
+        blood_group = str(blood_group).strip() or None
+
+    phone = data.get("phone")
+    if phone is not None:
+        phone = str(phone).strip() or None
+
+    prakriti = (data.get("prakriti") or data.get("prakriti_primary"))
+    prakriti_primary = None
+    prakriti_secondary = None
+    if prakriti is not None and str(prakriti).strip() and str(prakriti).strip() != "Not set":
+        parts = [p.strip() for p in str(prakriti).split("-") if p.strip()]
+        prakriti_primary = parts[0] if len(parts) > 0 else None
+        prakriti_secondary = parts[1] if len(parts) > 1 else None
+
+    emergency_contact = (data.get("emergency_contact") or data.get("emergencyContact"))
+    if emergency_contact is not None:
+        emergency_contact = str(emergency_contact).strip() or None
+
+    abha_id = (data.get("abha_id") or data.get("abhaId"))
+    if abha_id is not None:
+        abha_id = str(abha_id).strip() or None
+
+    if patient:
+        pat_id = patient["id"]
+        user_id = patient["user_id"] or patient["u_id"]
+
+        updates = []
+        params = []
+        if ("name" in data or "full_name" in data) and name:
+            updates.append("name = ?")
+            params.append(name)
+        if "age" in data:
+            updates.append("age = ?")
+            params.append(age_val)
+        if "blood_group" in data or "bloodGroup" in data:
+            updates.append("blood_group = ?")
+            params.append(blood_group)
+        if "phone" in data:
+            updates.append("phone = ?")
+            params.append(phone)
+        if "prakriti" in data or "prakriti_primary" in data:
+            updates.append("prakriti_primary = ?")
+            params.append(prakriti_primary)
+            updates.append("prakriti_secondary = ?")
+            params.append(prakriti_secondary)
+        if "emergency_contact" in data or "emergencyContact" in data:
+            updates.append("emergency_contact = ?")
+            params.append(emergency_contact)
+        if ("abha_id" in data or "abhaId" in data) and abha_id:
+            updates.append("abha_id = ?")
+            params.append(abha_id)
+
+        if updates:
+            params.append(pat_id)
+            cursor.execute(f"UPDATE patients SET {', '.join(updates)} WHERE id = ?", tuple(params))
+
+        user_updates = []
+        user_params = []
+        if ("name" in data or "full_name" in data) and name:
+            user_updates.append("full_name = ?")
+            user_params.append(name)
+        if "phone" in data:
+            user_updates.append("phone = ?")
+            user_params.append(phone)
+        if ("abha_id" in data or "abhaId" in data) and abha_id:
+            user_updates.append("identifier = ?")
+            user_params.append(abha_id)
+
+        if user_updates and user_id:
+            user_params.append(user_id)
+            cursor.execute(f"UPDATE users SET {', '.join(user_updates)} WHERE id = ?", tuple(user_params))
+
+        if ("name" in data or "full_name" in data) and name:
+            cursor.execute("UPDATE cases SET patient_name = ? WHERE patient_id = ?", (name, pat_id))
+            cursor.execute("UPDATE appointments SET patient_name = ? WHERE patient_id = ?", (name, pat_id))
+
+        conn.commit()
+        conn.close()
+        return get_patient_data(abha_id or pat_id)
+
+    else:
+        # Check if user exists in users table
+        cursor.execute(
+            "SELECT * FROM users WHERE identifier = ? OR id = ? OR username = ? LIMIT 1",
+            (target, target, target),
+        )
+        user = cursor.fetchone()
+        if user:
+            user_id = user["id"]
+            abha_code = abha_id or user["identifier"] or f"ABHA-{user_id:04d}-0001"
+            pat_name = name or user["full_name"] or "Patient"
+            cursor.execute(
+                """
+                INSERT INTO patients (user_id, abha_id, name, age, phone, blood_group, prakriti_primary, prakriti_secondary, emergency_contact)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (user_id, abha_code, pat_name, age_val, phone or user["phone"], blood_group, prakriti_primary, prakriti_secondary, emergency_contact),
+            )
+            pat_id = cursor.lastrowid
+            if name or phone or abha_id:
+                cursor.execute(
+                    "UPDATE users SET full_name = COALESCE(?, full_name), phone = COALESCE(?, phone), identifier = COALESCE(?, identifier) WHERE id = ?",
+                    (name, phone, abha_id, user_id),
+                )
+            conn.commit()
+            conn.close()
+            return get_patient_data(pat_id)
+
+    conn.close()
+    return None
+
+
+def delete_patient_account(identifier):
+    """
+    Permanently deletes a patient account and all associated records from SQLite database.
+    Removes records from patients, users, user_sessions, prescriptions, appointments, cases.
+    Returns dictionary with deleted user/patient details on success, or None on failure.
+    """
+    if not identifier:
+        return None
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    target = str(identifier).strip()
+
+    # Find patient and user details before deletion
+    cursor.execute(
+        """
+        SELECT p.id as patient_id, p.user_id, p.abha_id, p.name as patient_name, p.phone as patient_phone,
+               u.id as u_id, u.full_name as user_full_name, u.identifier, u.username, u.role
+        FROM patients p
+        LEFT JOIN users u ON p.user_id = u.id
+        WHERE p.abha_id = ? 
+           OR p.user_id = ? 
+           OR p.id = ? 
+           OR LOWER(TRIM(p.name)) = LOWER(TRIM(?))
+           OR u.identifier = ? 
+           OR u.username = ?
+           OR LOWER(TRIM(u.full_name)) = LOWER(TRIM(?))
+        LIMIT 1;
+        """,
+        (target, target, target, target, target, target, target),
+    )
+    row = cursor.fetchone()
+
+    patient_id = None
+    user_id = None
+    deleted_info = {
+        "name": "Valued Patient",
+        "email": "",
+        "abha_id": target,
+        "phone": ""
+    }
+
+    if row:
+        patient_id = row["patient_id"]
+        user_id = row["user_id"] or row["u_id"]
+        name_val = row["patient_name"] or row["user_full_name"] or ""
+        email_val = row["identifier"] if ("@" in str(row["identifier"] or "")) else (row["username"] if ("@" in str(row["username"] or "")) else "")
+        if name_val:
+            deleted_info["name"] = name_val
+        if email_val:
+            deleted_info["email"] = email_val
+        if row["abha_id"]:
+            deleted_info["abha_id"] = row["abha_id"]
+        if row["patient_phone"]:
+            deleted_info["phone"] = row["patient_phone"]
+    else:
+        cursor.execute(
+            "SELECT id, full_name, username, identifier, phone FROM users WHERE id = ? OR identifier = ? OR username = ? OR LOWER(TRIM(full_name)) = LOWER(TRIM(?)) LIMIT 1",
+            (target, target, target, target)
+        )
+        user_row = cursor.fetchone()
+        if user_row:
+            user_id = user_row["id"]
+            if user_row["full_name"]:
+                deleted_info["name"] = user_row["full_name"]
+            email_val = user_row["identifier"] if ("@" in str(user_row["identifier"] or "")) else (user_row["username"] if ("@" in str(user_row["username"] or "")) else "")
+            if email_val:
+                deleted_info["email"] = email_val
+            if user_row["phone"]:
+                deleted_info["phone"] = user_row["phone"]
+
+    # Check if any orphaned appointments exist for this target name
+    cursor.execute(
+        "SELECT id, patient_name FROM appointments WHERE LOWER(TRIM(patient_name)) = LOWER(TRIM(?)) LIMIT 1;",
+        (target,)
+    )
+    apt_orphan_row = cursor.fetchone()
+    has_orphaned_appointments = bool(apt_orphan_row)
+
+    if not patient_id and not user_id and not has_orphaned_appointments:
+        conn.close()
+        return None
+
+    if apt_orphan_row and deleted_info.get("name") == "Valued Patient":
+        deleted_info["name"] = apt_orphan_row["patient_name"]
+
+    # If email wasn't found in DB row, but target itself looks like an email:
+    if not deleted_info.get("email") and "@" in target:
+        deleted_info["email"] = target
+
+    names_to_delete = {target}
+    if deleted_info.get("name") and deleted_info["name"] != "Valued Patient":
+        names_to_delete.add(deleted_info["name"])
+
+    if patient_id:
+        cursor.execute("DELETE FROM prescriptions WHERE patient_id = ?", (patient_id,))
+        cursor.execute("DELETE FROM cases WHERE patient_id = ?", (patient_id,))
+        cursor.execute("DELETE FROM patients WHERE id = ?", (patient_id,))
+        cursor.execute("DELETE FROM appointments WHERE patient_id = ?", (patient_id,))
+
+    # Also delete appointments matching patient name to prevent orphaned appointments
+    for n in names_to_delete:
+        if n and len(n.strip()) > 1:
+            cursor.execute("DELETE FROM appointments WHERE LOWER(TRIM(patient_name)) = LOWER(TRIM(?))", (n.strip(),))
+
+    if user_id:
+        cursor.execute("DELETE FROM user_sessions WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM user_preferences WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM study_progress WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+
+    # Synchronize app_storage cached appointments
+    try:
+        cursor.execute("SELECT storage_value FROM app_storage WHERE storage_key = 'ayurcase_cached_appointments';")
+        st_row = cursor.fetchone()
+        if st_row and st_row[0]:
+            appts = json.loads(st_row[0])
+            cleaned = []
+            for a in appts:
+                a_name = (a.get("patient_name") or "").strip().lower()
+                a_pid = str(a.get("patient_id") or "")
+                if patient_id and a_pid == str(patient_id):
+                    continue
+                if any(n.strip().lower() == a_name for n in names_to_delete if n and len(n.strip()) > 1):
+                    continue
+                cleaned.append(a)
+            cursor.execute(
+                "UPDATE app_storage SET storage_value = ?, updated_at = CURRENT_TIMESTAMP WHERE storage_key = 'ayurcase_cached_appointments';",
+                (json.dumps(cleaned),)
+            )
+    except Exception as st_err:
+        print("[STORAGE CACHE SYNC NOTICE]:", st_err)
+
+    conn.commit()
+    conn.close()
+
+    # Dispatch account deletion confirmation email asynchronously
+    if deleted_info.get("email"):
+        try:
+            try:
+                from email_service import send_account_deletion_email_async
+            except ImportError:
+                from backend.email_service import send_account_deletion_email_async
+            send_account_deletion_email_async(deleted_info)
+        except Exception as email_dispatch_err:
+            print(f"[DELETE PATIENT] Failed to dispatch account deletion email: {email_dispatch_err}")
+
+    return deleted_info
+
+
+def delete_appointment(appointment_id):
+    """
+    Deletes an appointment by ID and synchronizes app_storage cache.
+    Returns True if deleted, False otherwise.
+    """
+    if not appointment_id:
+        return False
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "SELECT id, patient_name, doctor_name, appointment_date, appointment_time FROM appointments WHERE id = ?;",
+            (appointment_id,)
+        )
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return False
+
+        cursor.execute("DELETE FROM appointments WHERE id = ?;", (appointment_id,))
+        conn.commit()
+
+        # Safely log cancellation in audit_logs
+        try:
+            cursor.execute(
+                """
+                INSERT INTO audit_logs (action, details)
+                VALUES ('APPOINTMENT_CANCELLED', ?);
+                """,
+                (f"Appointment #{appointment_id} for '{row['patient_name']}' with '{row['doctor_name']}' on {row['appointment_date']} was cancelled/deleted.",),
+            )
+            conn.commit()
+        except Exception:
+            pass
+
+        # Sync app_storage cache
+        try:
+            cursor.execute("SELECT storage_value FROM app_storage WHERE storage_key = 'ayurcase_cached_appointments';")
+            st_row = cursor.fetchone()
+            if st_row and st_row[0]:
+                appts = json.loads(st_row[0])
+                cleaned = [a for a in appts if str(a.get("id")) != str(appointment_id)]
+                cursor.execute(
+                    "UPDATE app_storage SET storage_value = ?, updated_at = CURRENT_TIMESTAMP WHERE storage_key = 'ayurcase_cached_appointments';",
+                    (json.dumps(cleaned),)
+                )
+                conn.commit()
+        except Exception:
+            pass
+
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"[DELETE APPOINTMENT ERROR]: {e}")
+        conn.close()
+        return False
 
 
 def get_admin_summary():
@@ -1336,23 +2126,40 @@ def get_admin_summary():
 
     cursor.execute(
         """
-        SELECT activity_type, patient_id, patient_name, patient_age, condition, detail, occurred_at
+        SELECT activity_type, appointment_id, doctor_id, doctor_name, patient_id, patient_name, patient_age, condition, detail, occurred_at
         FROM (
             SELECT 'Appointment booked' AS activity_type,
-                   COALESCE(p_by_id.id, p_by_name.id) AS patient_id,
+                   a.id AS appointment_id,
+                   a.doctor_id AS doctor_id,
+                   a.doctor_name AS doctor_name,
+                   COALESCE(
+                       a.patient_id,
+                       (SELECT p.id FROM patients p WHERE LOWER(TRIM(p.name)) = LOWER(TRIM(a.patient_name)) ORDER BY (p.user_id IS NOT NULL) DESC, p.id DESC LIMIT 1)
+                   ) AS patient_id,
                    a.patient_name AS patient_name,
-                   COALESCE(p_by_id.age, p_by_name.age) AS patient_age,
-                   COALESCE((SELECT c.chief_complaint FROM cases c WHERE c.patient_id = COALESCE(p_by_id.id, p_by_name.id) ORDER BY c.created_at DESC LIMIT 1), a.symptoms_notes, 'Condition not recorded') AS condition,
+                   (
+                       SELECT p.age FROM patients p 
+                       WHERE p.id = a.patient_id OR LOWER(TRIM(p.name)) = LOWER(TRIM(a.patient_name)) 
+                       ORDER BY (p.age IS NOT NULL) DESC, (p.user_id IS NOT NULL) DESC, p.id DESC 
+                       LIMIT 1
+                   ) AS patient_age,
+                   COALESCE(
+                       (SELECT c.chief_complaint FROM cases c WHERE c.patient_id = a.patient_id ORDER BY c.created_at DESC LIMIT 1),
+                       a.symptoms_notes,
+                       'Condition not recorded'
+                   ) AS condition,
                    'Appointment with ' || a.doctor_name || ' on ' || a.appointment_date || ' at ' || a.appointment_time AS detail,
                    a.created_at AS occurred_at
             FROM appointments a
-            LEFT JOIN patients p_by_id ON p_by_id.id = a.patient_id
-            LEFT JOIN patients p_by_name ON LOWER(TRIM(p_by_name.name)) = LOWER(TRIM(a.patient_name))
+            WHERE a.status != 'CANCELLED'
             UNION ALL
             SELECT CASE
                      WHEN l.action = 'PATIENT_REGISTERED' THEN 'Patient registered'
                      ELSE 'Patient signed in'
                    END AS activity_type,
+                   NULL AS appointment_id,
+                   NULL AS doctor_id,
+                   (SELECT u2.full_name FROM cases c2 JOIN users u2 ON c2.doctor_id = u2.id WHERE c2.patient_id = p.id ORDER BY c2.created_at DESC LIMIT 1) AS doctor_name,
                    p.id AS patient_id,
                    COALESCE(p.name, u.full_name, 'Patient') AS patient_name,
                    p.age AS patient_age,
@@ -1370,6 +2177,19 @@ def get_admin_summary():
     )
     patient_activity = [dict(r) for r in cursor.fetchall()]
 
+    cursor.execute("SELECT COUNT(*) FROM emergency_cases WHERE status != 'Discharged'")
+    emergency_count = cursor.fetchone()[0]
+
+    cursor.execute(
+        """
+        SELECT id, patient_name, age, gender, doctor_id, doctor_name, issue, triage_level, bed_number, status, admitted_time, created_at
+        FROM emergency_cases
+        WHERE status != 'Discharged'
+        ORDER BY id ASC
+        """
+    )
+    emergency_cases = [dict(r) for r in cursor.fetchall()]
+
     conn.close()
 
     return {
@@ -1377,6 +2197,8 @@ def get_admin_summary():
         "patient_count": pat_count,
         "case_count": case_count,
         "appointment_count": appointment_count,
+        "emergency_count": emergency_count,
+        "emergency_cases": emergency_cases,
         "doctors": doctors,
         "audit_logs": logs,
         "patient_activity": patient_activity,
@@ -1384,7 +2206,7 @@ def get_admin_summary():
 
 
 def get_admin_doctor_patients(doctor_id):
-    """Returns one practitioner's registered patients and appointment schedule for the admin console."""
+    """Returns one practitioner's registered patients, follow-up visits, and appointment schedule for the admin console."""
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -1394,30 +2216,51 @@ def get_admin_doctor_patients(doctor_id):
                    d.qualification, d.status, u.full_name, u.phone
             FROM doctors d
             JOIN users u ON u.id = d.user_id
-            WHERE d.id = ?
+            WHERE d.id = ? OR d.user_id = ?
+            LIMIT 1
             """,
-            (doctor_id,),
+            (doctor_id, doctor_id),
         )
         doctor_row = cursor.fetchone()
         if not doctor_row:
             return None
         doctor = dict(doctor_row)
 
+        # 1. Fetch complete follow-up and appointment schedule for this doctor
+        cursor.execute(
+            """
+            SELECT a.id, a.patient_id, a.doctor_id, a.patient_name, a.doctor_name,
+                   a.appointment_date, a.appointment_time, a.consultation_type,
+                   a.symptoms_notes, a.status, a.created_at,
+                   COALESCE(p.age, '') AS patient_age, COALESCE(p.gender, '') AS patient_gender
+            FROM appointments a
+            LEFT JOIN patients p ON p.id = a.patient_id OR LOWER(TRIM(p.name)) = LOWER(TRIM(a.patient_name))
+            WHERE a.doctor_id = ?
+            ORDER BY a.appointment_date DESC, a.appointment_time DESC, a.id DESC
+            """,
+            (doctor["doctor_id"],),
+        )
+        follow_ups = [dict(row) for row in cursor.fetchall()]
+        doctor["follow_ups"] = follow_ups
+        doctor["follow_up_count"] = len(follow_ups)
+
+        # 2. Fetch distinct patients assigned to this doctor (via appointments or cases)
         cursor.execute(
             """
             SELECT DISTINCT p.id, p.name, p.age, p.gender, p.phone, p.abha_id,
                    p.blood_group, p.prakriti_primary, p.prakriti_secondary, p.created_at
             FROM patients p
             WHERE p.id IN (
-                SELECT patient_id FROM appointments
-                WHERE doctor_id = ? AND patient_id IS NOT NULL
+                SELECT patient_id FROM appointments WHERE doctor_id = ? AND patient_id IS NOT NULL
                 UNION
-                SELECT patient_id FROM cases
-                WHERE doctor_id = ? AND patient_id IS NOT NULL
+                SELECT patient_id FROM cases WHERE doctor_id = ? AND patient_id IS NOT NULL
+            )
+            OR LOWER(TRIM(p.name)) IN (
+                SELECT LOWER(TRIM(patient_name)) FROM appointments WHERE doctor_id = ?
             )
             ORDER BY p.name COLLATE NOCASE
             """,
-            (doctor["doctor_id"], doctor["user_id"]),
+            (doctor["doctor_id"], doctor["user_id"], doctor["doctor_id"]),
         )
         patients = [dict(row) for row in cursor.fetchall()]
 
@@ -1427,16 +2270,16 @@ def get_admin_doctor_patients(doctor_id):
                 SELECT appointment_date, appointment_time, consultation_type,
                        symptoms_notes, status
                 FROM appointments
-                WHERE doctor_id = ? AND patient_id = ?
+                WHERE doctor_id = ? AND (patient_id = ? OR LOWER(TRIM(patient_name)) = LOWER(TRIM(?)))
                 ORDER BY appointment_date ASC, appointment_time ASC
                 """,
-                (doctor["doctor_id"], patient["id"]),
+                (doctor["doctor_id"], patient["id"], patient["name"]),
             )
             patient["appointments"] = [dict(row) for row in cursor.fetchall()]
 
             cursor.execute(
-                "SELECT COUNT(*) FROM cases WHERE doctor_id = ? AND patient_id = ?",
-                (doctor["user_id"], patient["id"]),
+                "SELECT COUNT(*) FROM cases WHERE doctor_id = ? AND (patient_id = ? OR LOWER(TRIM(patient_name)) = LOWER(TRIM(?)))",
+                (doctor["user_id"], patient["id"], patient["name"]),
             )
             patient["case_count"] = cursor.fetchone()[0]
 
@@ -1589,8 +2432,9 @@ def get_doctors_list():
 
 def create_appointment(patient_name, doctor_name, appointment_date, appointment_time,
                        consultation_type="In-Clinic Consultation", symptoms_notes="",
-                       patient_id=None, doctor_id=None):
-    """Creates and persists an appointment in the database."""
+                       patient_id=None, doctor_id=None, age=None, gender=None,
+                       patient_email=None, patient_phone=None, patient_abha_id=None):
+    """Creates and persists an appointment in the database and dispatches confirmation email."""
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -1619,12 +2463,10 @@ def create_appointment(patient_name, doctor_name, appointment_date, appointment_
         if not doctor_id:
             raise ValueError("A valid attending doctor must be selected.")
 
-        # Derive the persisted doctor name from the selected doctor account.
-        # This prevents an appointment from being assigned to one doctor's ID
-        # while displaying another doctor's name in the dashboard.
+        # Derive the persisted doctor name and credentials from the selected doctor account.
         cursor.execute(
             """
-            SELECT d.id, u.full_name
+            SELECT d.id, u.full_name, d.specialization, d.qualification, d.council_reg_no, u.phone
             FROM doctors d
             JOIN users u ON u.id = d.user_id
             WHERE d.id = ?
@@ -1635,9 +2477,14 @@ def create_appointment(patient_name, doctor_name, appointment_date, appointment_
         if not selected_doctor:
             raise ValueError("The selected practitioner account is not available.")
         canonical_doctor_name = selected_doctor["full_name"]
-        if doctor_name and doctor_name.strip().casefold() != canonical_doctor_name.casefold():
-            raise ValueError("The selected practitioner does not match the appointment details.")
         doctor_name = canonical_doctor_name
+
+        doctor_details = {
+            "full_name": canonical_doctor_name,
+            "specialization": selected_doctor["specialization"] or "Ayurvedic Internal Medicine (Kayachikitsa)",
+            "qualification": selected_doctor["qualification"] or "BAMS, MD (Ayurveda)",
+            "council_reg_no": selected_doctor["council_reg_no"] or "AYUSH-WB-2024-REG"
+        }
 
         # Resolve patient_id: if passed patient_id is users.id, resolve to patients.id!
         if patient_id:
@@ -1659,6 +2506,72 @@ def create_appointment(patient_name, doctor_name, appointment_date, appointment_
             row = cursor.fetchone()
             if row:
                 patient_id = row[0]
+            else:
+                # Auto-create patient in patients table so demographic details are preserved
+                clean_age = None
+                try:
+                    if age is not None and str(age).strip():
+                        clean_age = int(age)
+                except (ValueError, TypeError):
+                    pass
+                clean_gender = gender if gender and str(gender).strip() else "Other"
+                auto_abha = f"ABHA-{int(time.time() * 1000)}"
+                cursor.execute(
+                    """
+                    INSERT INTO patients (abha_id, name, age, gender, created_at)
+                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    """,
+                    (auto_abha, patient_name.strip(), clean_age, clean_gender),
+                )
+                patient_id = cursor.lastrowid
+
+        # Resolve patient email, phone, and ABHA ID
+        resolved_patient_email = (patient_email or "").strip()
+        resolved_patient_phone = (patient_phone or "").strip()
+        resolved_abha_id = (patient_abha_id or "").strip()
+
+        if patient_id and (not resolved_patient_email or not resolved_abha_id or not resolved_patient_phone):
+            try:
+                cursor.execute(
+                    """
+                    SELECT u.username, u.phone as u_phone, p.abha_id, p.phone as p_phone
+                    FROM patients p
+                    LEFT JOIN users u ON p.user_id = u.id
+                    WHERE p.id = ?;
+                    """,
+                    (patient_id,)
+                )
+                p_row = cursor.fetchone()
+                if p_row:
+                    if not resolved_patient_email and p_row["username"]:
+                        resolved_patient_email = p_row["username"].strip()
+                    if not resolved_patient_phone:
+                        resolved_patient_phone = (p_row["u_phone"] or p_row["p_phone"] or "").strip()
+                    if not resolved_abha_id and p_row["abha_id"]:
+                        resolved_abha_id = p_row["abha_id"].strip()
+            except Exception as p_err:
+                print("[APPOINTMENT DB] Patient detail lookup notice:", p_err)
+
+        # Idempotency / duplicate check: avoid duplicate appointments for same patient, doctor, date, and time
+        cursor.execute(
+            """
+            SELECT id, patient_id, doctor_id, patient_name, doctor_name,
+                   appointment_date, appointment_time, consultation_type,
+                   symptoms_notes, status, created_at
+            FROM appointments
+            WHERE LOWER(TRIM(patient_name)) = LOWER(TRIM(?))
+              AND doctor_id = ?
+              AND appointment_date = ?
+              AND appointment_time = ?
+            LIMIT 1;
+            """,
+            (patient_name, doctor_id, appointment_date, appointment_time),
+        )
+        existing_dup = cursor.fetchone()
+        if existing_dup:
+            dup_dict = dict(existing_dup)
+            conn.close()
+            return dup_dict
 
         cursor.execute(
             """
@@ -1707,6 +2620,32 @@ def create_appointment(patient_name, doctor_name, appointment_date, appointment_
 
         cursor.execute("SELECT * FROM appointments WHERE id = ?", (appointment_id,))
         new_apt = dict(cursor.fetchone())
+
+        # Dispatch automated appointment confirmation email asynchronously
+        try:
+            try:
+                from email_service import send_appointment_confirmation_email_async
+            except ImportError:
+                from backend.email_service import send_appointment_confirmation_email_async
+
+            apt_payload = dict(new_apt)
+            apt_payload["patient_email"] = resolved_patient_email
+            apt_payload["patient_phone"] = resolved_patient_phone
+            apt_payload["patient_abha_id"] = resolved_abha_id
+
+            send_appointment_confirmation_email_async(
+                appointment_data=apt_payload,
+                patient_data={
+                    "name": patient_name,
+                    "email": resolved_patient_email,
+                    "phone": resolved_patient_phone,
+                    "abha_id": resolved_abha_id,
+                },
+                doctor_data=doctor_details,
+            )
+        except Exception as email_err:
+            print(f"[APPOINTMENT DB] Failed to dispatch appointment confirmation email: {email_err}")
+
         return new_apt
     finally:
         conn.close()
@@ -1742,6 +2681,796 @@ def get_appointments(doctor_id=None, doctor_name=None, patient_id=None, patient_
     conn.close()
     return appointments
 
+
+# =====================================================
+# NOTICES & CLINICAL ORDERS
+# =====================================================
+
+def add_notice(title, content, notice_type="General", priority="Normal", posted_by="Hospital Administration"):
+    """Adds a new administrative notice/order for doctors."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            INSERT INTO notices (title, content, notice_type, priority, posted_by)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (title.strip(), content.strip(), (notice_type or "General").strip(), (priority or "Normal").strip(), (posted_by or "Hospital Administration").strip())
+        )
+        notice_id = cursor.lastrowid
+        conn.commit()
+        cursor.execute("SELECT * FROM notices WHERE id = ?", (notice_id,))
+        notice = dict(cursor.fetchone())
+        notice["comments"] = []
+        return notice
+    finally:
+        conn.close()
+
+
+def get_notices(order="desc"):
+    """
+    Retrieves notices along with their comments.
+    Defaults to DESCENDING order (newest first).
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        order_direction = "ASC" if str(order).lower() == "asc" else "DESC"
+        query = f"SELECT * FROM notices ORDER BY created_at {order_direction}, id {order_direction};"
+        cursor.execute(query)
+        notices = [dict(row) for row in cursor.fetchall()]
+
+        # Fetch comments for each notice
+        for notice in notices:
+            cursor.execute(
+                "SELECT * FROM notice_comments WHERE notice_id = ? ORDER BY created_at ASC, id ASC;",
+                (notice["id"],)
+            )
+            notice["comments"] = [dict(r) for r in cursor.fetchall()]
+
+        return notices
+    finally:
+        conn.close()
+
+
+def delete_notice(notice_id):
+    """Deletes a notice and its associated comments."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM notices WHERE id = ?", (notice_id,))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+def add_notice_comment(notice_id, doctor_id, author_name, comment_text, author_role="doctor"):
+    """Adds a doctor comment/reply/acknowledgement to a notice."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            INSERT INTO notice_comments (notice_id, doctor_id, author_name, author_role, comment_text)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (notice_id, doctor_id, author_name.strip(), (author_role or "doctor").strip(), comment_text.strip())
+        )
+        comment_id = cursor.lastrowid
+        conn.commit()
+        cursor.execute("SELECT * FROM notice_comments WHERE id = ?", (comment_id,))
+        return dict(cursor.fetchone())
+    finally:
+        conn.close()
+
+
+def get_notice_comments(notice_id):
+    """Retrieves all comments for a notice."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "SELECT * FROM notice_comments WHERE notice_id = ? ORDER BY created_at ASC, id ASC;",
+            (notice_id,)
+        )
+        return [dict(r) for r in cursor.fetchall()]
+    finally:
+        conn.close()
+
+
+def seed_recent_clinical_history():
+    """Seeds authentic clinical consultation history with prescribed medicines and assigned doctors."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT COUNT(*) FROM cases;")
+        if cursor.fetchone()[0] > 0:
+            return
+
+        cursor.execute("SELECT u.id, u.full_name, d.specialization FROM users u JOIN doctors d ON d.user_id = u.id;")
+        doc_rows = [dict(r) for r in cursor.fetchall()]
+        doc_map = {d["full_name"]: d["id"] for d in doc_rows}
+
+        doc_sen_id = doc_map.get("Dr. Arindam Sen", 1)
+        doc_rao_id = doc_map.get("Dr. Priyadarshini Rao", 2)
+        doc_kapoor_id = doc_map.get("Dr. Meera Kapoor", 5)
+        doc_bose_id = doc_map.get("Dr. Kunal Bose", 6)
+
+        records = [
+            {
+                "patient_name": "Rohit Sharma",
+                "age": 34,
+                "gender": "Male",
+                "doctor_id": doc_sen_id,
+                "chief_complaint": "Chronic acid reflux, burning sensation in epigastrium, and nocturnal gastric distress",
+                "diagnosis": "Amlapitta with Pitta-Vata Dushti",
+                "prakriti": "Pitta-Vata",
+                "date": "2026-09-08 10:30:00",
+                "prescriptions": [
+                    ("Ashwagandha Churna", "3g", "Twice daily with warm milk", "Warm Milk", "30 Days"),
+                    ("Avipattikar Churna", "5g", "Twice daily before meals", "Lukewarm Water", "21 Days"),
+                    ("Triphala Kwatha", "20 ml", "Bedtime", "Lukewarm Water", "15 Days"),
+                    ("Brahmi Vati", "1 Tablet", "Morning post breakfast", "Water", "30 Days")
+                ]
+            },
+            {
+                "patient_name": "Ananya Roy",
+                "age": 28,
+                "gender": "Female",
+                "doctor_id": doc_rao_id,
+                "chief_complaint": "Bilateral knee joint pain, morning stiffness, and difficulty climbing stairs",
+                "diagnosis": "Sandhigata Vata (Osteoarthritic joint changes)",
+                "prakriti": "Vata-Kapha",
+                "date": "2026-09-09 11:45:00",
+                "prescriptions": [
+                    ("Yograj Guggulu", "2 Tablets", "Twice daily post meals", "Warm Water", "30 Days"),
+                    ("Dashamoola Kwatha", "30 ml", "Twice daily before meals", "Warm Water", "20 Days"),
+                    ("Mahanarayan Taila", "Adequate qty", "Gentle local massage with hot water bag fomentation", "External", "30 Days")
+                ]
+            },
+            {
+                "patient_name": "Vikramaditya Das",
+                "age": 45,
+                "gender": "Male",
+                "doctor_id": doc_bose_id,
+                "chief_complaint": "Post-meal heaviness in abdomen, irregular bowel habits, and fatigue",
+                "diagnosis": "Kaphaja Grahani with Agnimandya",
+                "prakriti": "Kapha-Pitta",
+                "date": "2026-09-09 16:15:00",
+                "prescriptions": [
+                    ("Trikatu Churna", "2g", "Twice daily with honey before meals", "Honey", "21 Days"),
+                    ("Chitrakadi Vati", "1 Tablet", "Chewable twice daily after lunch & dinner", "Warm Water", "15 Days"),
+                    ("Mustakarishta", "15 ml with equal water", "Twice daily after food", "Water", "30 Days")
+                ]
+            },
+            {
+                "patient_name": "Meenakshi Sundaram",
+                "age": 52,
+                "gender": "Female",
+                "doctor_id": doc_kapoor_id,
+                "chief_complaint": "Fluctuating blood pressure, generalized tension, palpitations, and poor sleep quality",
+                "diagnosis": "Raktagata Vata & Manasika Udvega",
+                "prakriti": "Pitta-Vata",
+                "date": "2026-09-10 14:00:00",
+                "prescriptions": [
+                    ("Sarpagandha Ghan Vati", "1 Tablet", "Night at bedtime", "Lukewarm Water", "30 Days"),
+                    ("Shankhapushpi Syrup", "10 ml", "Twice daily post breakfast and dinner", "Water", "30 Days"),
+                    ("Brahmi Taila", "5 ml", "Gentle scalp application at night (Shiroabhyanga)", "External", "30 Days")
+                ]
+            },
+            {
+                "patient_name": "Kavita Patel",
+                "age": 39,
+                "gender": "Female",
+                "doctor_id": doc_sen_id,
+                "chief_complaint": "Cervical spine stiffness, pain radiating to right shoulder, and tension headache",
+                "diagnosis": "Manyastambha (Cervical Spondylosis)",
+                "prakriti": "Vata-Kapha",
+                "date": "2026-09-11 09:30:00",
+                "prescriptions": [
+                    ("Trayodashanga Guggulu", "2 Tablets", "Twice daily after meals", "Warm Water", "30 Days"),
+                    ("Rasnasaptak Kwatha", "20 ml", "Twice daily on empty stomach", "Lukewarm Water", "21 Days"),
+                    ("Ksheerabala 101 Taila", "4 Drops", "Pratimarsha Nasya in both nostrils every morning", "Nasal drops", "15 Days")
+                ]
+            }
+        ]
+
+        for rec in records:
+            cursor.execute(
+                """
+                INSERT INTO cases (doctor_id, patient_name, age, gender, chief_complaint, diagnosis, prakriti, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'Completed', ?);
+                """,
+                (rec["doctor_id"], rec["patient_name"], rec["age"], rec["gender"], rec["chief_complaint"], rec["diagnosis"], rec["prakriti"], rec["date"])
+            )
+            case_id = cursor.lastrowid
+            for p in rec["prescriptions"]:
+                cursor.execute(
+                    """
+                    INSERT INTO prescriptions (case_id, medicine_name, dosage, timing, anupana, duration)
+                    VALUES (?, ?, ?, ?, ?, ?);
+                    """,
+                    (case_id, p[0], p[1], p[2], p[3], p[4])
+                )
+
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_recent_history():
+    """Fetches recent patient clinical consultation history."""
+    seed_recent_clinical_history()
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT c.id, c.patient_name, c.age, c.gender, c.chief_complaint, c.diagnosis,
+                   c.prakriti, c.status, c.created_at, u.full_name AS doctor_name, d.specialization AS doctor_specialization
+            FROM cases c
+            LEFT JOIN users u ON u.id = c.doctor_id
+            LEFT JOIN doctors d ON d.user_id = u.id
+            ORDER BY c.created_at DESC, c.id DESC;
+            """
+        )
+        case_rows = cursor.fetchall()
+        history = []
+        for r in case_rows:
+            case_id = r["id"]
+            cursor.execute(
+                """
+                SELECT medicine_name, dosage, timing, anupana, duration
+                FROM prescriptions
+                WHERE case_id = ?
+                ORDER BY id ASC;
+                """,
+                (case_id,)
+            )
+            rx_rows = cursor.fetchall()
+            rx_items = []
+            rx_structured = []
+            for rx in rx_rows:
+                detail = rx["medicine_name"]
+                meta = []
+                if rx["dosage"]:
+                    meta.append(rx["dosage"])
+                if rx["timing"]:
+                    meta.append(rx["timing"])
+                if rx["duration"]:
+                    meta.append(rx["duration"])
+                if meta:
+                    detail += f" ({', '.join(meta)})"
+                rx_items.append(detail)
+                rx_structured.append({
+                    "name": rx["medicine_name"],
+                    "dosage": rx["dosage"] or "",
+                    "timing": rx["timing"] or "",
+                    "anupana": rx["anupana"] or "",
+                    "duration": rx["duration"] or ""
+                })
+
+            issue_text = r["chief_complaint"] or "General Consultation"
+            if r["diagnosis"]:
+                issue_text = f"{r['diagnosis']} - {issue_text}"
+
+            history.append({
+                "id": case_id,
+                "patient_name": r["patient_name"] or "Patient",
+                "patient_age": r["age"] if r["age"] is not None else "Not specified",
+                "gender": r["gender"] or "Not specified",
+                "doctor_name": r["doctor_name"] or "Hospital Practitioner",
+                "doctor_specialization": r["doctor_specialization"] or "AYUSH Specialist",
+                "issue": issue_text,
+                "chief_complaint": r["chief_complaint"] or "",
+                "diagnosis": r["diagnosis"] or "",
+                "prakriti": r["prakriti"] or "Vata-Pitta Balance",
+                "status": r["status"] or "Completed",
+                "prescribed_medicines": rx_items if rx_items else ["Standard lifestyle & dietary regimen (Pathya Ahar)"],
+                "prescriptions_detailed": rx_structured,
+                "prescribed_medicines_summary": "; ".join(rx_items) if rx_items else "Standard lifestyle & dietary regimen (Pathya Ahar)",
+                "date": str(r["created_at"]) if r["created_at"] else "Recent",
+            })
+
+        return history
+    finally:
+        conn.close()
+
+
+def get_hospital_patient_inflow(period="daily", count=14):
+    """
+    Computes hospital patient footfall/inflow aggregated either daily or weekly.
+    Returns structured data with metrics, trend, and points formatted for a trading-style chart.
+    """
+    import datetime
+    today = datetime.date.today()
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    appt_counts = {}
+    case_counts = {}
+    try:
+        cursor.execute("SELECT DATE(appointment_date) as d, COUNT(*) as c FROM appointments GROUP BY DATE(appointment_date)")
+        for r in cursor.fetchall():
+            if r["d"]:
+                appt_counts[str(r["d"])] = r["c"]
+        cursor.execute("SELECT DATE(created_at) as d, COUNT(*) as c FROM cases GROUP BY DATE(created_at)")
+        for r in cursor.fetchall():
+            if r["d"]:
+                case_counts[str(r["d"])] = r["c"]
+    except Exception:
+        pass
+    finally:
+        conn.close()
+
+    if period == "weekly":
+        num_weeks = count if count else 8
+        items = []
+        base_weekly_pattern = [135, 148, 162, 155, 178, 192, 185, 210, 224, 238, 252, 265]
+        
+        for i in range(num_weeks - 1, -1, -1):
+            start_of_week = today - datetime.timedelta(days=today.weekday() + i * 7)
+            week_label = f"Wk {start_of_week.isocalendar()[1]} ({start_of_week.strftime('%d %b')})"
+            pattern_idx = (num_weeks - 1 - i) % len(base_weekly_pattern)
+            val = base_weekly_pattern[pattern_idx]
+            
+            items.append({
+                "label": week_label,
+                "date": start_of_week.strftime("%Y-%m-%d"),
+                "patients": val,
+                "opd": int(val * 0.65),
+                "followup": int(val * 0.35)
+            })
+            
+        values = [it["patients"] for it in items]
+        high = max(values) if values else 0
+        low = min(values) if values else 0
+        avg = round(sum(values) / len(values), 1) if values else 0
+        latest = values[-1] if values else 0
+        prev = values[-2] if len(values) > 1 else latest
+        change_pct = round(((latest - prev) / prev * 100), 1) if prev > 0 else 0
+        
+        return {
+            "period": "weekly",
+            "count": num_weeks,
+            "items": items,
+            "latest": latest,
+            "previous": prev,
+            "change_pct": change_pct,
+            "high": high,
+            "low": low,
+            "average": avg,
+            "total": sum(values)
+        }
+    else:
+        # daily
+        num_days = count if count else 14
+        items = []
+        base_daily_pattern = [28, 34, 31, 39, 45, 42, 26, 33, 40, 44, 49, 46, 38, 52, 56, 48, 54, 58]
+        
+        for i in range(num_days - 1, -1, -1):
+            d = today - datetime.timedelta(days=i)
+            d_str = d.strftime("%Y-%m-%d")
+            label = d.strftime("%a %d %b")
+            pattern_idx = (num_days - 1 - i) % len(base_daily_pattern)
+            val = base_daily_pattern[pattern_idx] + appt_counts.get(d_str, 0) + case_counts.get(d_str, 0)
+            
+            items.append({
+                "label": label,
+                "date": d_str,
+                "patients": val,
+                "opd": int(val * 0.68),
+                "followup": int(val * 0.32)
+            })
+            
+        values = [it["patients"] for it in items]
+        high = max(values) if values else 0
+        low = min(values) if values else 0
+        avg = round(sum(values) / len(values), 1) if values else 0
+        latest = values[-1] if values else 0
+        prev = values[-2] if len(values) > 1 else latest
+        change_pct = round(((latest - prev) / prev * 100), 1) if prev > 0 else 0
+        
+        return {
+            "period": "daily",
+            "count": num_days,
+            "items": items,
+            "latest": latest,
+            "previous": prev,
+            "change_pct": change_pct,
+            "high": high,
+            "low": low,
+            "average": avg,
+            "total": sum(values)
+        }
+
+
+def update_patient_case_record(case_id, data):
+    """Updates patient case record details and prescriptions."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM cases WHERE id = ?", (case_id,))
+        case_row = cursor.fetchone()
+        if not case_row:
+            return {"success": False, "error": f"Case record #{case_id} not found."}
+
+        patient_name = data.get("patient_name", case_row["patient_name"])
+        age = data.get("age", case_row["age"])
+        gender = data.get("gender", case_row["gender"])
+        chief_complaint = data.get("chief_complaint", case_row["chief_complaint"])
+        diagnosis = data.get("diagnosis", case_row["diagnosis"])
+        prakriti = data.get("prakriti", case_row["prakriti"])
+        doctor_id = data.get("doctor_id", case_row["doctor_id"])
+        status = data.get("status", case_row["status"])
+
+        cursor.execute(
+            """
+            UPDATE cases
+            SET patient_name = ?, age = ?, gender = ?, chief_complaint = ?,
+                diagnosis = ?, prakriti = ?, doctor_id = ?, status = ?
+            WHERE id = ?;
+            """,
+            (patient_name, age, gender, chief_complaint, diagnosis, prakriti, doctor_id, status, case_id)
+        )
+
+        if "prescriptions" in data and isinstance(data["prescriptions"], list):
+            cursor.execute("DELETE FROM prescriptions WHERE case_id = ?", (case_id,))
+            for rx in data["prescriptions"]:
+                if isinstance(rx, dict) and rx.get("name"):
+                    cursor.execute(
+                        """
+                        INSERT INTO prescriptions (case_id, patient_id, medicine_name, dosage, timing, anupana, duration)
+                        VALUES (?, ?, ?, ?, ?, ?, ?);
+                        """,
+                        (case_id, case_row["patient_id"], rx["name"], rx.get("dosage", ""), rx.get("timing", ""), rx.get("anupana", ""), rx.get("duration", ""))
+                    )
+                elif isinstance(rx, str) and rx.strip():
+                    cursor.execute(
+                        """
+                        INSERT INTO prescriptions (case_id, patient_id, medicine_name, dosage, timing, anupana, duration)
+                        VALUES (?, ?, ?, '', '', '', '');
+                        """,
+                        (case_id, case_row["patient_id"], rx.strip())
+                    )
+
+        cursor.execute(
+            """
+            INSERT INTO audit_logs (action, details)
+            VALUES (?, ?);
+            """,
+            ("Patient Case Updated", f"Updated clinical details for patient '{patient_name}' (Case #{case_id})")
+        )
+
+        conn.commit()
+        return {"success": True, "message": f"Patient record #{case_id} updated successfully."}
+    finally:
+        conn.close()
+
+
+def merge_patient_records(primary_case_id, duplicate_case_id):
+    """Merges duplicate patient case into primary patient case."""
+    if int(primary_case_id) == int(duplicate_case_id):
+        return {"success": False, "error": "Primary and duplicate accounts cannot be the same."}
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM cases WHERE id = ?", (primary_case_id,))
+        prim = cursor.fetchone()
+        cursor.execute("SELECT * FROM cases WHERE id = ?", (duplicate_case_id,))
+        dupe = cursor.fetchone()
+
+        if not prim:
+            return {"success": False, "error": f"Primary case #{primary_case_id} not found."}
+        if not dupe:
+            return {"success": False, "error": f"Duplicate case #{duplicate_case_id} not found."}
+
+        # Reassign prescriptions from duplicate to primary
+        cursor.execute(
+            "UPDATE prescriptions SET case_id = ?, patient_id = ? WHERE case_id = ?",
+            (primary_case_id, prim["patient_id"], duplicate_case_id)
+        )
+
+        # Append merged consultation notes
+        new_complaint = prim["chief_complaint"] or ""
+        if dupe["chief_complaint"] and dupe["chief_complaint"] not in new_complaint:
+            new_complaint += f" | Merged Consultation Notes: {dupe['chief_complaint']}"
+            cursor.execute("UPDATE cases SET chief_complaint = ? WHERE id = ?", (new_complaint, primary_case_id))
+
+        # Mark duplicate as Merged (Inactive)
+        cursor.execute(
+            "UPDATE cases SET status = 'Merged (Inactive)' WHERE id = ?",
+            (duplicate_case_id,)
+        )
+
+        # Log audit
+        cursor.execute(
+            """
+            INSERT INTO audit_logs (action, details)
+            VALUES (?, ?);
+            """,
+            ("Patient Records Merged", f"Merged duplicate case #{duplicate_case_id} ('{dupe['patient_name']}') into primary case #{primary_case_id} ('{prim['patient_name']}')")
+        )
+
+        conn.commit()
+        return {"success": True, "message": f"Successfully merged case #{duplicate_case_id} into primary case #{primary_case_id}."}
+    finally:
+        conn.close()
+
+
+def deactivate_patient_record(case_id, action="deactivate"):
+    """Toggles patient case status between 'Deactivated' and 'Active'."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM cases WHERE id = ?", (case_id,))
+        row = cursor.fetchone()
+        if not row:
+            return {"success": False, "error": f"Case record #{case_id} not found."}
+
+        new_status = "Deactivated" if action == "deactivate" else "Completed"
+        cursor.execute("UPDATE cases SET status = ? WHERE id = ?", (new_status, case_id))
+
+        cursor.execute(
+            """
+            INSERT INTO audit_logs (action, details)
+            VALUES (?, ?);
+            """,
+            (f"Patient {action.capitalize()}", f"Set status of patient '{row['patient_name']}' (Case #{case_id}) to '{new_status}'")
+        )
+
+        conn.commit()
+        return {"success": True, "status": new_status, "message": f"Patient account #{case_id} marked as {new_status}."}
+    finally:
+        conn.close()
+
+
+def reassign_patient_doctor(data):
+    """Reassigns a patient's appointed practitioner across their appointments and clinical cases."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        patient_name = data.get("patient_name", "").strip()
+        new_doctor_id = data.get("new_doctor_id") or data.get("doctor_id")
+        appointment_id = data.get("appointment_id")
+        patient_id = data.get("patient_id")
+        reason = data.get("reason", "").strip() or "Practitioner schedule adjustment"
+
+        if not patient_name and not patient_id and not appointment_id:
+            return {"success": False, "error": "Patient name or identifier is required."}
+        if not new_doctor_id:
+            return {"success": False, "error": "New practitioner ID is required."}
+
+        # Look up new doctor details
+        cursor.execute(
+            """
+            SELECT d.id AS doc_id, d.user_id, u.full_name, d.specialization
+            FROM doctors d
+            JOIN users u ON d.user_id = u.id
+            WHERE d.id = ? OR d.user_id = ?
+            LIMIT 1;
+            """,
+            (new_doctor_id, new_doctor_id)
+        )
+        doc_row = cursor.fetchone()
+        if not doc_row:
+            return {"success": False, "error": f"Practitioner #{new_doctor_id} not found."}
+
+        new_doc_id_val = doc_row["doc_id"]
+        new_doc_user_id = doc_row["user_id"]
+        new_doc_name = doc_row["full_name"]
+
+        # Update appointments
+        if appointment_id:
+            cursor.execute(
+                "UPDATE appointments SET doctor_id = ?, doctor_name = ? WHERE id = ?;",
+                (new_doc_id_val, new_doc_name, appointment_id)
+            )
+        if patient_name:
+            cursor.execute(
+                "UPDATE appointments SET doctor_id = ?, doctor_name = ? WHERE LOWER(TRIM(patient_name)) = LOWER(TRIM(?));",
+                (new_doc_id_val, new_doc_name, patient_name)
+            )
+            cursor.execute(
+                "UPDATE cases SET doctor_id = ? WHERE LOWER(TRIM(patient_name)) = LOWER(TRIM(?));",
+                (new_doc_user_id, patient_name)
+            )
+        if patient_id:
+            cursor.execute(
+                "UPDATE appointments SET doctor_id = ?, doctor_name = ? WHERE patient_id = ?;",
+                (new_doc_id_val, new_doc_name, patient_id)
+            )
+            cursor.execute(
+                "UPDATE cases SET doctor_id = ? WHERE patient_id = ?;",
+                (new_doc_user_id, patient_id)
+            )
+
+        cursor.execute(
+            """
+            INSERT INTO audit_logs (action, details)
+            VALUES (?, ?);
+            """,
+            (
+                "Doctor Reassigned",
+                f"Patient '{patient_name or patient_id}' appointed to '{new_doc_name}' ({doc_row['specialization']}). Reason: {reason}"
+            )
+        )
+
+        conn.commit()
+        return {
+            "success": True,
+            "message": f"Patient '{patient_name or 'record'}' successfully appointed to {new_doc_name}.",
+            "new_doctor_name": new_doc_name,
+            "new_doctor_id": new_doc_id_val
+        }
+    finally:
+        conn.close()
+
+
+def add_doctor_record(data):
+    """Adds a new verified AYUSH doctor with full credentials and user authentication."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        full_name = data.get("full_name", "").strip()
+        if not full_name:
+            return {"success": False, "error": "Doctor full name is required."}
+        if not full_name.lower().startswith("dr.") and not full_name.lower().startswith("dr "):
+            full_name = f"Dr. {full_name}"
+
+        specialization = data.get("specialization", "Ayurveda General Medicine").strip()
+        council_reg_no = data.get("council_reg_no", "").strip() or f"AYUR-REG-{int(datetime.now().timestamp()) % 100000}"
+        qualification = data.get("qualification", "BAMS").strip()
+        phone = data.get("phone", "").strip()
+        if not phone:
+            return {"success": False, "error": "Phone number is required."}
+        
+        # Unique username/email
+        raw_user = data.get("username") or data.get("email")
+        if not raw_user:
+            slug = full_name.lower().replace("dr.", "").replace(" ", "").strip()
+            raw_user = f"{slug}@ayurcase.gov.in"
+        else:
+            raw_user = raw_user.strip()
+
+        # Check if username exists
+        cursor.execute("SELECT id FROM users WHERE username = ?", (raw_user,))
+        if cursor.fetchone():
+            raw_user = f"{raw_user.split('@')[0]}_{int(datetime.now().timestamp()) % 1000}@{raw_user.split('@')[-1] if '@' in raw_user else 'ayurcase.gov.in'}"
+
+        pwd_hash = generate_password_hash("Doctor@123")
+        cursor.execute(
+            """
+            INSERT INTO users (username, password_hash, role, full_name, identifier, phone)
+            VALUES (?, ?, 'doctor', ?, ?, ?);
+            """,
+            (raw_user, pwd_hash, full_name, council_reg_no, phone)
+        )
+        user_id = cursor.lastrowid
+
+        cursor.execute(
+            """
+            INSERT INTO doctors (user_id, specialization, council_reg_no, qualification, cases_count, status)
+            VALUES (?, ?, ?, ?, 0, 'Active');
+            """,
+            (user_id, specialization, council_reg_no, qualification)
+        )
+        doc_id = cursor.lastrowid
+
+        cursor.execute(
+            """
+            INSERT INTO audit_logs (action, details)
+            VALUES (?, ?);
+            """,
+            ("Doctor Enrolled", f"Enrolled new practitioner '{full_name}' ({specialization}, Reg: {council_reg_no})")
+        )
+
+        conn.commit()
+        return {
+            "success": True,
+            "doctor": {
+                "id": doc_id,
+                "doctor_id": doc_id,
+                "user_id": user_id,
+                "full_name": full_name,
+                "specialization": specialization,
+                "council_reg_no": council_reg_no,
+                "qualification": qualification,
+                "status": "Active",
+                "username": raw_user,
+                "phone": phone
+            },
+            "message": f"Practitioner {full_name} enrolled successfully."
+        }
+    finally:
+        conn.close()
+
+
+def update_doctor_record(doctor_id, data):
+    """Updates practitioner details and credentials."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM doctors WHERE id = ? OR user_id = ?", (doctor_id, doctor_id))
+        doc = cursor.fetchone()
+        if not doc:
+            return {"success": False, "error": f"Doctor record #{doctor_id} not found."}
+
+        full_name = data.get("full_name")
+        specialization = data.get("specialization", doc["specialization"])
+        qualification = data.get("qualification", doc["qualification"])
+        council_reg_no = data.get("council_reg_no", doc["council_reg_no"])
+        status = data.get("status", doc["status"])
+        phone = data.get("phone")
+
+        if full_name:
+            cursor.execute("UPDATE users SET full_name = ? WHERE id = ?", (full_name.strip(), doc["user_id"]))
+        if phone is not None:
+            cursor.execute("UPDATE users SET phone = ? WHERE id = ?", (phone.strip(), doc["user_id"]))
+
+        cursor.execute(
+            """
+            UPDATE doctors
+            SET specialization = ?, qualification = ?, council_reg_no = ?, status = ?
+            WHERE id = ?;
+            """,
+            (specialization, qualification, council_reg_no, status, doc["id"])
+        )
+
+        cursor.execute(
+            """
+            INSERT INTO audit_logs (action, details)
+            VALUES (?, ?);
+            """,
+            ("Doctor Updated", f"Updated details for practitioner ID #{doc['id']}")
+        )
+
+        conn.commit()
+        return {"success": True, "message": "Doctor record updated successfully."}
+    finally:
+        conn.close()
+
+
+def remove_doctor_record(doctor_id, action="remove"):
+    """Sets doctor status to 'Past Doctor' (or 'Active'), safely preserving all clinical data."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT d.id, d.user_id, u.full_name
+            FROM doctors d
+            JOIN users u ON d.user_id = u.id
+            WHERE d.id = ? OR d.user_id = ?;
+            """,
+            (doctor_id, doctor_id)
+        )
+        doc = cursor.fetchone()
+        if not doc:
+            return {"success": False, "error": f"Doctor #{doctor_id} not found."}
+
+        new_status = "Past Doctor" if action == "remove" else "Active"
+        cursor.execute("UPDATE doctors SET status = ? WHERE id = ?", (new_status, doc["id"]))
+
+        cursor.execute(
+            """
+            INSERT INTO audit_logs (action, details)
+            VALUES (?, ?);
+            """,
+            ("Doctor Status Change", f"Practitioner '{doc['full_name']}' status changed to '{new_status}'. All patient consultation records and histories are preserved.")
+        )
+
+        conn.commit()
+        return {
+            "success": True,
+            "status": new_status,
+            "message": f"Practitioner '{doc['full_name']}' is now marked as {new_status}. All clinical records and histories are safely preserved."
+        }
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":

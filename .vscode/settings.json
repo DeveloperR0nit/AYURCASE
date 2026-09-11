@@ -1,4 +1,4 @@
-﻿{
+{
   "liveServer.settings.ignoreFiles": [
     "**/*.db*",
     "**/backend/**",
@@ -11,5 +11,6 @@
     "**/backend/**": true,
     "**/venv/**": true,
     "**/.git/**": true
-  }
+  },
+  "python.terminal.useEnvFile": true
 }
