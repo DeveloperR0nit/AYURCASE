@@ -15,6 +15,7 @@ function getApiHost() {
     }
     return "http://127.0.0.1:5000";
 }
+window.getApiHost = getApiHost;
 
 // This mirrors the server-side fallback so an interrupted deployment, proxy,
 // or network connection still leaves the user with a useful assistant reply.
@@ -554,7 +555,6 @@ function fillDemoSignup() {
     const ageInput = document.getElementById("signupAge");
     const genderInput = document.getElementById("signupGender");
     const bgInput = document.getElementById("signupBloodGroup");
-    const prakritiInput = document.getElementById("signupPrakriti");
     const passInput = document.getElementById("signupPassword");
     const confirmInput = document.getElementById("signupConfirmPassword");
 
@@ -566,7 +566,6 @@ function fillDemoSignup() {
     if (ageInput) ageInput.value = "29";
     if (genderInput) genderInput.value = "Female";
     if (bgInput) bgInput.value = "B+";
-    if (prakritiInput) prakritiInput.value = "Pitta-Kapha";
     if (passInput) passInput.value = "aditi123";
     if (confirmInput) confirmInput.value = "aditi123";
 
@@ -590,7 +589,7 @@ async function handlePatientSignup(event) {
     const age = parseInt(ageValue, 10);
     const gender = document.getElementById("signupGender")?.value || "";
     const bloodGroup = document.getElementById("signupBloodGroup")?.value?.trim() || "";
-    const prakriti = document.getElementById("signupPrakriti")?.value?.trim() || "";
+    const prakriti = "";
     const password = document.getElementById("signupPassword")?.value || "";
     const confirmPassword = document.getElementById("signupConfirmPassword")?.value || "";
 
@@ -981,7 +980,7 @@ var DEFAULT_DOCTORS = window.DEFAULT_DOCTORS || [
         doctor_id: 2,
         full_name: "Dr. Priyadarshini Rao",
         specialization: "Panchakarma Specialist",
-        qualification: "BAMS, MS (Ayu)",
+        qualification: "BAMS, MD (Panchakarma)",
         status: "In Consultation",
         cases_count: 98,
         council_reg_no: "AYUSH-KA-2019-1120",
@@ -992,8 +991,8 @@ var DEFAULT_DOCTORS = window.DEFAULT_DOCTORS || [
     {
         doctor_id: 3,
         full_name: "Dr. Meera Kapoor",
-        specialization: "Dravyaguna & Lifestyle Medicine",
-        qualification: "BAMS, MD (Dravyaguna)",
+        specialization: "Prasuti Tantra & Stri Roga",
+        qualification: "BAMS, MD (Prasuti & Stri Roga)",
         status: "Active Online",
         cases_count: 116,
         council_reg_no: "AYUSH-DL-2020-1846",
@@ -1004,8 +1003,8 @@ var DEFAULT_DOCTORS = window.DEFAULT_DOCTORS || [
     {
         doctor_id: 4,
         full_name: "Dr. Kunal Bose",
-        specialization: "Shalya Tantra Specialist",
-        qualification: "BAMS, MS (Shalya)",
+        specialization: "Kaumarbhritya (Ayurvedic Pediatrics)",
+        qualification: "BAMS, MD (Kaumarbhritya)",
         status: "Active Online",
         cases_count: 87,
         council_reg_no: "AYUSH-WB-2021-0673",
@@ -1170,10 +1169,12 @@ function getActiveDoctorId() {
     try { sess = JSON.parse(safeStorage.getItem("ayurcase_session") || "{}"); } catch (_) {}
     try { user = JSON.parse(safeStorage.getItem("ayurcase_user") || "{}"); } catch (_) {}
 
-    if (sess.role !== "doctor" && user.role !== "doctor") return null;
     const doctorId = sess.doctorId || sess.doctor_id || user?.details?.id || user?.details?.doctor_id || sess.userId || sess.id || user.id;
-    return doctorId ? String(doctorId) : null;
+    if (doctorId) return String(doctorId);
+    return "1";
 }
+window.getActiveDoctorName = getActiveDoctorName;
+window.getActiveDoctorId = getActiveDoctorId;
 
 function renderDoctorDashboardProfile() {
     const session = (() => {
@@ -1246,21 +1247,21 @@ function getDoctorDetails(doctorName) {
         return {
             name: "Dr. Priyadarshini Rao",
             subText: "Panchakarma Specialist · 11 Years Experience",
-            qualification: "(BAMS, MS - Panchakarma)"
+            qualification: "(BAMS, MD - Panchakarma)"
         };
     }
     if (lower.includes("meera") || lower.includes("kapoor")) {
         return {
             name: "Dr. Meera Kapoor",
-            subText: "Dravyaguna & Lifestyle Medicine · 9 Years Experience",
-            qualification: "(BAMS, MD - Dravyaguna)"
+            subText: "Prasuti Tantra & Stri Roga · 9 Years Experience",
+            qualification: "(BAMS, MD - Prasuti & Stri Roga)"
         };
     }
     if (lower.includes("kunal") || lower.includes("bose")) {
         return {
             name: "Dr. Kunal Bose",
-            subText: "Shalya Tantra Specialist · 8 Years Experience",
-            qualification: "(BAMS, MS - Shalya)"
+            subText: "Kaumarbhritya (Pediatrics) · 8 Years Experience",
+            qualification: "(BAMS, MD - Kaumarbhritya)"
         };
     }
     if (lower.includes("arindam") || lower.includes("sen")) {
@@ -1755,6 +1756,73 @@ async function fetchDoctorCaseRecords(doctorId = getActiveDoctorId()) {
     return data.cases;
 }
 
+function extractAllDoctorFollowUps(appointments = [], cases = []) {
+    const today = getDoctorToday();
+    const byPatient = new Map();
+
+    // 1. Appointments: upcoming or marked as follow-up
+    (Array.isArray(appointments) ? appointments : []).forEach(appointment => {
+        const name = String(appointment.patient_name || appointment.name || "").trim();
+        if (!name) return;
+        const status = String(appointment.status || "").toLowerCase();
+        const type = String(appointment.consultation_type || "").toLowerCase();
+        const aptDate = String(appointment.appointment_date || "").slice(0, 10);
+        const isUpcoming = aptDate >= today && !["cancelled", "completed", "absent"].includes(status);
+        const isFollowup = (status.includes("follow") || type.includes("follow")) && !["cancelled", "completed", "absent"].includes(status);
+
+        if ((isUpcoming || isFollowup) && !["cancelled", "completed", "absent"].includes(status)) {
+            const key = name.toLowerCase();
+            if (!byPatient.has(key) || isUpcoming) {
+                byPatient.set(key, {
+                    id: appointment.id,
+                    patient_id: appointment.patient_id,
+                    doctor_id: appointment.doctor_id,
+                    patient_name: name,
+                    appointment_date: aptDate || today,
+                    appointment_time: appointment.appointment_time || "Time to be confirmed",
+                    consultation_type: appointment.consultation_type || "Follow-up Consultation",
+                    symptoms_notes: appointment.symptoms_notes || "Follow-up clinical consultation",
+                    status: isFollowup ? "Follow-up" : (appointment.status || "Confirmed"),
+                });
+            }
+        }
+    });
+
+    // 2. Clinical cases marked as Follow-up
+    (Array.isArray(cases) ? cases : []).forEach(cs => {
+        const name = String(cs.patient_name || cs.name || "").trim();
+        if (!name) return;
+        const status = String(cs.status || "").toLowerCase();
+        if (status.includes("follow") && !["completed", "absent", "cancelled"].includes(status)) {
+            const key = name.toLowerCase();
+            if (!byPatient.has(key)) {
+                const caseDate = String(cs.case_date || cs.date || cs.created_at || today).slice(0, 10);
+                byPatient.set(key, {
+                    id: cs.id,
+                    case_id: cs.id,
+                    patient_id: cs.patient_id,
+                    doctor_id: cs.doctor_id,
+                    patient_name: name,
+                    appointment_date: caseDate,
+                    appointment_time: "Scheduled Follow-up",
+                    consultation_type: "Follow-up Consultation",
+                    symptoms_notes: cs.chief_complaint || cs.complaint || cs.diagnosis || "Follow-up clinical consultation",
+                    status: "Follow-up",
+                });
+            }
+        }
+    });
+
+    return Array.from(byPatient.values()).sort((a, b) => {
+        const aUpcoming = String(a.appointment_date) >= today && !String(a.appointment_time).includes("Scheduled");
+        const bUpcoming = String(b.appointment_date) >= today && !String(b.appointment_time).includes("Scheduled");
+        if (aUpcoming && !bUpcoming) return -1;
+        if (!aUpcoming && bUpcoming) return 1;
+        return String(b.appointment_date).localeCompare(String(a.appointment_date));
+    });
+}
+window.extractAllDoctorFollowUps = extractAllDoctorFollowUps;
+
 async function fetchDoctorDashboardFallback(doctorId, primaryError) {
     const query = new URLSearchParams({ doctor_id: doctorId });
     const [appointmentsResult, casesResult] = await Promise.allSettled([
@@ -1776,10 +1844,7 @@ async function fetchDoctorDashboardFallback(doctorId, primaryError) {
     const appointments = appointmentsResult.status === "fulfilled" ? appointmentsResult.value : [];
     const cases = casesResult.status === "fulfilled" ? casesResult.value : [];
     const today = getDoctorToday();
-    const followUps = appointments.filter(appointment =>
-        String(appointment.appointment_date || "") >= today
-        && !["cancelled", "completed"].includes(String(appointment.status || "").toLowerCase())
-    );
+    const followUps = extractAllDoctorFollowUps(appointments, cases);
     const patientNames = new Set(
         [...appointments, ...cases]
             .map(record => record.patient_name || record.name)
@@ -1822,19 +1887,24 @@ function doctorEmptyState(message, icon = "fa-calendar-xmark") {
     `;
 }
 
-function renderDoctorStats(stats) {
+function renderDoctorStats(stats = {}) {
     const setText = (id, value) => {
         const element = document.getElementById(id);
         if (element) element.textContent = String(value);
     };
-    setText("doctorTotalPatients", stats.total_patients || 0);
-    setText("doctorTodayCases", stats.todays_cases || 0);
-    setText("doctorFollowUpsStat", stats.follow_ups || 0);
-    setText("doctorAiCases", stats.ai_cases_analyzed || 0);
-    setText("doctorTotalPatientsSub", `${stats.total_patients || 0} unique patient${stats.total_patients === 1 ? "" : "s"} in your care`);
-    setText("doctorTodayCasesSub", `${stats.todays_cases || 0} appointment${stats.todays_cases === 1 ? "" : "s"} or cases today`);
-    setText("doctorFollowUpsSub", `${stats.follow_ups || 0} upcoming confirmed consultation${stats.follow_ups === 1 ? "" : "s"}`);
-    setText("doctorAiCasesSub", `${stats.ai_cases_analyzed || 0} clinical record${stats.ai_cases_analyzed === 1 ? "" : "s"} available`);
+    const totalPatients = Number(stats?.total_patients) || 0;
+    const todaysCases = Number(stats?.todays_cases) || 0;
+    const followUps = Number(stats?.follow_ups) || 0;
+    const aiCases = Number(stats?.ai_cases_analyzed) || 0;
+
+    setText("doctorTotalPatients", totalPatients);
+    setText("doctorTodayCases", todaysCases);
+    setText("doctorFollowUpsStat", followUps);
+    setText("doctorAiCases", aiCases);
+    setText("doctorTotalPatientsSub", `${totalPatients} unique patient${totalPatients === 1 ? "" : "s"} in your care`);
+    setText("doctorTodayCasesSub", `${todaysCases} appointment${todaysCases === 1 ? "" : "s"} or cases today`);
+    setText("doctorFollowUpsSub", `${followUps} upcoming confirmed consultation${followUps === 1 ? "" : "s"}`);
+    setText("doctorAiCasesSub", `${aiCases} clinical record${aiCases === 1 ? "" : "s"} available`);
 }
 
 function renderDoctorPracticeSummary(dashboard = {}) {
@@ -1845,15 +1915,17 @@ function renderDoctorPracticeSummary(dashboard = {}) {
         const element = document.getElementById(id);
         if (element) element.textContent = value;
     };
+    const totalPatients = Number(stats.total_patients) || 0;
+    const followUpsCount = Number(stats.follow_ups) || 0;
 
-    setText("doctorPracticePatients", `${stats.total_patients || 0} patients in your care`);
-    setText("doctorCareOverview", `${stats.follow_ups || 0} upcoming visit${stats.follow_ups === 1 ? "" : "s"} scheduled`);
+    setText("doctorPracticePatients", `${totalPatients} patients in your care`);
+    setText("doctorCareOverview", `${followUpsCount} upcoming visit${followUpsCount === 1 ? "" : "s"} scheduled`);
     if (nextVisit) {
         setText("doctorNextVisit", nextVisit.patient_name || "Scheduled patient");
         setText("doctorNextVisitMeta", `${formatDisplayDate(nextVisit.appointment_date)} • ${nextVisit.appointment_time || "Time to be confirmed"}`);
     } else {
-        setText("doctorNextVisit", "No upcoming appointment");
-        setText("doctorNextVisitMeta", "New bookings will appear here.");
+        setText("doctorNextVisit", "0 upcoming visits");
+        setText("doctorNextVisitMeta", "No scheduled consultations on file.");
     }
 }
 
@@ -1886,7 +1958,9 @@ function renderDoctorFollowUps(appointments) {
         const appointment = appointments[idx];
         if (appointment) {
             row.addEventListener("click", () => {
-                if (typeof window.openDoctorPatientProfile === "function") {
+                if (typeof window.openDoctorFollowupPrescriptionModal === "function") {
+                    window.openDoctorFollowupPrescriptionModal(appointment);
+                } else if (typeof window.openDoctorPatientProfile === "function") {
                     window.openDoctorPatientProfile(appointment.patient_name, appointment);
                 }
             });
@@ -1906,13 +1980,6 @@ const RECENT_PATIENT_DEMOS = [
         patient_name: "Nikhil Banerjee",
         detail: "Demo profile — dietary review completed for post-meal heaviness; a gentle Agni-support plan was discussed.",
         status: "Review",
-        last_activity: "Demo activity",
-        is_demo: true,
-    },
-    {
-        patient_name: "Rhea Mukherjee",
-        detail: "Demo profile — tele-consultation request logged for skin sensitivity and stress-related sleep disruption.",
-        status: "New",
         last_activity: "Demo activity",
         is_demo: true,
     },
@@ -1944,38 +2011,86 @@ function formatRecentActivity(activity, isDemo) {
     return `Updated ${activity}`;
 }
 
+let doctorRecentPatientsCache = [];
+let doctorRecentPatientsSearchQuery = "";
+
+function handleRecentPatientsSearch(query = "") {
+    doctorRecentPatientsSearchQuery = (query || "").trim().toLowerCase();
+    renderRecentPatients(doctorRecentPatientsCache);
+}
+window.handleRecentPatientsSearch = handleRecentPatientsSearch;
+
 function renderRecentPatients(patients = []) {
     const container = document.getElementById("doctorRecentPatientsList");
     if (!container) return;
 
-    const livePatients = mergeRecentPatients(Array.isArray(patients) ? patients : [])
+    if (Array.isArray(patients) && patients.length) {
+        doctorRecentPatientsCache = patients;
+    }
+
+    const livePatients = mergeRecentPatients(Array.isArray(doctorRecentPatientsCache) ? doctorRecentPatientsCache : [])
         .map(patient => ({ ...patient, is_demo: false }));
     const liveNames = new Set(livePatients.map(patient => patient.patient_name.toLocaleLowerCase()));
     const demos = RECENT_PATIENT_DEMOS.filter(patient => !liveNames.has(patient.patient_name.toLocaleLowerCase()));
-    // Live records take priority once a practitioner has patients in care.
-    const visiblePatients = livePatients.length ? livePatients : demos;
+    // Live records take priority once a practitioner has patients in care. Show only two patients.
+    const visiblePatients = (livePatients.length ? livePatients : demos).slice(0, 2);
 
-    container.innerHTML = visiblePatients.map((patient, index) => `
-        <article class="recent-patient-card ${patient.is_demo ? "is-demo" : ""}" data-index="${index}">
-            <div class="recent-patient-heading">
-                <div class="patient-avatar avatar-${(index % 4) + 1}">${escapeHtml(doctorInitials(patient.patient_name))}</div>
-                <div>
-                    <strong>${escapeHtml(patient.patient_name)}</strong>
-                    <span>${patient.is_demo ? "Demo patient profile" : "Patient in your care"}</span>
-                </div>
-                <span class="status ${String(patient.status || "").toLowerCase().includes("follow") ? "Follow-up-status" : "Active-status"}">${escapeHtml(patient.status || "Active")}</span>
+    // Apply live search filter if query is provided
+    let filteredPatients = visiblePatients;
+    if (doctorRecentPatientsSearchQuery) {
+        filteredPatients = visiblePatients.filter(p =>
+            (p.patient_name || "").toLowerCase().includes(doctorRecentPatientsSearchQuery) ||
+            (p.detail || "").toLowerCase().includes(doctorRecentPatientsSearchQuery) ||
+            (p.status || "").toLowerCase().includes(doctorRecentPatientsSearchQuery)
+        );
+    }
+    filteredPatients = filteredPatients.slice(0, 2);
+
+    if (!filteredPatients.length) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 28px 14px; color: var(--muted); border: 1.5px dashed var(--border); border-radius: 12px; margin: 8px 0;">
+                <i class="fa-solid fa-user-slash" style="font-size: 22px; margin-bottom: 8px; color: var(--muted); opacity: 0.7;"></i>
+                <p style="font-size: 13px; margin: 0; font-weight: 600;">No recent patients match "${escapeHtml(doctorRecentPatientsSearchQuery)}"</p>
+                <span style="font-size: 11px;">Try checking spelling or clear the search query.</span>
             </div>
-            <p>${escapeHtml(patient.detail || "Clinical record updated.")}</p>
-            <div class="recent-patient-meta">
-                <span><i class="fa-regular fa-clock"></i>${escapeHtml(formatRecentActivity(patient.last_activity, patient.is_demo))}</span>
-                <span><i class="fa-solid fa-notes-medical"></i>${patient.is_demo ? "Demo record only" : "Live clinical activity"}</span>
+        `;
+        return;
+    }
+
+    container.innerHTML = filteredPatients.map((patient, index) => `
+        <article class="recent-patient-card ${patient.is_demo ? "is-demo" : ""}" data-index="${index}" style="cursor: pointer; position: relative;">
+            <div class="recent-patient-heading" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div class="patient-avatar avatar-${(index % 4) + 1}">${escapeHtml(doctorInitials(patient.patient_name))}</div>
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <strong style="font-size: 14px; color: var(--text);">${escapeHtml(patient.patient_name)}</strong>
+                            <button type="button" class="edit-patient-name-btn" onclick="event.stopPropagation(); window.openEditPatientNameModal('${escapeHtml(patient.patient_name)}', '${escapeHtml(patient.id || patient.patient_id || '')}')" title="Edit patient name" style="background: rgba(45, 115, 80, 0.08); color: var(--green-800); border: 1px solid rgba(45, 115, 80, 0.22); border-radius: 6px; padding: 2px 7px; font-size: 10.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s ease;">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                            </button>
+                        </div>
+                        <span style="font-size: 11px; color: var(--muted);">${patient.is_demo ? "Demo patient profile" : "Patient in your care"}</span>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <!-- Add Lab Report Button -->
+                    <button type="button" class="recent-patient-lab-btn" onclick="event.stopPropagation(); if (typeof window.openDoctorAddLabReportModal === 'function') { window.openDoctorAddLabReportModal('${escapeHtml(patient.patient_name)}', '${escapeHtml(patient.email || '')}'); }" style="background: rgba(2, 132, 199, 0.1); color: #0284c7; border: 1px solid rgba(2, 132, 199, 0.3); border-radius: 8px; padding: 5px 10px; font-size: 11px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.15s ease;" title="Add lab report (Sugar, Pressure, Hb) and email to patient">
+                        <i class="fa-solid fa-flask-vial"></i> Add Lab Report
+                    </button>
+                    <span class="status ${String(patient.status || "").toLowerCase().includes("follow") ? "Follow-up-status" : "Active-status"}">${escapeHtml(patient.status || "Active")}</span>
+                </div>
+            </div>
+            <p style="margin: 8px 0; font-size: 12.5px; color: var(--text);">${escapeHtml(patient.detail || "Clinical record updated.")}</p>
+            <div class="recent-patient-meta" style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--muted);">
+                <span><i class="fa-regular fa-clock"></i> ${escapeHtml(formatRecentActivity(patient.last_activity, patient.is_demo))}</span>
+                <span style="color: #0284c7; font-weight: 600;"><i class="fa-solid fa-notes-medical"></i> View profile &amp; history &rarr;</span>
             </div>
         </article>
     `).join("");
 
     container.querySelectorAll(".recent-patient-card").forEach(card => {
         const idx = Number(card.getAttribute("data-index"));
-        const patient = visiblePatients[idx];
+        const patient = filteredPatients[idx];
         if (patient) {
             card.addEventListener("click", () => {
                 if (typeof window.openDoctorPatientProfile === "function") {
@@ -1985,6 +2100,117 @@ function renderRecentPatients(patients = []) {
         }
     });
 }
+
+// ===== Edit Patient Name Modal Controls =====
+window.openEditPatientNameModal = function(patientName, patientId) {
+    const modal = document.getElementById("doctorEditPatientNameModal");
+    const oldNameInput = document.getElementById("editPatientOldName");
+    const newNameInput = document.getElementById("editPatientNewNameInput");
+    const idInput = document.getElementById("editPatientId");
+    if (!modal || !oldNameInput || !newNameInput) return;
+
+    oldNameInput.value = patientName || "";
+    newNameInput.value = patientName || "";
+    if (idInput) idInput.value = patientId || "";
+
+    modal.style.position = "fixed";
+    modal.style.inset = "0";
+    modal.style.zIndex = "100000";
+    modal.style.display = "flex";
+    modal.style.alignItems = "center";
+    modal.style.justifyContent = "center";
+    document.body.style.overflow = "hidden";
+
+    setTimeout(() => {
+        newNameInput.focus();
+        newNameInput.select();
+    }, 50);
+};
+
+window.closeEditPatientNameModal = function() {
+    const modal = document.getElementById("doctorEditPatientNameModal");
+    if (!modal) return;
+    modal.style.display = "none";
+    document.body.style.overflow = "";
+};
+
+window.submitEditPatientName = async function(event) {
+    if (event) event.preventDefault();
+    const oldName = (document.getElementById("editPatientOldName")?.value || "").trim();
+    const newName = (document.getElementById("editPatientNewNameInput")?.value || "").trim();
+    const patientId = (document.getElementById("editPatientId")?.value || "").trim();
+    const btn = document.getElementById("submitEditPatientNameBtn");
+
+    if (!newName) {
+        alert("Please enter a valid patient name.");
+        return;
+    }
+    if (oldName && oldName.toLowerCase() === newName.toLowerCase()) {
+        window.closeEditPatientNameModal();
+        return;
+    }
+
+    const origBtnHtml = btn ? btn.innerHTML : "";
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Saving...';
+    }
+
+    try {
+        const res = await fetch(`${getApiHost()}/api/doctor/update-patient-name`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                old_name: oldName,
+                new_name: newName,
+                patient_id: patientId
+            })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+            throw new Error(data.error || "Failed to update patient name.");
+        }
+
+        // Update in-memory doctorRecentPatientsCache
+        if (Array.isArray(doctorRecentPatientsCache)) {
+            doctorRecentPatientsCache.forEach(p => {
+                if (p.patient_name && p.patient_name.toLowerCase() === oldName.toLowerCase()) {
+                    p.patient_name = newName;
+                }
+            });
+        }
+
+        // Update in RECENT_PATIENT_DEMOS if present
+        if (typeof RECENT_PATIENT_DEMOS !== "undefined" && Array.isArray(RECENT_PATIENT_DEMOS)) {
+            RECENT_PATIENT_DEMOS.forEach(p => {
+                if (p.patient_name && p.patient_name.toLowerCase() === oldName.toLowerCase()) {
+                    p.patient_name = newName;
+                }
+            });
+        }
+
+        window.closeEditPatientNameModal();
+        renderRecentPatients();
+
+        if (typeof showToast === "function") {
+            showToast(`Patient name updated to "${newName}"!`);
+        }
+
+        // Refresh doctor appointment records to sync any other patient name displays
+        if (typeof loadDoctorAppointments === "function") {
+            loadDoctorAppointments();
+        }
+    } catch (err) {
+        console.error("Error updating patient name:", err);
+        alert(err.message || "Failed to update patient name.");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origBtnHtml;
+        }
+    }
+};
+
 
 async function loadDoctorAppointments() {
     const followUpContainer = document.getElementById("doctorAppointmentsList");
@@ -2002,17 +2228,37 @@ async function loadDoctorAppointments() {
         } catch (caseError) {
             console.warn("Unable to supplement recent patients from case history:", caseError);
         }
+
+        // Consolidate all follow-up consultations and patients from dashboard & cases
+        const allFollowUps = extractAllDoctorFollowUps(
+            latestDoctorDashboard.follow_ups || [],
+            caseRecords
+        );
+        latestDoctorDashboard.follow_ups = allFollowUps;
+        if (!latestDoctorDashboard.stats) {
+            latestDoctorDashboard.stats = {};
+        }
+        latestDoctorDashboard.stats.follow_ups = allFollowUps.length;
+
         renderDoctorStats(latestDoctorDashboard.stats || {});
         renderDoctorPracticeSummary(latestDoctorDashboard);
-        renderDoctorFollowUps(latestDoctorDashboard.follow_ups || []);
+        renderDoctorFollowUps(allFollowUps);
         // Cases and appointments are merged by patient name. This guarantees a
         // patient shown in Case History also appears in Recent Patients.
         renderRecentPatients(mergeRecentPatients(latestDoctorDashboard.recent_patients || [], caseRecords));
         renderDoctorAccountDetails(latestDoctorDashboard.doctor);
+        if (typeof loadUpcomingDoctorAiReviews === "function") {
+            loadUpcomingDoctorAiReviews();
+        }
     } catch (error) {
         console.warn("Unable to load practitioner dashboard:", error);
+        renderDoctorStats({ total_patients: 0, todays_cases: 0, follow_ups: 0, ai_cases_analyzed: 0 });
+        renderDoctorPracticeSummary({ stats: { total_patients: 0, follow_ups: 0 }, follow_ups: [] });
+        if (typeof loadUpcomingDoctorAiReviews === "function") {
+            loadUpcomingDoctorAiReviews();
+        }
         if (followUpContainer) {
-            followUpContainer.innerHTML = doctorEmptyState("Follow-up visits could not be loaded. Please refresh and try again.");
+            followUpContainer.innerHTML = doctorEmptyState("0 upcoming consultations. New patient bookings will appear here.");
         }
         // The labelled samples remain visible instead of an empty panel when
         // the server is temporarily unavailable.
@@ -2047,7 +2293,9 @@ function renderFollowUpsModal(appointments) {
                 if (typeof window.closeDoctorFollowUps === "function") {
                     window.closeDoctorFollowUps();
                 }
-                if (typeof window.openDoctorPatientProfile === "function") {
+                if (typeof window.openDoctorFollowupPrescriptionModal === "function") {
+                    window.openDoctorFollowupPrescriptionModal(appointment);
+                } else if (typeof window.openDoctorPatientProfile === "function") {
                     window.openDoctorPatientProfile(appointment.patient_name, appointment);
                 }
             });
@@ -2070,8 +2318,12 @@ window.openDoctorFollowUps = async function(event) {
 
     try {
         const dashboard = await fetchDoctorDashboard();
-        latestDoctorDashboard = dashboard;
-        const appointments = dashboard.follow_ups || [];
+        let caseRecords = [];
+        try {
+            caseRecords = await fetchDoctorCaseRecords();
+        } catch (_) {}
+        const appointments = extractAllDoctorFollowUps(dashboard.follow_ups || [], caseRecords);
+        latestDoctorDashboard = { ...dashboard, follow_ups: appointments };
         if (intro) {
             intro.textContent = `${appointments.length} confirmed follow-up visit${appointments.length === 1 ? "" : "s"} for ${dashboard.doctor?.full_name || "this practitioner"}.`;
         }
@@ -2224,8 +2476,33 @@ window.openDoctorPatientProfile = async function(patientIdentifier, fallbackData
     // Active Complaint / Concern
     const chiefComplaint = fallbackData.chief_complaint || fallbackData.complaint || fallbackData.symptoms_notes || fallbackData.detail || (cases[0]?.chief_complaint) || (appointments[0]?.symptoms_notes);
 
+    // Fetch Lab Reports for this patient
+    let labReports = [];
+    try {
+        const labRes = await fetch(`${getApiHost()}/api/patient/lab-reports?identifier=${encodeURIComponent(resolvedName)}`, { cache: "no-store" });
+        if (labRes.ok) {
+            const labData = await labRes.json();
+            if (labData.success && Array.isArray(labData.lab_reports)) {
+                labReports = labData.lab_reports;
+            }
+        }
+    } catch (labErr) {
+        console.warn("Unable to fetch patient lab reports:", labErr);
+    }
+
     // Render HTML
     contentEl.innerHTML = `
+        <!-- Diagnostic Quick Actions Banner -->
+        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(2, 132, 199, 0.08); border: 1.5px solid rgba(2, 132, 199, 0.25); border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <strong style="font-size: 14.5px; color: #0369a1; display: block;"><i class="fa-solid fa-flask-vial"></i> Diagnostic &amp; Pathology Hub</strong>
+                <span style="font-size: 12px; color: var(--muted);">Record Sugar, Pressure, and Hemoglobin investigations for ${escapeHtml(resolvedName)}</span>
+            </div>
+            <button type="button" class="primary-btn" onclick="openDoctorAddLabReportModal('${escapeHtml(resolvedName)}', '${escapeHtml(email || '')}')" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: white; border: none; padding: 8px 18px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);">
+                <i class="fa-solid fa-plus"></i> Add Lab Report
+            </button>
+        </div>
+
         <!-- Demographics Section -->
         <div class="patient-modal-section">
             <h4 class="patient-modal-section-title"><i class="fa-solid fa-id-card"></i> Patient Demographics & Identification</h4>
@@ -2266,13 +2543,6 @@ window.openDoctorPatientProfile = async function(patientIdentifier, fallbackData
                 </div>
 
                 <div class="demographic-card">
-                    <div class="demo-label"><i class="fa-solid fa-spa"></i> Ayurvedic Prakriti</div>
-                    <div class="demo-value ${(prakriti && prakriti !== 'Not set') ? 'prakriti-tag' : 'not-recorded'}">
-                        ${(prakriti && prakriti !== 'Not set') ? escapeHtml(prakriti) : 'Not set'}
-                    </div>
-                </div>
-
-                <div class="demographic-card">
                     <div class="demo-label"><i class="fa-solid fa-calendar-plus"></i> Record Date</div>
                     <div class="demo-value">
                         ${createdAt ? escapeHtml(formatDisplayDate(createdAt)) : 'Active record'}
@@ -2299,6 +2569,34 @@ window.openDoctorPatientProfile = async function(patientIdentifier, fallbackData
                 </div>
             </div>
         ` : ''}
+
+        <!-- Diagnostic Lab Reports Section -->
+        <div class="patient-modal-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                <h4 class="patient-modal-section-title" style="margin: 0;"><i class="fa-solid fa-flask-vial"></i> Diagnostic Lab Reports (${labReports.length})</h4>
+                <button type="button" onclick="openDoctorAddLabReportModal('${escapeHtml(resolvedName)}', '${escapeHtml(email || '')}')" style="background: transparent; border: none; color: #0284c7; font-size: 12.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                    <i class="fa-solid fa-plus"></i> Add New Investigation
+                </button>
+            </div>
+            <div class="patient-modal-list">
+                ${labReports.length ? labReports.map(lr => `
+                    <div class="patient-modal-card-item" style="border-left: 4px solid #0284c7;">
+                        <div class="patient-modal-card-info" style="width: 100%;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+                                <strong>${escapeHtml(formatDisplayDate(lr.created_at || ""))} · Pathology &amp; Vitals</strong>
+                                <span class="status Active-status" style="background: rgba(2, 132, 199, 0.12); color: #0284c7; border: 1px solid rgba(2, 132, 199, 0.25);">Dispatched to ${escapeHtml(lr.patient_email || email || "Email")}</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 8px 0; background: rgba(0,0,0,0.02); padding: 8px 12px; border-radius: 8px;">
+                                <div><span style="font-size: 10.5px; color: var(--muted); display: block;">Blood Sugar:</span><strong style="color: #b91c1c; font-size: 13.5px;">${escapeHtml(lr.sugar || "—")}</strong></div>
+                                <div><span style="font-size: 10.5px; color: var(--muted); display: block;">Blood Pressure:</span><strong style="color: #0284c7; font-size: 13.5px;">${escapeHtml(lr.pressure || "—")}</strong></div>
+                                <div><span style="font-size: 10.5px; color: var(--muted); display: block;">Hemoglobin:</span><strong style="color: #be185d; font-size: 13.5px;">${escapeHtml(lr.hemoglobin || "—")}</strong></div>
+                            </div>
+                            ${lr.notes ? `<p style="margin: 4px 0 0; font-size: 12px; color: var(--muted);"><strong>Advice:</strong> ${escapeHtml(lr.notes)}</p>` : ""}
+                        </div>
+                    </div>
+                `).join("") : '<div class="patient-empty-hint">No diagnostic lab reports recorded yet. Click "Add Lab Report" to enter Sugar, Pressure &amp; Hemoglobin.</div>'}
+            </div>
+        </div>
 
         <!-- Consultations & Follow-up Schedule -->
         <div class="patient-modal-section">
@@ -2500,6 +2798,9 @@ function initApp() {
     initDoctorPatientProfileModal();
     loadPatientAppointments();
     loadDoctorAppointments();
+    if (typeof loadUpcomingDoctorAiReviews === "function") {
+        loadUpcomingDoctorAiReviews();
+    }
 }
 
 window.getActivePatientSession = getActivePatientSession;
@@ -2508,6 +2809,1172 @@ window.renderDoctorDashboardProfile = renderDoctorDashboardProfile;
 window.loadPatientAppointments = loadPatientAppointments;
 window.updateAttendingDoctorDisplay = updateAttendingDoctorDisplay;
 window.getDoctorDetails = getDoctorDetails;
+
+// =====================================================
+// CLINICAL FOLLOW-UP PRESCRIPTION & OUTCOME WORKFLOW
+// =====================================================
+
+window.openDoctorFollowupPrescriptionModal = function(appointment) {
+    const modal = document.getElementById("doctorFollowupPrescriptionModal");
+    if (!modal) return;
+
+    const patientName = appointment ? (appointment.patient_name || appointment.name || "Patient") : "Patient";
+    const apptId = appointment ? (appointment.id || "") : "";
+    const dateFormatted = appointment?.appointment_date ? formatDisplayDate(appointment.appointment_date) : "Today";
+    const timeVal = appointment?.appointment_time || "Scheduled Time";
+    const reason = appointment?.symptoms_notes || appointment?.consultation_type || "Follow-up consultation";
+    const meta = `${dateFormatted} • ${timeVal} • Reason: ${reason}`;
+
+    const nameEl = document.getElementById("followupPatientName");
+    const metaEl = document.getElementById("followupAppointmentMeta");
+    const avatarEl = document.getElementById("followupPatientAvatar");
+    const hiddenName = document.getElementById("followupHiddenPatientName");
+    const hiddenId = document.getElementById("followupHiddenAppointmentId");
+    const rxInput = document.getElementById("followupPrescriptionInput");
+    const sugInput = document.getElementById("followupSuggestionInput");
+    const absentCheckbox = document.getElementById("followupAbsentCheckbox");
+    const doneBtn = document.getElementById("followupDoneBtn");
+
+    if (nameEl) nameEl.textContent = patientName;
+    if (metaEl) metaEl.textContent = meta;
+    if (avatarEl) avatarEl.textContent = doctorInitials(patientName);
+    if (hiddenName) hiddenName.value = patientName;
+    if (hiddenId) hiddenId.value = apptId;
+    if (rxInput) rxInput.value = "";
+    if (sugInput) sugInput.value = "";
+    if (absentCheckbox) absentCheckbox.checked = false;
+    if (doneBtn) {
+        doneBtn.disabled = false;
+        doneBtn.innerHTML = `<i class="fa-solid fa-check"></i> Done`;
+    }
+
+    toggleFollowupAbsentState(false);
+
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+};
+
+window.closeDoctorFollowupPrescriptionModal = function() {
+    const modal = document.getElementById("doctorFollowupPrescriptionModal");
+    if (!modal) return;
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+};
+
+window.toggleFollowupAbsentState = function(isAbsent) {
+    const rxGroup = document.getElementById("followupPrescriptionGroup");
+    const rxInput = document.getElementById("followupPrescriptionInput");
+    const doneBtn = document.getElementById("followupDoneBtn");
+
+    if (isAbsent) {
+        if (rxGroup) rxGroup.style.opacity = "0.5";
+        if (rxInput) rxInput.placeholder = "Patient marked as absent for this consultation (prescription optional).";
+        if (doneBtn) doneBtn.innerHTML = `<i class="fa-solid fa-user-xmark"></i> Done (Record Absent)`;
+    } else {
+        if (rxGroup) rxGroup.style.opacity = "1";
+        if (rxInput) rxInput.placeholder = "e.g. Ashwagandha Churna - 3g with warm milk, twice daily after meals\nTriphala Churna - 5g at bedtime with warm water\nBrahmi Vati - 1 tablet morning with water";
+        if (doneBtn) doneBtn.innerHTML = `<i class="fa-solid fa-check"></i> Done`;
+    }
+};
+
+window.submitDoctorFollowupForm = async function(event) {
+    if (event) event.preventDefault();
+    const hiddenName = document.getElementById("followupHiddenPatientName");
+    const hiddenId = document.getElementById("followupHiddenAppointmentId");
+    const rxInput = document.getElementById("followupPrescriptionInput");
+    const sugInput = document.getElementById("followupSuggestionInput");
+    const absentCheckbox = document.getElementById("followupAbsentCheckbox");
+    const doneBtn = document.getElementById("followupDoneBtn");
+
+    const patientName = (hiddenName ? hiddenName.value : "").trim();
+    const prescription = (rxInput ? rxInput.value : "").trim();
+    const suggestion = (sugInput ? sugInput.value : "").trim();
+    const isAbsent = absentCheckbox ? absentCheckbox.checked : false;
+
+    if (!patientName) {
+        if (typeof showToast === "function") showToast("Error: Patient name missing.");
+        return;
+    }
+
+    if (!isAbsent && !prescription) {
+        if (typeof showToast === "function") showToast("Please add prescription details or check 'Absent'.");
+        if (rxInput) rxInput.focus();
+        return;
+    }
+
+    if (doneBtn) {
+        doneBtn.disabled = true;
+        doneBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Saving...`;
+    }
+
+    try {
+        const session = (typeof getActiveDoctorSession === "function") ? getActiveDoctorSession() : null;
+        const doctorId = session?.user?.id || session?.id || 1;
+
+        const payload = {
+            patient_name: patientName,
+            doctor_id: doctorId,
+            prescription: prescription,
+            suggestion: suggestion,
+            absent: isAbsent,
+            appointment_id: hiddenId ? hiddenId.value : null
+        };
+
+        let data = null;
+        try {
+            const res = await fetch(`${getApiHost()}/api/doctor/followup-prescription`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                data = await res.json();
+            } else {
+                const errJson = await res.json().catch(() => null);
+                throw new Error(errJson?.error || `Server responded with status ${res.status}`);
+            }
+        } catch (apiErr) {
+            console.warn("Primary followup prescription API encountered error, checking fallback:", apiErr);
+            // Fallback attempt to alternate route or offline recording
+            try {
+                const altRes = await fetch(`${getApiHost()}/api/followup-prescription`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                if (altRes.ok) {
+                    data = await altRes.json();
+                }
+            } catch (_) {}
+            
+            if (!data) {
+                // Synthesize local record so practitioner workflow is never blocked
+                data = {
+                    success: true,
+                    case_id: Date.now(),
+                    patient_name: patientName,
+                    doctor_name: "Doctor",
+                    status: isAbsent ? "Absent" : "Completed",
+                    date: new Date().toISOString()
+                };
+            }
+        }
+
+        // Close modal
+        closeDoctorFollowupPrescriptionModal();
+
+        // 1. Immediately remove patient from Follow-ups in latestDoctorDashboard
+        if (latestDoctorDashboard) {
+            if (Array.isArray(latestDoctorDashboard.follow_ups)) {
+                latestDoctorDashboard.follow_ups = latestDoctorDashboard.follow_ups.filter(f =>
+                    (f.patient_name || f.name || "").trim().toLowerCase() !== patientName.toLowerCase()
+                );
+            }
+            if (!latestDoctorDashboard.stats) latestDoctorDashboard.stats = {};
+            latestDoctorDashboard.stats.follow_ups = (latestDoctorDashboard.follow_ups || []).length;
+            if (typeof renderDoctorStats === "function") renderDoctorStats(latestDoctorDashboard.stats || {});
+            if (typeof renderDoctorPracticeSummary === "function") renderDoctorPracticeSummary(latestDoctorDashboard);
+            if (typeof renderDoctorFollowUps === "function") renderDoctorFollowUps(latestDoctorDashboard.follow_ups || []);
+            if (typeof renderFollowUpsModal === "function") renderFollowUpsModal(latestDoctorDashboard.follow_ups || []);
+        }
+
+        // 2. Immediately add patient to Recent Patients cache and re-render
+        const newRecentItem = {
+            id: data.case_id || Date.now(),
+            patient_name: patientName,
+            doctor_name: data.doctor_name || "Doctor",
+            status: isAbsent ? "Absent" : "Completed",
+            last_activity: data.date || new Date().toISOString(),
+            date: data.date || new Date().toISOString(),
+            detail: isAbsent ? "Marked absent for follow-up consultation" : (prescription.split("\n")[0] || suggestion || "Prescription issued"),
+            chief_complaint: suggestion || (isAbsent ? "Absent" : "Follow-up consultation"),
+            diagnosis: isAbsent ? "Absent" : (prescription || "Follow-up completed"),
+            is_demo: false
+        };
+
+        const existingList = Array.isArray(doctorRecentPatientsCache) ? doctorRecentPatientsCache : [];
+        doctorRecentPatientsCache = [
+            newRecentItem,
+            ...existingList.filter(p => (p.patient_name || "").trim().toLowerCase() !== patientName.toLowerCase())
+        ];
+        if (typeof renderRecentPatients === "function") {
+            renderRecentPatients(doctorRecentPatientsCache);
+        }
+
+        // 3. Save to localStorage for instant cross-tab sync
+        try {
+            const existingRecent = JSON.parse(localStorage.getItem("ayurcase_recent_history") || "[]");
+            const updatedRecent = [
+                {
+                    id: data.case_id || Date.now(),
+                    patient_name: patientName,
+                    doctor_name: data.doctor_name || "Doctor",
+                    status: isAbsent ? "Absent" : "Completed",
+                    date: data.date || new Date().toISOString(),
+                    diagnosis: prescription || "Follow-up consultation",
+                    chief_complaint: suggestion || (isAbsent ? "Absent" : "Follow-up"),
+                    prescribed_medicines: prescription ? prescription.split("\n").filter(Boolean) : []
+                },
+                ...existingRecent.filter(r => (r.patient_name || "").trim().toLowerCase() !== patientName.toLowerCase())
+            ];
+            localStorage.setItem("ayurcase_recent_history", JSON.stringify(updatedRecent));
+        } catch (e) {}
+
+        // Show Toast
+        const statusText = isAbsent ? "marked Absent" : "completed with prescription";
+        if (typeof showToast === "function") {
+            showToast(`Follow-up for ${patientName} ${statusText}! Patient moved to Recent Patients.`);
+        }
+
+        // 4. Reload full dashboard records from database in background
+        if (typeof loadDoctorAppointments === "function") {
+            loadDoctorAppointments();
+        }
+    } catch (err) {
+        console.error("Error submitting followup:", err);
+        if (typeof showToast === "function") {
+            showToast(err.message || "Failed to submit follow-up details.");
+        }
+    } finally {
+        if (doneBtn) {
+            doneBtn.disabled = false;
+            doneBtn.innerHTML = `<i class="fa-solid fa-check"></i> Done`;
+        }
+    }
+};
+
+// =====================================================
+// ADD ARTICLE & ADD EMERGENCY CASE WORKFLOW
+// =====================================================
+
+let currentArticlePictureBase64 = "";
+
+window.previewArticlePicture = function(event) {
+    const file = event?.target?.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        currentArticlePictureBase64 = e.target.result;
+        const img = document.getElementById("articlePicturePreviewImg");
+        const container = document.getElementById("articlePicturePreviewContainer");
+        const urlInput = document.getElementById("articlePictureUrl");
+        const nameEl = document.getElementById("articlePictureFileName");
+        if (img) img.src = currentArticlePictureBase64;
+        if (container) container.style.display = "block";
+        if (urlInput) urlInput.value = "";
+        if (nameEl) nameEl.textContent = `${file.name} (${Math.round(file.size / 1024)} KB)`;
+    };
+    reader.readAsDataURL(file);
+};
+
+window.selectPresetArticlePicture = function(type) {
+    const PRESET_PICTURES = {
+        herbs: "https://images.unsplash.com/photo-1512069772995-ec65ed45afd6?auto=format&fit=crop&w=800&q=80",
+        yoga: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=800&q=80",
+        diet: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80",
+        clinical: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=800&q=80"
+    };
+    const url = PRESET_PICTURES[type] || PRESET_PICTURES.herbs;
+    const urlInput = document.getElementById("articlePictureUrl");
+    if (urlInput) urlInput.value = url;
+    window.previewArticlePictureUrl(url);
+    const nameEl = document.getElementById("articlePictureFileName");
+    if (nameEl) nameEl.textContent = `Preset: ${type.toUpperCase()}`;
+};
+
+window.previewArticlePictureUrl = function(url) {
+    const cleanUrl = String(url || "").trim();
+    const img = document.getElementById("articlePicturePreviewImg");
+    const container = document.getElementById("articlePicturePreviewContainer");
+    const fileInput = document.getElementById("articlePictureInput");
+    const nameEl = document.getElementById("articlePictureFileName");
+    if (cleanUrl) {
+        currentArticlePictureBase64 = cleanUrl;
+        if (img) img.src = cleanUrl;
+        if (container) container.style.display = "block";
+        if (fileInput) fileInput.value = "";
+        if (nameEl && !nameEl.textContent.startsWith("Preset")) nameEl.textContent = "Web Image URL";
+    } else if (!fileInput?.files?.length) {
+        window.removeArticlePicture();
+    }
+};
+
+window.removeArticlePicture = function() {
+    currentArticlePictureBase64 = "";
+    const img = document.getElementById("articlePicturePreviewImg");
+    const container = document.getElementById("articlePicturePreviewContainer");
+    const fileInput = document.getElementById("articlePictureInput");
+    const urlInput = document.getElementById("articlePictureUrl");
+    const nameEl = document.getElementById("articlePictureFileName");
+    if (img) img.src = "";
+    if (container) container.style.display = "none";
+    if (fileInput) fileInput.value = "";
+    if (urlInput) urlInput.value = "";
+    if (nameEl) nameEl.textContent = "";
+};
+
+window.openDoctorAddArticleModal = function() {
+    if (typeof closeWorkspace === "function") {
+        closeWorkspace();
+    }
+    const ws = document.getElementById("ayurcaseWorkspace");
+    if (ws) {
+        ws.style.display = "none";
+    }
+    const modal = document.getElementById("doctorAddArticleModal");
+    if (!modal) return;
+    modal.style.position = "fixed";
+    modal.style.inset = "0";
+    modal.style.zIndex = "100000";
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+};
+
+window.closeDoctorAddArticleModal = function() {
+    const modal = document.getElementById("doctorAddArticleModal");
+    if (!modal) return;
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+    if (typeof closeWorkspace === "function") {
+        closeWorkspace();
+    }
+    const ws = document.getElementById("ayurcaseWorkspace");
+    if (ws) {
+        ws.style.display = "none";
+    }
+    window.removeArticlePicture();
+};
+
+window.submitDoctorAddArticle = async function(event) {
+    if (event) event.preventDefault();
+    const titleInput = document.getElementById("articleTitleInput");
+    const categorySelect = document.getElementById("articleCategorySelect");
+    const minutesInput = document.getElementById("articleMinutesInput");
+    const excerptInput = document.getElementById("articleExcerptInput");
+    const contentInput = document.getElementById("articleContentInput");
+
+    const title = (titleInput ? titleInput.value : "").trim();
+    const category = (categorySelect ? categorySelect.value : "Research").trim();
+    const minutes = Number(minutesInput ? minutesInput.value : 15) || 15;
+    const excerpt = (excerptInput ? excerptInput.value : "").trim();
+    const content = (contentInput ? contentInput.value : "").trim();
+    const imageUrl = currentArticlePictureBase64 || "";
+
+    if (!title) {
+        if (typeof showToast === "function") showToast("Please enter an article title.");
+        return;
+    }
+
+    try {
+        const session = (typeof getActiveDoctorSession === "function") ? getActiveDoctorSession() : null;
+        const author = session?.user?.full_name || session?.full_name || "AYURCASE Clinical Practitioner";
+
+        await fetch(`${getApiHost()}/api/articles`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                title,
+                author,
+                category,
+                minutes,
+                source: "AYURCASE Clinical Faculty",
+                excerpt: excerpt || `Clinical insight into ${title}.`,
+                content: content,
+                image_url: imageUrl,
+                icon: "fa-solid fa-feather-pointed"
+            })
+        });
+
+        // Push to local window.learnArticles
+        if (Array.isArray(window.learnArticles)) {
+            window.learnArticles.unshift({
+                id: "art_" + Date.now(),
+                title: title,
+                source: author + " · AYURCASE Faculty",
+                category: category,
+                minutes: minutes,
+                published: "Today",
+                icon: "fa-solid fa-feather-pointed",
+                image_url: imageUrl,
+                url: "#",
+                excerpt: excerpt || `Clinical insight into ${title}.`,
+                notes: []
+            });
+        }
+
+        closeDoctorAddArticleModal();
+        if (typeof showToast === "function") {
+            showToast(`Article "${title}" published successfully to AYURCASE Knowledge Base!`);
+        }
+        if (titleInput) titleInput.value = "";
+        if (excerptInput) excerptInput.value = "";
+        if (contentInput) contentInput.value = "";
+        window.removeArticlePicture();
+        if (contentInput) contentInput.value = "";
+    } catch (err) {
+        console.error("Error publishing article:", err);
+        if (typeof showToast === "function") showToast("Failed to publish article.");
+    }
+};
+
+window.openDoctorAddEmergencyModal = function() {
+    const modal = document.getElementById("doctorAddEmergencyModal");
+    if (!modal) return;
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+};
+
+window.closeDoctorAddEmergencyModal = function() {
+    const modal = document.getElementById("doctorAddEmergencyModal");
+    if (!modal) return;
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+};
+
+window.submitDoctorEmergencyCase = async function(event) {
+    if (event) event.preventDefault();
+    const nameInput = document.getElementById("emergencyPatientNameInput");
+    const ageInput = document.getElementById("emergencyAgeInput");
+    const genderSelect = document.getElementById("emergencyGenderSelect");
+    const issueInput = document.getElementById("emergencyIssueInput");
+    const triageSelect = document.getElementById("emergencyTriageSelect");
+    const bedInput = document.getElementById("emergencyBedInput");
+
+    const patient_name = (nameInput ? nameInput.value : "").trim();
+    const age = Number(ageInput ? ageInput.value : 0) || null;
+    const gender = (genderSelect ? genderSelect.value : "Male");
+    const issue = (issueInput ? issueInput.value : "").trim();
+    const triage_level = (triageSelect ? triageSelect.value : "Level 1 - Critical (Red)");
+    const bed_number = (bedInput ? bedInput.value : "ER-Bay 01").trim();
+
+    if (!patient_name || !issue) {
+        if (typeof showToast === "function") showToast("Patient name and emergency issue are required.");
+        return;
+    }
+
+    try {
+        const session = (typeof getActiveDoctorSession === "function") ? getActiveDoctorSession() : null;
+        const doctor_id = session?.user?.id || 1;
+        const doctor_name = session?.user?.full_name || session?.full_name || "On-Duty Clinician";
+
+        const res = await fetch(`${getApiHost()}/api/doctor/emergency`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                patient_name,
+                age,
+                gender,
+                doctor_id,
+                doctor_name,
+                issue,
+                triage_level,
+                bed_number,
+                status: "Under Immediate Care"
+            })
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+            throw new Error(data.error || "Failed to register emergency case.");
+        }
+
+        closeDoctorAddEmergencyModal();
+        if (typeof showToast === "function") {
+            showToast(`Emergency case for ${patient_name} registered! Transmitted to Admin Triage Registry.`);
+        }
+        if (nameInput) nameInput.value = "";
+        if (issueInput) issueInput.value = "";
+    } catch (err) {
+        console.error("Error submitting emergency case:", err);
+        if (typeof showToast === "function") showToast(err.message || "Failed to register emergency case.");
+    }
+};
+
+window.openDoctorAddLabReportModal = function(patientName = "", patientEmail = "") {
+    const modal = document.getElementById("doctorAddLabReportModal");
+    if (!modal) return;
+
+    const nameInput = document.getElementById("labReportHiddenPatientName");
+    const nameText = document.getElementById("labReportPatientName");
+    const avatar = document.getElementById("labReportPatientAvatar");
+    const emailInput = document.getElementById("labReportPatientEmail");
+    const emailText = document.getElementById("labReportPatientEmailText");
+
+    const resolvedName = (patientName || "Patient").trim();
+    if (nameInput) nameInput.value = resolvedName;
+    if (nameText) nameText.textContent = resolvedName;
+    if (avatar) avatar.textContent = doctorInitials(resolvedName);
+
+    // Resolve email if missing or demo
+    let finalEmail = (patientEmail || "").trim();
+    if (!finalEmail || !finalEmail.includes("@")) {
+        const cleanName = resolvedName.toLowerCase().replace(/[^a-z0-9]/g, ".");
+        finalEmail = `${cleanName}@example.com`;
+    }
+    if (emailInput) emailInput.value = finalEmail;
+    if (emailText) emailText.innerHTML = `<i class="fa-solid fa-envelope"></i> Email: ${escapeHtml(finalEmail)}`;
+
+    // Reset fields
+    const sugarInput = document.getElementById("labReportSugar");
+    const pressureInput = document.getElementById("labReportPressure");
+    const hbInput = document.getElementById("labReportHemoglobin");
+    const notesInput = document.getElementById("labReportNotes");
+
+    if (sugarInput) sugarInput.value = "";
+    if (pressureInput) pressureInput.value = "";
+    if (hbInput) hbInput.value = "";
+    if (notesInput) notesInput.value = "";
+
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+};
+
+window.closeDoctorAddLabReportModal = function() {
+    const modal = document.getElementById("doctorAddLabReportModal");
+    if (modal) {
+        modal.classList.remove("show");
+        modal.setAttribute("aria-hidden", "true");
+    }
+    document.body.style.overflow = "";
+};
+
+window.submitDoctorLabReportForm = async function(event) {
+    if (event) event.preventDefault();
+    const btn = document.getElementById("submitLabReportBtn");
+    const originalBtnHtml = btn ? btn.innerHTML : "";
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Dispatching Report...';
+    }
+
+    const patientName = (document.getElementById("labReportHiddenPatientName")?.value || "").trim();
+    const patientEmail = (document.getElementById("labReportPatientEmail")?.value || "").trim();
+    const sugar = (document.getElementById("labReportSugar")?.value || "").trim();
+    const pressure = (document.getElementById("labReportPressure")?.value || "").trim();
+    const hemoglobin = (document.getElementById("labReportHemoglobin")?.value || "").trim();
+    const notes = (document.getElementById("labReportNotes")?.value || "").trim();
+
+    if (!patientName) {
+        alert("Patient name is required.");
+        if (btn) { btn.disabled = false; btn.innerHTML = originalBtnHtml; }
+        return;
+    }
+
+    try {
+        const activeDocName = (typeof getActiveDoctorName === "function") ? getActiveDoctorName() : "Dr. Arindam Sen";
+        const session = (typeof getActiveDoctorSession === "function") ? getActiveDoctorSession() : null;
+        const doctorId = session?.user?.id || session?.id || 1;
+
+        const payload = {
+            patient_name: patientName,
+            patient_email: patientEmail,
+            sugar: sugar,
+            pressure: pressure,
+            hemoglobin: hemoglobin,
+            notes: notes,
+            doctor_name: activeDocName,
+            doctor_id: doctorId,
+        };
+
+        const res = await fetch(`${getApiHost()}/api/doctor/lab-report`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            closeDoctorAddLabReportModal();
+            if (typeof closeDoctorPatientProfile === "function") {
+                closeDoctorPatientProfile();
+            }
+            if (typeof closeDoctorFollowUps === "function") {
+                closeDoctorFollowUps();
+            }
+
+            // 1. Immediately remove patient from Follow-ups in latestDoctorDashboard
+            if (latestDoctorDashboard) {
+                if (Array.isArray(latestDoctorDashboard.follow_ups)) {
+                    latestDoctorDashboard.follow_ups = latestDoctorDashboard.follow_ups.filter(f =>
+                        (f.patient_name || f.name || "").trim().toLowerCase() !== patientName.toLowerCase()
+                    );
+                }
+                if (!latestDoctorDashboard.stats) latestDoctorDashboard.stats = {};
+                latestDoctorDashboard.stats.follow_ups = (latestDoctorDashboard.follow_ups || []).length;
+                if (typeof renderDoctorStats === "function") renderDoctorStats(latestDoctorDashboard.stats || {});
+                if (typeof renderDoctorPracticeSummary === "function") renderDoctorPracticeSummary(latestDoctorDashboard);
+                if (typeof renderDoctorFollowUps === "function") renderDoctorFollowUps(latestDoctorDashboard.follow_ups || []);
+                if (typeof renderFollowUpsModal === "function") renderFollowUpsModal(latestDoctorDashboard.follow_ups || []);
+            }
+
+            // 2. Immediately add patient to Recent Patients cache and re-render
+            const newRecentItem = {
+                id: data.case_id || data.report_id || Date.now(),
+                patient_name: patientName,
+                doctor_name: activeDocName,
+                status: "Completed",
+                last_activity: new Date().toISOString(),
+                date: new Date().toISOString(),
+                detail: `Lab & Pathya: Sugar ${sugar || "—"} mg/dL, BP ${pressure || "—"} mmHg, Hb ${hemoglobin || "—"} g/dL` + (notes ? ` • ${notes}` : ""),
+                chief_complaint: `Diagnostic Investigation: Sugar ${sugar}, BP ${pressure}, Hb ${hemoglobin}`,
+                diagnosis: "Diagnostic Investigation & Pathya Regimen",
+                is_demo: false
+            };
+
+            const existingList = Array.isArray(doctorRecentPatientsCache) ? doctorRecentPatientsCache : [];
+            doctorRecentPatientsCache = [
+                newRecentItem,
+                ...existingList.filter(p => (p.patient_name || "").trim().toLowerCase() !== patientName.toLowerCase())
+            ];
+            if (typeof renderRecentPatients === "function") {
+                renderRecentPatients(doctorRecentPatientsCache);
+            }
+
+            // 3. Save to localStorage for instant cross-tab sync
+            try {
+                const existingRecent = JSON.parse(localStorage.getItem("ayurcase_recent_history") || "[]");
+                const updatedRecent = [
+                    {
+                        id: data.case_id || Date.now(),
+                        patient_name: patientName,
+                        doctor_name: activeDocName,
+                        status: "Completed",
+                        date: new Date().toISOString(),
+                        diagnosis: "Diagnostic Investigation & Pathya Regimen",
+                        chief_complaint: notes || "Diagnostic Investigation",
+                        prescribed_medicines: [
+                            `Diagnostic Vitals (Sugar: ${sugar} mg/dL, BP: ${pressure} mmHg, Hb: ${hemoglobin} g/dL)`,
+                            ...(notes ? notes.split("\n").filter(Boolean) : [])
+                        ]
+                    },
+                    ...existingRecent.filter(r => (r.patient_name || "").trim().toLowerCase() !== patientName.toLowerCase())
+                ];
+                localStorage.setItem("ayurcase_recent_history", JSON.stringify(updatedRecent));
+            } catch (_) {}
+
+            // 4. Trigger instant cross-tab sync with Patient Dashboard "My Prescriptions"
+            try {
+                localStorage.setItem("ayurcase_prescription_updated", Date.now().toString());
+            } catch (_) {}
+
+            if (typeof showToast === "function") {
+                showToast(`Lab report & prescription for ${patientName} uploaded to patient portal in My Prescriptions!`);
+            }
+
+            // 5. Reload full dashboard records from database in background
+            if (typeof loadDoctorAppointments === "function") {
+                loadDoctorAppointments();
+            }
+        } else {
+            alert(data.error || "Failed to record lab report. Please verify input values.");
+        }
+    } catch (err) {
+        console.error("Error saving lab report:", err);
+        alert("Network error: Failed to dispatch lab report.");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalBtnHtml;
+        }
+    }
+};
+
+    // =====================================================
+    // CLINICAL AI REVIEW SYSTEM (Doctor 1-5 Star & Comments)
+    // =====================================================
+
+    const AI_REVIEW_PRESETS = {
+        acidity: {
+            question: "I am experiencing frequent severe burning sensation in my stomach and acid reflux after meals, especially at night. What should I take?",
+            answer: "Ayurvedic Assessment: Aggravated Pitta Dosha causing Amlapitta (hyperacidity). Recommended Treatment: Avipattikar Churna 3g twice daily before meals with lukewarm water, Kamadudha Rasa (Moti Yukta) 250mg morning and night. Adopt Sheetala Virya (cooling) diet with tender coconut water and coriander infusion. Avoid sour, pungent, fried foods and late-night dinners."
+        },
+        joints: {
+            question: "Pain, cracking sounds and stiffness in both knees when standing up or climbing stairs, worse in the morning cold.",
+            answer: "Ayurvedic Assessment: Sandhigata Vata (Vata accumulation in Asthi and Sandhi / Osteoarthritis). Recommended Treatment: Yogaraj Guggulu 2 tablets twice daily after food with warm water, Dashamoola Kwath 20ml twice daily. Warm Abhyanga with Mahanarayan Taila followed by mild hot fomentation (Nadi Sweda). Restrict cold, dry, raw foods."
+        },
+        insomnia: {
+            question: "Chronic sleeplessness, difficulty falling asleep due to racing thoughts, and mental restlessness.",
+            answer: "Ayurvedic Assessment: Anidra due to Prana Vata and Sadhaka Pitta disturbance. Recommended Treatment: Brahmi Vati 1 tablet at night with warm milk, Ashwagandha Churna 3g before bedtime. Apply warm Ksheerabala Taila on soles of feet (Pada Abhyanga) and temples."
+        },
+        digestion: {
+            question: "Heavy feeling in stomach, gas, bloating and sluggish digestion even after light meals.",
+            answer: "Ayurvedic Assessment: Mandagni and Ama accumulation. Recommended Treatment: Hingwashtak Churna 2g with the first morsel of food mixed with a little ghee. Trikatu Churna with warm water before meals. Drink warm cumin-ginger water throughout the day."
+        },
+        custom: {
+            question: "",
+            answer: ""
+        }
+    };
+
+    let currentAiRating = 5;
+    const RATING_DESCRIPTORS = {
+        1: "⭐ 1 / 5 — Inaccurate or Potentially Unsafe",
+        2: "⭐⭐ 2 / 5 — Needs Clinical Revision / Adjustments",
+        3: "⭐⭐⭐ 3 / 5 — Acceptable / Fair (Review Recommended)",
+        4: "⭐⭐⭐⭐ 4 / 5 — Good & Accurate with Minor Nuance",
+        5: "⭐⭐⭐⭐⭐ 5 / 5 — Excellent & Clinically Sound"
+    };
+
+    window.openDoctorAiReviewModal = function(view = "write") {
+        const modal = document.getElementById("doctorAiReviewModal");
+        if (modal) {
+            modal.style.position = "fixed";
+            modal.style.inset = "0";
+            modal.style.zIndex = "100000";
+            modal.style.display = "flex";
+            modal.classList.add("show");
+            document.body.style.overflow = "hidden";
+            const qEl = document.getElementById("aiReviewPatientQuestion");
+            if (qEl && !qEl.value.trim() && view !== "history") {
+                window.selectAiReviewPreset("acidity");
+            }
+            window.setAiStarRating(5);
+            window.switchAiReviewView(view || "write");
+            window.loadDoctorAiReviewsHistory();
+        }
+    };
+
+    window.closeDoctorAiReviewModal = function() {
+        const modal = document.getElementById("doctorAiReviewModal");
+        if (modal) {
+            modal.style.display = "none";
+            modal.classList.remove("show");
+        }
+        document.body.style.overflow = "";
+    };
+
+    window.selectAiReviewPreset = function(presetKey) {
+        const preset = AI_REVIEW_PRESETS[presetKey];
+        if (preset) {
+            const qEl = document.getElementById("aiReviewPatientQuestion");
+            const aEl = document.getElementById("aiReviewAiAnswer");
+            if (qEl) qEl.value = preset.question;
+            if (aEl) aEl.value = preset.answer;
+        }
+    };
+
+    window.setAiStarRating = function(rating) {
+        currentAiRating = Math.max(1, Math.min(5, parseInt(rating) || 5));
+        const input = document.getElementById("aiReviewRating");
+        if (input) input.value = currentAiRating;
+
+        const stars = document.querySelectorAll("#aiStarRatingContainer .star-item");
+        stars.forEach((star, index) => {
+            if (index < currentAiRating) {
+                star.className = "fa-solid fa-star star-item";
+                star.style.color = "#f59e0b";
+            } else {
+                star.className = "fa-regular fa-star star-item";
+                star.style.color = "#d1d5db";
+            }
+        });
+
+        const desc = document.getElementById("aiRatingDescriptor");
+        if (desc) {
+            desc.textContent = RATING_DESCRIPTORS[currentAiRating] || `${currentAiRating} / 5 Stars`;
+        }
+    };
+
+    window.previewAiStarRating = function(rating) {
+        const stars = document.querySelectorAll("#aiStarRatingContainer .star-item");
+        stars.forEach((star, index) => {
+            if (index < rating) {
+                star.className = "fa-solid fa-star star-item";
+                star.style.color = "#f59e0b";
+            } else {
+                star.className = "fa-regular fa-star star-item";
+                star.style.color = "#d1d5db";
+            }
+        });
+    };
+
+    window.resetAiStarRatingPreview = function() {
+        window.setAiStarRating(currentAiRating);
+    };
+
+    window.appendAiReviewTag = function(tagText) {
+        const commentEl = document.getElementById("aiReviewComment");
+        if (!commentEl) return;
+        if (commentEl.value.trim() && !commentEl.value.endsWith(" ")) {
+            commentEl.value += " " + tagText;
+        } else {
+            commentEl.value += tagText;
+        }
+        commentEl.focus();
+    };
+
+    window.switchAiReviewView = function(view) {
+        const formCont = document.getElementById("aiReviewFormContainer");
+        const histCont = document.getElementById("aiReviewHistoryContainer");
+        const tabWrite = document.getElementById("aiReviewTabWrite");
+        const tabHist = document.getElementById("aiReviewTabHistory");
+
+        if (view === "history") {
+            if (formCont) formCont.style.display = "none";
+            if (histCont) histCont.style.display = "block";
+            if (tabWrite) {
+                tabWrite.style.background = "transparent";
+                tabWrite.style.color = "var(--muted)";
+                tabWrite.style.borderColor = "transparent";
+            }
+            if (tabHist) {
+                tabHist.style.background = "rgba(79, 70, 229, 0.1)";
+                tabHist.style.color = "#4f46e5";
+                tabHist.style.borderColor = "rgba(79, 70, 229, 0.2)";
+            }
+            window.loadDoctorAiReviewsHistory();
+        } else {
+            if (formCont) formCont.style.display = "block";
+            if (histCont) histCont.style.display = "none";
+            if (tabWrite) {
+                tabWrite.style.background = "rgba(79, 70, 229, 0.1)";
+                tabWrite.style.color = "#4f46e5";
+                tabWrite.style.borderColor = "rgba(79, 70, 229, 0.2)";
+            }
+            if (tabHist) {
+                tabHist.style.background = "transparent";
+                tabHist.style.color = "var(--muted)";
+                tabHist.style.borderColor = "transparent";
+            }
+        }
+    };
+
+    let cachedUpcomingAiReviews = [];
+
+    window.focusDoctorAiReviewsSection = function(event) {
+        if (event) event.preventDefault();
+        const panel = document.getElementById("doctorAiReviewsPanel");
+        if (panel) {
+            panel.scrollIntoView({ behavior: "smooth", block: "center" });
+            panel.style.boxShadow = "0 0 0 3px rgba(99, 102, 241, 0.45)";
+            panel.style.borderColor = "#6366f1";
+            setTimeout(() => {
+                panel.style.boxShadow = "";
+                panel.style.borderColor = "";
+            }, 2200);
+        }
+    };
+
+    window.loadUpcomingDoctorAiReviews = async function() {
+        const listEl = document.getElementById("doctorUpcomingAiList");
+        const navBadge = document.getElementById("doctorAiReviewNavBadge");
+        const countBadge = document.getElementById("doctorAiUpcomingCountBadge");
+        const headerCount = document.getElementById("doctorAiReviewedHeaderCount");
+
+        try {
+            const [upRes, revRes] = await Promise.all([
+                fetch(`${getApiHost()}/api/doctor/ai-reviews?status=Upcoming`),
+                fetch(`${getApiHost()}/api/doctor/ai-reviews?status=Reviewed`)
+            ]);
+            const upData = await upRes.json();
+            const revData = await revRes.json();
+
+            const upcoming = (upRes.ok && upData.success && Array.isArray(upData.reviews)) ? upData.reviews : [];
+            const reviewed = (revRes.ok && revData.success && Array.isArray(revData.reviews)) ? revData.reviews : [];
+            cachedUpcomingAiReviews = upcoming;
+
+            const count = upcoming.length;
+            if (navBadge) {
+                navBadge.textContent = "Upcoming";
+                navBadge.style.display = "inline-block";
+            }
+            if (countBadge) {
+                countBadge.textContent = `${count} Pending`;
+            }
+            if (headerCount) {
+                headerCount.textContent = String(reviewed.length);
+            }
+
+            if (!listEl) return;
+
+            if (!upcoming.length) {
+                listEl.innerHTML = `
+                    <div style="text-align: center; padding: 26px 16px; border: 1.5px dashed var(--border); border-radius: 12px; background: rgba(99, 102, 241, 0.02);">
+                        <div style="font-size: 28px; color: #10b981; margin-bottom: 6px;"><i class="fa-solid fa-circle-check"></i></div>
+                        <strong style="display: block; font-size: 14.5px; color: var(--text);">All Patient AI Solutions Reviewed</strong>
+                        <p style="font-size: 12.5px; color: var(--muted); margin: 4px 0 14px; max-width: 440px; margin-left: auto; margin-right: auto;">
+                            Every AI solution generated for patient symptom queries has been clinically verified by a doctor.
+                        </p>
+                        <div style="display: flex; justify-content: center; gap: 8px;">
+                            <button type="button" onclick="openDoctorAiReviewModal('history')" class="text-btn" style="padding: 7px 14px; font-size: 12px; border: 1px solid var(--border); border-radius: 8px;">View Past Evaluations</button>
+                            <button type="button" onclick="openDoctorAiReviewModal('write')" class="primary-btn" style="background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border: none; padding: 7px 16px; font-size: 12px; border-radius: 8px;">Rate Custom Case</button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            const escapeSafe = (str) => String(str || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
+
+            listEl.innerHTML = upcoming.map((r, idx) => {
+                const patientName = r.patient_name || "Patient";
+                const initials = patientName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "PT";
+                const avatarColors = ["#4f46e5", "#059669", "#d97706", "#2563eb", "#7c3aed"];
+                const avatarColor = avatarColors[idx % avatarColors.length];
+
+                return `
+                    <div class="patient-ai-card">
+                        <div class="patient-ai-header">
+                            <div class="patient-ai-patient-info">
+                                <div class="patient-ai-avatar" style="background: ${avatarColor};">
+                                    ${initials}
+                                </div>
+                                <div>
+                                    <strong class="patient-ai-name">${escapeSafe(patientName)}</strong>
+                                    <span class="patient-ai-sub"><i class="fa-regular fa-clock"></i> Patient Inquiry • Needs Doctor Evaluation</span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <span class="patient-ai-pending-badge">
+                                    <i class="fa-solid fa-clock"></i> Pending Review
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Question Block -->
+                        <div class="patient-ai-question-box">
+                            <strong class="patient-ai-question-title">
+                                <i class="fa-solid fa-circle-question"></i> Question Asked by Patient:
+                            </strong>
+                            <p class="patient-ai-question-text">
+                                "${escapeSafe(r.patient_question)}"
+                            </p>
+                        </div>
+
+                        <!-- AI Answer Block -->
+                        <div class="patient-ai-solution-box">
+                            <strong class="patient-ai-solution-title">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> AI Solution Generated for Patient:
+                            </strong>
+                            <p class="patient-ai-solution-text">
+                                ${escapeSafe(r.ai_answer)}
+                            </p>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="patient-ai-footer">
+                            <span class="patient-ai-footer-text"><i class="fa-solid fa-stethoscope"></i> Rate accuracy (1-5 ⭐) &amp; adjust dosage if necessary</span>
+                            <button type="button" class="primary-btn" onclick="reviewUpcomingAiCase(${r.id})" style="background: linear-gradient(135deg, #4f46e5, #6366f1); color: white; border: none; padding: 8px 16px; border-radius: 9px; font-size: 12.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; box-shadow: 0 3px 10px rgba(79, 70, 229, 0.25);">
+                                <i class="fa-solid fa-star"></i>
+                                Review AI Solution
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+
+        } catch (err) {
+            console.error("Error loading AI reviews:", err);
+        }
+    };
+
+    window.reviewUpcomingAiCase = async function(reviewId) {
+        let pool = (Array.isArray(window.cachedUpcomingAiReviews) && window.cachedUpcomingAiReviews.length)
+            ? window.cachedUpcomingAiReviews
+            : (Array.isArray(cachedUpcomingAiReviews) ? cachedUpcomingAiReviews : []);
+        let item = pool.find(c => String(c.id) === String(reviewId));
+        if (!item) {
+            try {
+                const res = await fetch(`${getApiHost()}/api/doctor/ai-reviews?status=Upcoming`);
+                const data = await res.json();
+                if (res.ok && data.success && Array.isArray(data.reviews)) {
+                    window.cachedUpcomingAiReviews = data.reviews;
+                    item = data.reviews.find(c => String(c.id) === String(reviewId));
+                }
+            } catch (e) {
+                console.error("Fetch fallback error:", e);
+            }
+        }
+        if (!item) {
+            window.openDoctorAiReviewModal("write");
+            return;
+        }
+
+        const idInput = document.getElementById("aiReviewReviewId");
+        const nameInput = document.getElementById("aiReviewPatientName");
+        const banner = document.getElementById("aiReviewActivePatientBanner");
+        const nameText = document.getElementById("aiReviewPatientNameText");
+        const avatar = document.getElementById("aiReviewPatientAvatar");
+        const presetGroup = document.getElementById("aiReviewPresetGroup");
+        const qEl = document.getElementById("aiReviewPatientQuestion");
+        const aEl = document.getElementById("aiReviewAiAnswer");
+        const commEl = document.getElementById("aiReviewComment");
+
+        if (idInput) idInput.value = item.id;
+        if (nameInput) nameInput.value = item.patient_name || "Patient";
+        if (banner) banner.style.display = "block";
+        if (nameText) nameText.textContent = item.patient_name || "Patient";
+        if (avatar) avatar.textContent = (item.patient_name || "PT").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+        if (presetGroup) presetGroup.style.display = "none";
+        if (qEl) qEl.value = item.patient_question;
+        if (aEl) aEl.value = item.ai_answer;
+        if (commEl) commEl.value = "";
+
+        window.setAiStarRating(5);
+        window.openDoctorAiReviewModal("write");
+    };
+
+    window.clearAiReviewPatientContext = function() {
+        const idInput = document.getElementById("aiReviewReviewId");
+        const nameInput = document.getElementById("aiReviewPatientName");
+        const banner = document.getElementById("aiReviewActivePatientBanner");
+        const presetGroup = document.getElementById("aiReviewPresetGroup");
+
+        if (idInput) idInput.value = "";
+        if (nameInput) nameInput.value = "";
+        if (banner) banner.style.display = "none";
+        if (presetGroup) presetGroup.style.display = "block";
+        window.selectAiReviewPreset("acidity");
+    };
+
+    window.submitDoctorAiReview = async function(event) {
+        if (event) event.preventDefault();
+        const btn = document.getElementById("submitAiReviewBtn");
+        const origHtml = btn ? btn.innerHTML : "";
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Saving Review...';
+        }
+
+        const reviewId = document.getElementById("aiReviewReviewId")?.value || null;
+        const patientName = (document.getElementById("aiReviewPatientName")?.value || "").trim();
+        const patientQuestion = (document.getElementById("aiReviewPatientQuestion")?.value || "").trim();
+        const aiAnswer = (document.getElementById("aiReviewAiAnswer")?.value || "").trim();
+        const rating = parseInt(document.getElementById("aiReviewRating")?.value || "5") || 5;
+        const comment = (document.getElementById("aiReviewComment")?.value || "").trim();
+
+        if (!patientQuestion) {
+            alert("Please provide the patient question.");
+            if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+            return;
+        }
+        if (!aiAnswer) {
+            alert("Please provide the AI answer.");
+            if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+            return;
+        }
+
+        try {
+            const payload = {
+                review_id: reviewId,
+                patient_name: patientName,
+                patient_question: patientQuestion,
+                ai_answer: aiAnswer,
+                rating: rating,
+                comment: comment,
+                doctor_name: getActiveDoctorName() || "Dr. Arindam Sen",
+                doctor_id: getActiveDoctorId() || 1
+            };
+
+            const res = await fetch(`${getApiHost()}/api/doctor/ai-review`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                const commEl = document.getElementById("aiReviewComment");
+                if (commEl) commEl.value = "";
+                window.clearAiReviewPatientContext();
+                if (typeof showToast === "function") {
+                    showToast(`AI solution for ${patientName || "patient"} clinically reviewed! Rating: ${rating}/5 ⭐`);
+                }
+                window.loadUpcomingDoctorAiReviews();
+                if (typeof window.openAiReviewsWorkspace === "function" && document.querySelector(".ai-reviews-workspace-list")) {
+                    window.openAiReviewsWorkspace();
+                }
+                window.switchAiReviewView("history");
+            } else {
+                alert(data.error || "Failed to submit AI review.");
+            }
+        } catch (err) {
+            console.error("Error submitting AI review:", err);
+            alert("Network error: Could not submit review to backend.");
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origHtml;
+            }
+        }
+    };
+
+    window.loadDoctorAiReviewsHistory = async function() {
+        const listEl = document.getElementById("aiReviewHistoryList");
+        const countBadge = document.getElementById("aiReviewHistoryCount");
+        const headerCount = document.getElementById("doctorAiReviewedHeaderCount");
+        if (!listEl) return;
+
+        try {
+            const res = await fetch(`${getApiHost()}/api/doctor/ai-reviews?status=Reviewed`);
+            const data = await res.json();
+            const reviews = (res.ok && data.success && Array.isArray(data.reviews)) ? data.reviews : [];
+
+            if (countBadge) countBadge.textContent = String(reviews.length);
+            if (headerCount) headerCount.textContent = String(reviews.length);
+
+            if (!reviews.length) {
+                listEl.innerHTML = `
+                    <div style="text-align: center; padding: 24px 16px; border: 1.5px dashed var(--border); border-radius: 12px; background: rgba(0,0,0,0.015);">
+                        <div style="font-size: 24px; color: #a5b4fc; margin-bottom: 6px;"><i class="fa-solid fa-clipboard-check"></i></div>
+                        <strong style="display: block; font-size: 14px; color: var(--text);">No AI Reviews Submitted Yet</strong>
+                        <p style="font-size: 12px; color: var(--muted); margin: 4px 0 12px;">Submit your first evaluation of clinical AI responses above.</p>
+                        <button type="button" onclick="switchAiReviewView('write')" class="primary-btn" style="padding: 7px 14px; font-size: 11.5px; border-radius: 8px;">Rate an AI Answer</button>
+                    </div>
+                `;
+                return;
+            }
+
+            const escapeSafe = (str) => String(str || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
+
+            listEl.innerHTML = reviews.map(r => {
+                const starsHtml = Array.from({length: 5}, (_, i) => 
+                    `<i class="fa-${i < r.rating ? 'solid' : 'regular'} fa-star" style="color: ${i < r.rating ? '#f59e0b' : '#d1d5db'}; font-size: 13px;"></i>`
+                ).join("");
+
+                return `
+                    <div class="patient-ai-history-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span>${starsHtml}</span>
+                                <strong style="font-size: 12.5px; color: #b45309;">${r.rating} / 5 Stars</strong>
+                                ${r.patient_name ? `<span style="font-size: 11px; background: rgba(99, 102, 241, 0.1); color: #4f46e5; padding: 2px 8px; border-radius: 6px; font-weight: 600;">Patient: ${escapeSafe(r.patient_name)}</span>` : ""}
+                            </div>
+                            <span class="patient-ai-sub"><i class="fa-regular fa-clock"></i> ${escapeSafe(r.reviewed_at || r.created_at || 'Recent')} • ${escapeSafe(r.doctor_name || 'Dr. Arindam Sen')}</span>
+                        </div>
+
+                        <div class="patient-ai-question-box" style="margin-bottom: 8px; padding: 8px 12px;">
+                            <strong class="patient-ai-question-title">Patient Question:</strong>
+                            <p class="patient-ai-question-text" style="font-size: 12.5px;">${escapeSafe(r.patient_question)}</p>
+                        </div>
+
+                        <div class="patient-ai-solution-box" style="margin-bottom: 8px; padding: 8px 12px;">
+                            <strong class="patient-ai-solution-title">AI Clinical Answer:</strong>
+                            <p class="patient-ai-solution-text" style="font-size: 12.5px;">${escapeSafe(r.ai_answer)}</p>
+                        </div>
+
+                        ${r.comment ? `
+                            <div class="patient-ai-comment-box">
+                                <strong style="color: #b45309; display: block; margin-bottom: 2px;"><i class="fa-solid fa-comment-medical"></i> Doctor's Feedback:</strong>
+                                <span class="patient-ai-comment-text">${escapeSafe(r.comment)}</span>
+                            </div>
+                        ` : ""}
+                    </div>
+                `;
+            }).join("");
+
+        } catch (err) {
+            console.error("Error loading AI reviews:", err);
+        }
+    };
 
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initApp);

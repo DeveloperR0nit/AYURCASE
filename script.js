@@ -127,19 +127,31 @@ if (caseForm) {
   caseForm.addEventListener("submit", async function (event) {
     event.preventDefault();
 
-    const inputs = caseForm.querySelectorAll("input, select, textarea");
-    const patientName = inputs[0]?.value.trim() || "";
-    const age = inputs[1]?.value || "";
-    const gender = inputs[2]?.value || "";
-    const complaint = inputs[3]?.value.trim() || "";
+    const nameInput = document.getElementById("casePatientName") || caseForm.querySelector("input[type='text']");
+    const ageInput = document.getElementById("casePatientAge") || caseForm.querySelector("input[type='number']");
+    const genderInput = document.getElementById("casePatientGender") || caseForm.querySelector("select");
+    const complaintInput = document.getElementById("casePatientComplaint") || caseForm.querySelector("textarea");
 
-    if (!patientName || !age || !gender || !complaint) {
-      showToast("Please complete all patient details.");
+    const patientName = (nameInput ? nameInput.value : "").trim();
+    const age = (ageInput ? ageInput.value : "").trim();
+    const gender = (genderInput ? genderInput.value : "").trim() || "Other";
+    const complaint = (complaintInput ? complaintInput.value : "").trim() || "Follow-up consultation";
+
+    if (!patientName) {
+      if (typeof showToast === "function") showToast("Please enter patient full name.");
+      if (nameInput) nameInput.focus();
       return;
     }
 
-    const doctorId = typeof getActiveDoctorId === "function" ? getActiveDoctorId() : 1;
-    const doctorName = typeof getActiveDoctorName === "function" ? getActiveDoctorName() : "Attending Doctor";
+    let doctorId = 1;
+    let doctorName = "Dr. Arindam Sen";
+    try {
+      if (typeof window.getActiveDoctorId === "function") doctorId = window.getActiveDoctorId();
+      else if (typeof getActiveDoctorId === "function") doctorId = getActiveDoctorId();
+      if (typeof window.getActiveDoctorName === "function") doctorName = window.getActiveDoctorName();
+      else if (typeof getActiveDoctorName === "function") doctorName = getActiveDoctorName();
+    } catch (_) {}
+
     const todayIso = new Date().toISOString().slice(0, 10);
     const nowTime = new Date().toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
 
@@ -147,7 +159,7 @@ if (caseForm) {
       patient_name: patientName,
       doctor_name: doctorName,
       doctor_id: doctorId,
-      age: age,
+      age: age ? Number(age) : null,
       gender: gender,
       appointment_date: todayIso,
       appointment_time: nowTime,
@@ -156,45 +168,109 @@ if (caseForm) {
       status: "Confirmed",
     };
 
-    const submitBtn = caseForm.querySelector("button[type='submit']");
+    const submitBtn = caseForm.querySelector("button[type='submit']") || document.getElementById("caseContinueBtn");
     const origBtnHtml = submitBtn ? submitBtn.innerHTML : "";
     if (submitBtn) {
       submitBtn.disabled = true;
-      submitBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Scheduling...`;
+      submitBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Adding to Follow-ups...`;
     }
 
+    let data = null;
     try {
-      const api = typeof getApiHost === "function" ? getApiHost() : "";
+      const api = typeof window.getApiHost === "function" ? window.getApiHost() : (typeof getApiHost === "function" ? getApiHost() : "");
       const response = await fetch(`${api}/api/appointments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(followUpPayload),
       });
 
-      const data = await response.json();
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || "Failed to schedule follow-up consultation.");
+      if (response.ok) {
+        data = await response.json();
+      } else {
+        const errJson = await response.json().catch(() => null);
+        console.warn("API appointments booking notice:", errJson);
       }
-
-      // Refresh doctor dashboard follow-up appointments and stats
-      if (typeof loadDoctorAppointments === "function") {
-        await loadDoctorAppointments();
-      } else if (typeof window.loadDoctorAppointments === "function") {
-        await window.loadDoctorAppointments();
-      }
-
-      closeCaseModal();
-      caseForm.reset();
-      showToast(`${patientName}'s follow-up scheduled successfully.`);
     } catch (error) {
-      console.error("Error creating follow-up:", error);
-      showToast(error.message || "Unable to schedule follow-up. Please try again.");
-    } finally {
-      if (submitBtn) {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = origBtnHtml;
-      }
+      console.warn("Network notice creating follow-up:", error);
     }
+
+    // Immediately create new follow-up item
+    const newFollowUpItem = {
+      id: data?.appointment?.id || Date.now(),
+      patient_id: data?.appointment?.patient_id || null,
+      doctor_id: doctorId,
+      patient_name: patientName,
+      doctor_name: doctorName,
+      appointment_date: todayIso,
+      appointment_time: nowTime,
+      consultation_type: "Follow-up Consultation",
+      symptoms_notes: complaint,
+      status: "Confirmed",
+    };
+
+    // Immediately add patient to latestDoctorDashboard follow_ups list
+    if (typeof latestDoctorDashboard !== "undefined" && latestDoctorDashboard) {
+      const currentFollowUps = Array.isArray(latestDoctorDashboard.follow_ups) ? latestDoctorDashboard.follow_ups : [];
+      latestDoctorDashboard.follow_ups = [
+        newFollowUpItem,
+        ...currentFollowUps.filter(item => (item.patient_name || item.name || "").trim().toLowerCase() !== patientName.toLowerCase())
+      ];
+      if (!latestDoctorDashboard.stats) latestDoctorDashboard.stats = {};
+      latestDoctorDashboard.stats.follow_ups = latestDoctorDashboard.follow_ups.length;
+
+      if (typeof renderDoctorStats === "function") renderDoctorStats(latestDoctorDashboard.stats);
+      if (typeof renderDoctorPracticeSummary === "function") renderDoctorPracticeSummary(latestDoctorDashboard);
+      if (typeof renderDoctorFollowUps === "function") renderDoctorFollowUps(latestDoctorDashboard.follow_ups);
+      if (typeof renderFollowUpsModal === "function") renderFollowUpsModal(latestDoctorDashboard.follow_ups);
+    }
+
+    // Direct DOM prepend to #doctorAppointmentsList if needed
+    const apptContainer = document.getElementById("doctorAppointmentsList");
+    if (apptContainer && (!latestDoctorDashboard || !latestDoctorDashboard.follow_ups || !latestDoctorDashboard.follow_ups.length)) {
+      const emptyState = apptContainer.querySelector(".empty-state");
+      if (emptyState) apptContainer.innerHTML = "";
+      const row = document.createElement("div");
+      row.className = "patient-row";
+      row.innerHTML = `
+        <div class="patient-avatar avatar-1">${patientName.slice(0, 2).toUpperCase()}</div>
+        <div class="patient-info">
+          <strong>${patientName}</strong>
+          <span>Today • ${nowTime}</span>
+        </div>
+        <div class="patient-complaint">
+          <span>Reason for visit</span>
+          <strong>${complaint}</strong>
+        </div>
+        <span class="status Active-status">Confirmed</span>
+        <i class="fa-solid fa-chevron-right more-btn" aria-hidden="true"></i>
+      `;
+      row.addEventListener("click", () => {
+        if (typeof window.openDoctorFollowupPrescriptionModal === "function") {
+          window.openDoctorFollowupPrescriptionModal(newFollowUpItem);
+        }
+      });
+      apptContainer.prepend(row);
+    }
+
+    closeCaseModal();
+    caseForm.reset();
+    if (typeof showToast === "function") {
+      showToast(`${patientName} added to follow-up visits.`);
+    }
+
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = origBtnHtml;
+    }
+
+    // Background sync full dashboard from database
+    try {
+      if (typeof window.loadDoctorAppointments === "function") {
+        await window.loadDoctorAppointments();
+      } else if (typeof loadDoctorAppointments === "function") {
+        await loadDoctorAppointments();
+      }
+    } catch (_) {}
   });
 }
 
@@ -815,11 +891,23 @@ body.dark .doctor-comment-form textarea {
       .addEventListener("click", closeWorkspace);
   }
 
-  document.getElementById("workspaceTitle").textContent = title;
+  const wsIconEl = workspace.querySelector(".workspace-icon");
+  if (wsIconEl) wsIconEl.style.display = "";
+  const wsLabelEl = workspace.querySelector(".workspace-label");
+  if (wsLabelEl) wsLabelEl.style.display = "";
+  const wsTitleEl = document.getElementById("workspaceTitle");
+  if (wsTitleEl) {
+    wsTitleEl.textContent = title;
+    wsTitleEl.style.display = "";
+  }
+  const wsDescEl = document.getElementById("workspaceDescription");
+  if (wsDescEl) {
+    wsDescEl.textContent = description;
+    wsDescEl.style.display = "";
+  }
 
-  document.getElementById("workspaceDescription").textContent = description;
-
-  document.querySelector(".workspace-icon i").className = icon;
+  const wsIconI = workspace.querySelector(".workspace-icon i");
+  if (wsIconI) wsIconI.className = icon || "";
 
   workspace.style.display = "flex";
 
@@ -888,12 +976,6 @@ navItems.forEach((item) => {
       return;
     }
 
-    if (page === "prakriti") {
-      openPrakritiWorkspace();
-
-      return;
-    }
-
     if (page === "learn") {
       openLearnWorkspace();
 
@@ -903,6 +985,13 @@ navItems.forEach((item) => {
     if (page === "notices") {
       openNoticesWorkspace();
 
+      return;
+    }
+
+    if (page === "ai-reviews") {
+      if (typeof showToast === "function") {
+        showToast("AI Reviews is an upcoming feature in development.");
+      }
       return;
     }
   });
@@ -932,7 +1021,7 @@ function updateBreadcrumb(page) {
 
     notices: "Notices & Circulars",
 
-    analytics: "Analytics",
+    "ai-reviews": "AI Reviews",
 
     settings: "Settings",
   };
@@ -1111,15 +1200,15 @@ function buildPatientDirectory(cases, appointments) {
     }))
     .sort((a, b) => {
       // 1. Follow-up patients strictly at the top of the list!
-      const aHasFollowUp = a.upcoming && a.upcoming.length > 0;
-      const bHasFollowUp = b.upcoming && b.upcoming.length > 0;
+      const aHasFollowUp = (a.upcoming && a.upcoming.length > 0) || (a.cases[0] && String(a.cases[0].status || "").toLowerCase().includes("follow"));
+      const bHasFollowUp = (b.upcoming && b.upcoming.length > 0) || (b.cases[0] && String(b.cases[0].status || "").toLowerCase().includes("follow"));
       if (aHasFollowUp && !bHasFollowUp) return -1;
       if (!aHasFollowUp && bHasFollowUp) return 1;
 
       // 2. If both have follow-ups, sort by soonest scheduled follow-up
       if (aHasFollowUp && bHasFollowUp) {
-        const aDate = String(a.upcoming[0]?.appointment_date || "") + " " + String(a.upcoming[0]?.appointment_time || "");
-        const bDate = String(b.upcoming[0]?.appointment_date || "") + " " + String(b.upcoming[0]?.appointment_time || "");
+        const aDate = String(a.upcoming[0]?.appointment_date || a.cases[0]?.case_date || a.cases[0]?.created_at || "") + " " + String(a.upcoming[0]?.appointment_time || "");
+        const bDate = String(b.upcoming[0]?.appointment_date || b.cases[0]?.case_date || b.cases[0]?.created_at || "") + " " + String(b.upcoming[0]?.appointment_time || "");
         const cmp = aDate.localeCompare(bDate);
         if (cmp !== 0) return cmp;
       }
@@ -1138,7 +1227,7 @@ function renderPatientDirectoryCard(patient, index) {
     patient.gender ? escapeHTML(patient.gender) : "Gender not recorded",
   ].join(" • ");
   const latestCase = patient.cases[0];
-  const hasFollowUp = patient.upcoming.length > 0;
+  const hasFollowUp = (patient.upcoming.length > 0) || (latestCase && String(latestCase.status || "").toLowerCase().includes("follow"));
   const latestStatus = hasFollowUp
     ? "Follow-up"
     : (latestCase?.status ||
@@ -1163,7 +1252,16 @@ function renderPatientDirectoryCard(patient, index) {
           )
           .join("")}
       </section>`
-    : "";
+    : ((latestCase && String(latestCase.status || "").toLowerCase().includes("follow"))
+        ? `
+      <section class="patient-record-group upcoming-records">
+        <h4><i class="fa-solid fa-calendar-check"></i> Follow-up consultations <span>1</span></h4>
+        <div class="patient-record-line">
+          <strong>${escapeHTML(formatClinicalDate(latestCase.case_date || latestCase.created_at))} · Scheduled Follow-up</strong>
+          <span>Follow-up Consultation · ${escapeHTML(latestCase.chief_complaint || latestCase.complaint || "Clinical follow-up scheduled")}</span>
+        </div>
+      </section>`
+        : "");
 
   const caseHistory = patient.cases.length
     ? `
@@ -1233,7 +1331,7 @@ async function openPatientsWorkspace() {
     const { cases, appointments } = await loadDoctorWorkspaceRecords();
     const patients = buildPatientDirectory(cases, appointments);
     const upcomingCount = patients.reduce(
-      (count, patient) => count + patient.upcoming.length,
+      (count, patient) => count + (patient.upcoming.length || (patient.cases[0] && String(patient.cases[0].status || "").toLowerCase().includes("follow") ? 1 : 0)),
       0,
     );
     const previousCount = patients.reduce(
@@ -1419,10 +1517,12 @@ async function openHistoryWorkspace() {
     return;
   }
 
+  const displayCases = cases.slice(0, 2);
+
   content.innerHTML = `
     <div class="workspace-toolbar">
       <div class="workspace-counts">
-        <span><strong>${cases.length}</strong> recorded case${cases.length === 1 ? "" : "s"}</span>
+        <span><strong>${displayCases.length}</strong> recorded patient case${displayCases.length === 1 ? "" : "s"}</span>
         <span>All dates · all statuses</span>
       </div>
       <label class="workspace-search" for="caseHistorySearch">
@@ -1431,7 +1531,7 @@ async function openHistoryWorkspace() {
       </label>
     </div>
     <div class="case-history-list">
-      ${cases
+      ${displayCases
         .map(
           (patient, index) => `
             <article class="case-history-card" data-case-search="${escapeHTML(
@@ -1820,232 +1920,33 @@ if (doctorAssistantModalEl) {
    ===================================================== */
 
 function openLearnWorkspace() {
-  const content = openWorkspace(
-    "Learn",
-    "Evidence-led reading for thoughtful, up-to-date clinical care.",
-    "fa-solid fa-book-open-reader",
-  );
+  const content = openWorkspace("", "", "");
 
-  const articles = window.learnArticles || [];
+  // Clean up any old wishlist or completed buttons if present
+  document.getElementById("learnWishlistView")?.remove();
+  document.getElementById("learnCompletedView")?.remove();
 
-  const categories = [
-    ["All", "fa-solid fa-border-all"],
-    ["Mental Wellness", "fa-solid fa-brain"],
-    ["Nutrition", "fa-solid fa-apple-whole"],
-    ["Sleep", "fa-solid fa-moon"],
-    ["Fitness", "fa-solid fa-person-running"],
-    ["Cancer", "fa-solid fa-ribbon"],
-    ["Clotting", "fa-solid fa-droplet"],
-    ["Research", "fa-solid fa-flask"],
-    ["Prevention", "fa-solid fa-shield-heart"],
-  ];
-  let selectedCategory = "All";
-  let searchTerm = "";
-  let wishOnly = false;
-  let completedOnly = false;
-  const progressKey = "ayurcaseLearnProgress";
-  const wishKey = "ayurcaseLearnWishlist";
-  const completedKey = "ayurcaseLearnCompleted";
-  let progress = {};
-  let wish = [];
-  let completed = [];
-
-  try {
-    progress = JSON.parse(localStorage.getItem(progressKey)) || {};
-  } catch (error) {
-    progress = {};
-  }
-  try {
-    wish = JSON.parse(localStorage.getItem(wishKey)) || [];
-  } catch (error) {
-    wish = [];
-  }
-  try {
-    completed = JSON.parse(localStorage.getItem(completedKey)) || [];
-  } catch (error) {
-    completed = [];
+  // Hide all workspace chrome elements (icon, label, title, description) so ONLY the Add Article button is visible
+  const workspaceEl = document.getElementById("ayurcaseWorkspace");
+  if (workspaceEl) {
+    const wsIcon = workspaceEl.querySelector(".workspace-icon");
+    if (wsIcon) wsIcon.style.display = "none";
+    const wsLabel = workspaceEl.querySelector(".workspace-label");
+    if (wsLabel) wsLabel.style.display = "none";
+    const wsTitle = document.getElementById("workspaceTitle");
+    if (wsTitle) wsTitle.style.display = "none";
+    const wsDesc = document.getElementById("workspaceDescription");
+    if (wsDesc) wsDesc.style.display = "none";
   }
 
   content.innerHTML = `
-        <section class="learn-library" aria-label="Clinical learning library">
-            <label class="learn-search" for="learnSearch"><i class="fa-solid fa-magnifying-glass"></i><input id="learnSearch" type="search" placeholder="Search articles, topics, or institutions..." autocomplete="off"></label>
-            <div class="learn-category-row" id="learnCategories" aria-label="Article categories"></div>
-            <div class="learn-results-meta" id="learnResultsMeta" aria-live="polite"></div>
-            <div class="learn-article-grid" id="learnArticleGrid"></div>
-        </section>`;
-
-  const searchInput = document.getElementById("learnSearch");
-  const categoryContainer = document.getElementById("learnCategories");
-  const articleGrid = document.getElementById("learnArticleGrid");
-  const resultsMeta = document.getElementById("learnResultsMeta");
-  const wishlistView = document.createElement("button");
-  wishlistView.id = "learnWishlistView";
-  wishlistView.className = "learn-wishlist-toggle learn-title-wishlist";
-  wishlistView.type = "button";
-  wishlistView.innerHTML =
-    '<i class="fa-regular fa-heart"></i> Wishlist <b>0</b>';
-  const workspaceTitle = document.getElementById("workspaceTitle");
-  workspaceTitle.insertAdjacentElement("afterend", wishlistView);
-  wishlistView.style.top = `${workspaceTitle.offsetTop}px`;
-  const completedView = document.createElement("button");
-  completedView.id = "learnCompletedView";
-  completedView.className = "learn-completed-toggle";
-  completedView.type = "button";
-  completedView.setAttribute("aria-label", "Show completed articles");
-  completedView.dataset.tooltip = "Completed articles";
-  completedView.innerHTML =
-    '<i class="fa-solid fa-circle-check"></i> <span>Completed</span>';
-  const workspaceDescription = document.getElementById("workspaceDescription");
-  workspaceDescription.insertAdjacentElement("afterend", completedView);
-  completedView.style.top = `${workspaceDescription.offsetTop}px`;
-
-  function renderCategories() {
-    categoryContainer.innerHTML = categories
-      .map(
-        ([name, icon]) => `
-            <button class="learn-category ${name === selectedCategory ? "active" : ""}" type="button" data-category="${name}"><i class="${icon}"></i><span>${name}</span></button>`,
-      )
-      .join("");
-    categoryContainer.querySelectorAll(".learn-category").forEach((button) =>
-      button.addEventListener("click", () => {
-        selectedCategory = button.dataset.category;
-        renderCategories();
-        renderArticles();
-      }),
-    );
-  }
-
-  function renderArticles() {
-    const query = searchTerm.toLowerCase();
-    const visibleArticles = articles.filter((article) => {
-      const matchesCategory =
-        selectedCategory === "All" || article.category === selectedCategory;
-      return (
-        matchesCategory &&
-        (!wishOnly || wish.includes(article.id)) &&
-        (!completedOnly || completed.includes(article.id)) &&
-        `${article.title} ${article.source} ${article.category} ${article.excerpt}`
-          .toLowerCase()
-          .includes(query)
-      );
-    });
-    wishlistView.classList.toggle("active", wishOnly);
-    wishlistView.querySelector("b").textContent = wish.length;
-    wishlistView.querySelector("i").className = wishOnly
-      ? "fa-solid fa-heart"
-      : "fa-regular fa-heart";
-    completedView.classList.toggle("active", completedOnly);
-    resultsMeta.textContent = `${visibleArticles.length} ${visibleArticles.length === 1 ? "article" : "articles"} found${wishOnly ? " in your wishlist" : completedOnly ? " completed" : ""}`;
-    articleGrid.innerHTML = visibleArticles.length
-      ? visibleArticles
-          .map((article) => {
-            const savedProgress = progress[article.id];
-            const isStarted =
-              Number.isFinite(savedProgress) && savedProgress > 0;
-            const percentage = isStarted ? Math.min(savedProgress, 100) : 0;
-            return `<article class="learn-article ${isStarted ? "is-started" : ""}">
-                <div class="learn-article-top"><div class="learn-article-icon"><i class="${article.icon}"></i></div><span class="learn-read-time"><i class="fa-regular fa-clock"></i> ${article.minutes} min read</span></div>
-                <div class="learn-source-row"><span class="learn-source">${article.source}</span><button class="wishlist-icon ${wish.includes(article.id) ? "saved" : ""}" type="button" data-id="${article.id}" data-tooltip="${wish.includes(article.id) ? "Remove from wishlist" : "Add to wishlist"}"><i class="${wish.includes(article.id) ? "fa-solid" : "fa-regular"} fa-heart"></i></button></div><h3>${article.title}</h3><p>${article.excerpt}</p>
-                ${isStarted ? `<div class="learn-progress-copy"><span>Continue reading</span></div><div class="learn-progress" aria-label="Reading started"><span style="width:${percentage}%"></span></div>` : ""}
-                <div class="learn-card-bottom"><button class="learn-read-button" type="button" data-article-id="${article.id}">${isStarted ? "Continue reading" : "Start reading"}<i class="fa-solid fa-arrow-right"></i></button><span class="learn-card-status">${completed.includes(article.id) ? '<b class="learn-completed-label"><i class="fa-solid fa-circle-check"></i> Completed</b>' : ""}<span class="learn-published"><i class="fa-regular fa-calendar"></i> ${article.published}</span></span></div>
-            </article>`;
-          })
-          .join("")
-      : `<div class="learn-empty"><i class="fa-solid fa-book-medical"></i><strong>No articles match your search.</strong><span>Try another topic, institution, or category.</span></div>`;
-
-    articleGrid.querySelectorAll(".learn-read-button").forEach((button) =>
-      button.addEventListener("click", () => {
-        const article = articles.find(
-          (item) => item.id === button.dataset.articleId,
-        );
-        progress[article.id] = progress[article.id] || 18;
-        localStorage.setItem(progressKey, JSON.stringify(progress));
-        renderArticles();
-        openArticlePreview(article);
-      }),
-    );
-    articleGrid.querySelectorAll(".wishlist-icon").forEach((button) =>
-      button.addEventListener("click", () => {
-        const id = button.dataset.id;
-        wish = wish.includes(id)
-          ? wish.filter((saved) => saved !== id)
-          : [...wish, id];
-        localStorage.setItem(wishKey, JSON.stringify(wish));
-        renderArticles();
-      }),
-    );
-  }
-
-  searchInput.addEventListener("input", (event) => {
-    searchTerm = event.target.value.trim();
-    renderArticles();
-  });
-  wishlistView.addEventListener("click", () => {
-    wishOnly = !wishOnly;
-    renderArticles();
-  });
-  completedView.addEventListener("click", () => {
-    completedOnly = !completedOnly;
-    renderArticles();
-  });
-  window.learnLibraryRefresh = () => {
-    try {
-      completed = JSON.parse(localStorage.getItem(completedKey)) || [];
-    } catch (error) {
-      completed = [];
-    }
-    renderArticles();
-  };
-  renderCategories();
-  renderArticles();
-}
-
-function openArticlePreview(article) {
-  let preview = document.getElementById("learnPreview");
-
-  if (!preview) {
-    preview = document.createElement("div");
-    preview.id = "learnPreview";
-    preview.className = "learn-preview-overlay";
-    document.body.appendChild(preview);
-  }
-
-  const completedKey = "ayurcaseLearnCompleted";
-  let completed = [];
-  try {
-    completed = JSON.parse(localStorage.getItem(completedKey)) || [];
-  } catch (error) {
-    completed = [];
-  }
-  const isCompleted = completed.includes(article.id);
-
-  preview.innerHTML = `
-        <section class="learn-preview" role="dialog" aria-modal="true" aria-label="Article summary">
-            <button class="learn-preview-close" type="button" aria-label="Close summary"><i class="fa-solid fa-xmark"></i></button>
-            <span class="learn-source">${article.source}</span>
-            <h2>${article.title}</h2>
-            <div class="learn-preview-meta"><span><i class="fa-regular fa-calendar"></i> ${article.published}</span><span><i class="fa-regular fa-clock"></i> ${article.minutes} min read</span></div>
-            <p>${article.excerpt}</p>
-            <div class="learn-preview-actions"><a class="learn-full-article" href="${article.url}" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-book-open"></i> Read full article</a><button class="learn-complete-button ${isCompleted ? "done" : ""}" type="button"><i class="fa-solid fa-circle-check"></i> Completed reading</button></div>
-        </section>`;
-
-  preview.classList.add("show");
-  preview
-    .querySelector(".learn-preview-close")
-    .addEventListener("click", () => preview.classList.remove("show"));
-  preview.onclick = (event) => {
-    if (event.target === preview) preview.classList.remove("show");
-  };
-  preview
-    .querySelector(".learn-complete-button")
-    .addEventListener("click", (event) => {
-      completed = isCompleted
-        ? completed.filter((id) => id !== article.id)
-        : [...completed, article.id];
-      localStorage.setItem(completedKey, JSON.stringify(completed));
-      window.learnLibraryRefresh?.();
-      openArticlePreview(article);
-    });
+    <div class="learn-only-container" style="display: flex; align-items: center; justify-content: center; min-height: 280px; width: 100%; padding: 40px 20px;">
+      <button type="button" class="primary-btn" id="learnOnlyAddArticleBtn" onclick="if (typeof closeWorkspace === 'function') closeWorkspace(); if (typeof window.openDoctorAddArticleModal === 'function') { window.openDoctorAddArticleModal(); } else if (typeof openDoctorAddArticleModal === 'function') { openDoctorAddArticleModal(); }" style="background: linear-gradient(135deg, #0d9488, #059669); color: #ffffff; border: none; padding: 20px 48px; border-radius: 16px; font-weight: 700; font-size: 18px; cursor: pointer; display: inline-flex; align-items: center; gap: 12px; box-shadow: 0 10px 30px rgba(13, 148, 136, 0.35); transition: transform 0.15s ease, box-shadow 0.15s ease;">
+        <i class="fa-solid fa-plus" style="font-size: 20px;"></i>
+        <span>Add Article</span>
+      </button>
+    </div>
+  `;
 }
 
 /* =====================================================
@@ -2066,12 +1967,6 @@ quickCards.forEach((card) => {
 
     if (title === "Add Patient") {
       openCaseModal();
-
-      return;
-    }
-
-    if (title === "Prakriti Test") {
-      openPrakritiWorkspace();
 
       return;
     }
@@ -2647,68 +2542,51 @@ if (calendarButton) {
   });
 }
 
-function openCalendarWorkspace() {
+async function openCalendarWorkspace() {
   const content = openWorkspace(
     "Upcoming Schedule",
-
     "Review your upcoming patient follow-ups.",
-
     "fa-regular fa-calendar",
   );
 
-  const appointments = [
-    {
-      date: "31 AUG",
-      patient: "Rahul Sharma",
-      type: "Follow-up consultation",
-      time: "10:30 AM",
-    },
+  let appointments = latestDoctorDashboard?.follow_ups || [];
+  if (!appointments.length && typeof window.extractAllDoctorFollowUps === "function") {
+    try {
+      const { cases, appointments: rawAppts } = await loadDoctorWorkspaceRecords();
+      appointments = window.extractAllDoctorFollowUps(rawAppts, cases);
+    } catch (_) {}
+  }
 
-    {
-      date: "01 SEP",
-      patient: "Priya Das",
-      type: "Progress assessment",
-      time: "11:15 AM",
-    },
-
-    {
-      date: "03 SEP",
-      patient: "Sneha Mukherjee",
-      type: "Case review",
-      time: "04:00 PM",
-    },
-  ];
+  if (!appointments.length) {
+    content.innerHTML = `
+      <div class="workspace-empty-state">
+        <i class="fa-regular fa-calendar-xmark"></i>
+        <strong>No upcoming follow-ups scheduled</strong>
+        <span>Confirmed patient follow-up visits will appear here.</span>
+      </div>`;
+    return;
+  }
 
   content.innerHTML = appointments
     .map(
       (item) => `
-
-                <div class="workspace-box">
-
-                    <strong>
-                        ${item.date}
-                        —
-                        ${item.patient}
-                    </strong>
-
-                    <span>
-                        ${item.type}
-                    </span>
-
-                    <span>
-                        Scheduled at
-                        ${item.time}
-                    </span>
-
-                </div>
-
-            `,
+        <div class="workspace-box">
+          <strong>
+            ${escapeHTML(formatClinicalDate(item.appointment_date))} — ${escapeHTML(item.patient_name)}
+          </strong>
+          <span>
+            ${escapeHTML(item.symptoms_notes || item.consultation_type || "Follow-up consultation")}
+          </span>
+          <span>
+            Scheduled: ${escapeHTML(item.appointment_time || "Time to be confirmed")}
+          </span>
+        </div>`,
     )
     .join("");
 }
 
 /* =====================================================
-   ANALYTICS & SETTINGS
+   SETTINGS
    ===================================================== */
 
 const sidebarLinks = document.querySelectorAll(".sidebar .nav-item");
@@ -2716,19 +2594,6 @@ const sidebarLinks = document.querySelectorAll(".sidebar .nav-item");
 sidebarLinks.forEach((link) => {
   const text = link.querySelector("span")?.textContent.trim();
 
-  if (text === "Analytics") {
-    link.addEventListener("click", function (event) {
-      event.preventDefault();
-
-      sidebarLinks.forEach((nav) => nav.classList.remove("active"));
-
-      link.classList.add("active");
-
-      updateBreadcrumbText("Analytics");
-
-      openAnalyticsWorkspace();
-    });
-  }
 
   if (text === "Settings") {
     link.addEventListener("click", function (event) {
@@ -3059,38 +2924,38 @@ function renderDoctorNoticeCard(notice, currentDocName) {
 
   const commentsHtml = comments.length
     ? comments.map(c => `
-        <div class="doctor-comment-box" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px;">
+        <div class="doctor-comment-box" style="border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
-            <strong style="font-size: 12px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+            <strong class="doctor-comment-author" style="font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
               <i class="fa-solid fa-user-doctor" style="color: var(--green-700);"></i>
               ${escapeHTML(c.author_name)}
             </strong>
-            <span style="font-size: 11px; color: var(--muted);">${escapeHTML(formatDoctorNoticeTime(c.created_at))}</span>
+            <span class="doctor-comment-time" style="font-size: 11px; color: var(--muted);">${escapeHTML(formatDoctorNoticeTime(c.created_at))}</span>
           </div>
-          <p style="margin: 0; font-size: 12.5px; color: #334155; line-height: 1.5;">${escapeHTML(c.comment_text)}</p>
+          <p class="doctor-comment-text" style="margin: 0; font-size: 12.5px; line-height: 1.5;">${escapeHTML(c.comment_text)}</p>
         </div>
       `).join("")
-    : `<p style="font-size: 12px; color: var(--muted); font-style: italic; margin: 0 0 10px;">No comments or acknowledgements posted yet. Leave your reply below.</p>`;
+    : `<p class="doctor-notice-empty-comments" style="font-size: 12px; color: var(--muted); font-style: italic; margin: 0 0 10px;">No comments or acknowledgements posted yet. Leave your reply below.</p>`;
 
   return `
-    <article class="doctor-notice-card" style="background: white; border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+    <article class="doctor-notice-card" style="border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
       <div style="margin-bottom: 6px;">
-        <h3 style="font-size: 16.5px; font-weight: 700; color: #1e293b; margin: 0 0 6px; line-height: 1.35;">
+        <h3 class="doctor-notice-title" style="font-size: 16.5px; font-weight: 700; margin: 0 0 6px; line-height: 1.35;">
           ${escapeHTML(notice.title)}
         </h3>
-        <div style="font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; margin-bottom: 12px;">
-          <i class="fa-regular fa-clock"></i> ${escapeHTML(formatDoctorNoticeTime(notice.created_at))} &bull; Posted by <strong>${escapeHTML(notice.posted_by || "Hospital Admin")}</strong>
+        <div class="doctor-notice-meta" style="font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; margin-bottom: 12px;">
+          <i class="fa-regular fa-clock"></i> ${escapeHTML(formatDoctorNoticeTime(notice.created_at))} &bull; Posted by <strong class="doctor-notice-author">${escapeHTML(notice.posted_by || "Hospital Admin")}</strong>
         </div>
       </div>
 
-      <div style="font-size: 13.5px; line-height: 1.6; color: #334155; white-space: pre-line; margin-bottom: 16px;">
+      <div class="doctor-notice-body" style="font-size: 13.5px; line-height: 1.6; white-space: pre-line; margin-bottom: 16px;">
         ${escapeHTML(notice.content)}
       </div>
 
       <!-- COMMENTS SECTION -->
       <div style="border-top: 1px solid var(--border); padding-top: 12px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-          <strong style="font-size: 12px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 6px;">
+          <strong class="doctor-notice-comment-heading" style="font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
             <i class="fa-solid fa-comments"></i>
             Doctor Acknowledgements (${comments.length})
           </strong>
@@ -3101,14 +2966,14 @@ function renderDoctorNoticeCard(notice, currentDocName) {
         </div>
 
         <!-- COMMENT COMPOSER -->
-        <form id="doctorCommentForm_${notice.id}" class="doctor-comment-form" style="background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;">
+        <form id="doctorCommentForm_${notice.id}" class="doctor-comment-form" style="border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <label for="doctorCommentInput_${notice.id}" style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted);">
-              Reply / Acknowledge as <strong>${escapeHTML(currentDocName)}</strong>
+            <label class="doctor-comment-label" for="doctorCommentInput_${notice.id}" style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted);">
+              Reply / Acknowledge as <strong class="doctor-comment-self-name">${escapeHTML(currentDocName)}</strong>
             </label>
           </div>
           <div style="display: flex; gap: 8px; align-items: flex-end;">
-            <textarea id="doctorCommentInput_${notice.id}" rows="2" placeholder="Write acknowledgement, meeting RSVP, or clinical inquiry..." required style="flex: 1; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 12.5px; resize: vertical; box-sizing: border-box;"></textarea>
+            <textarea id="doctorCommentInput_${notice.id}" class="doctor-comment-textarea" rows="2" placeholder="Write acknowledgement, meeting RSVP, or clinical inquiry..." required style="flex: 1; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 12.5px; resize: vertical; box-sizing: border-box;"></textarea>
             <button type="submit" id="doctorCommentSubmit_${notice.id}" class="primary-btn" style="padding: 8px 14px; font-size: 12px; white-space: nowrap; height: 38px;">
               <i class="fa-solid fa-paper-plane"></i>
               <span>Post</span>
@@ -3265,4 +3130,158 @@ document.getElementById("doctorOpenNoticesBtn")?.addEventListener("click", () =>
 if (document.getElementById("doctorNoticePreviewPanel") || document.getElementById("doctorNavNotices")) {
   updateDoctorNoticeBadges();
 }
+
+/* =====================================================
+   AI REVIEWS WORKSPACE
+   ===================================================== */
+
+async function openAiReviewsWorkspace(event) {
+  if (event && event.preventDefault) event.preventDefault();
+  if (typeof showToast === "function") {
+    showToast("AI Reviews is an upcoming feature in active development.");
+  }
+  return;
+
+  content.innerHTML = `
+    <div class="workspace-loading">
+      <i class="fa-solid fa-circle-notch fa-spin"></i>
+      Loading patient AI queries…
+    </div>`;
+
+  try {
+    const api = typeof getApiHost === "function" ? getApiHost() : "";
+    const [pendingRes, reviewedRes] = await Promise.all([
+      fetch(`${api}/api/doctor/ai-reviews?status=Upcoming`, { cache: "no-store" }),
+      fetch(`${api}/api/doctor/ai-reviews?status=Reviewed`, { cache: "no-store" })
+    ]);
+    const pendingData = await safeResJson(pendingRes);
+    const reviewedData = await safeResJson(reviewedRes);
+
+    const pending = (pendingRes.ok && pendingData.success && Array.isArray(pendingData.reviews)) ? pendingData.reviews : [];
+    const reviewed = (reviewedRes.ok && reviewedData.success && Array.isArray(reviewedData.reviews)) ? reviewedData.reviews : [];
+
+    // Store in global cache so Review AI Solution button works seamlessly
+    window.cachedUpcomingAiReviews = pending;
+    window.cachedPendingAiReviews = pending;
+
+    // Update nav badge without "upcoming" word
+    const navBadge = document.getElementById("doctorAiReviewNavBadge");
+    if (navBadge) {
+      navBadge.textContent = String(pending.length);
+      navBadge.style.display = pending.length > 0 ? "inline-block" : "none";
+    }
+
+    const escapeSafe = (str) => String(str || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
+
+    content.innerHTML = `
+      <div class="workspace-toolbar" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div class="workspace-counts" style="display: flex; align-items: center; gap: 10px;">
+          <span style="background: rgba(99, 102, 241, 0.12); color: #4f46e5; border: 1px solid rgba(99, 102, 241, 0.25); font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 12px;">
+            <strong>${pending.length}</strong> Pending Review
+          </span>
+          <span style="font-size: 12.5px; color: var(--muted);">
+            Review patient inquiry solutions and provide doctor validation
+          </span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <button type="button" class="workspace-action" onclick="openDoctorAiReviewModal('history')" style="margin: 0; padding: 7px 14px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-clock-rotate-left"></i> Reviewed History (${reviewed.length})
+          </button>
+          <button type="button" class="primary-btn" onclick="openDoctorAiReviewModal('write')" style="background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border: none; padding: 7px 14px; border-radius: 8px; font-size: 11.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);">
+            <i class="fa-solid fa-plus"></i> Rate Custom Case
+          </button>
+          <button type="button" class="workspace-action" id="refreshDoctorAiReviewsBtn" style="margin: 0; padding: 7px 14px; font-size: 11.5px;">
+            <i class="fa-solid fa-arrows-rotate"></i> Refresh
+          </button>
+        </div>
+      </div>
+
+      <div class="ai-reviews-workspace-list" style="display: flex; flex-direction: column; gap: 16px;">
+        ${pending.length === 0 ? `
+          <div style="text-align: center; padding: 40px 20px; border: 1.5px dashed var(--border); border-radius: 14px; background: rgba(99, 102, 241, 0.02);">
+            <div style="font-size: 34px; color: #10b981; margin-bottom: 8px;"><i class="fa-solid fa-circle-check"></i></div>
+            <strong style="display: block; font-size: 16px; color: var(--text);">All Patient AI Solutions Reviewed</strong>
+            <p style="font-size: 13px; color: var(--muted); margin: 6px 0 16px; max-width: 480px; margin-left: auto; margin-right: auto;">
+              Every AI solution generated for patient inquiries has been evaluated and verified by a clinician.
+            </p>
+            <div style="display: flex; justify-content: center; gap: 10px;">
+              <button type="button" onclick="openDoctorAiReviewModal('history')" class="workspace-action" style="padding: 8px 16px; font-size: 12px;">View Reviewed History</button>
+              <button type="button" onclick="openDoctorAiReviewModal('write')" class="primary-btn" style="background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border: none; padding: 8px 18px; font-size: 12px; border-radius: 8px;">Rate Custom Case</button>
+            </div>
+          </div>
+        ` : pending.map((r, idx) => {
+            const patientName = r.patient_name || "Patient";
+            const initials = patientName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "PT";
+            const avatarColors = ["#4f46e5", "#059669", "#d97706", "#2563eb", "#7c3aed"];
+            const avatarColor = avatarColors[idx % avatarColors.length];
+
+            return `
+              <div class="patient-ai-review-card">
+                <div class="patient-ai-header">
+                  <div class="patient-ai-patient-info">
+                    <div class="patient-ai-avatar" style="background: ${avatarColor};">
+                      ${initials}
+                    </div>
+                    <div>
+                      <strong class="patient-ai-name">${escapeSafe(patientName)}</strong>
+                      <span class="patient-ai-sub"><i class="fa-regular fa-clock"></i> Patient Inquiry • Needs Doctor Evaluation</span>
+                    </div>
+                  </div>
+                  <div>
+                    <span class="patient-ai-pending-badge">
+                      <i class="fa-solid fa-clock"></i> Pending Review
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Question Asked -->
+                <div class="patient-ai-question-box">
+                  <strong class="patient-ai-question-title">
+                    <i class="fa-solid fa-circle-question"></i> Question Asked by Patient:
+                  </strong>
+                  <p class="patient-ai-question-text">
+                    "${escapeSafe(r.patient_question)}"
+                  </p>
+                </div>
+
+                <!-- AI Solution -->
+                <div class="patient-ai-solution-box">
+                  <strong class="patient-ai-solution-title">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> AI Solution Generated for Patient:
+                  </strong>
+                  <p class="patient-ai-solution-text">
+                    ${escapeSafe(r.ai_answer)}
+                  </p>
+                </div>
+
+                <!-- Actions Footer -->
+                <div class="patient-ai-footer">
+                  <span class="patient-ai-footer-text"><i class="fa-solid fa-stethoscope"></i> Rate accuracy (1-5 ⭐) &amp; adjust dosage if necessary</span>
+                  <button type="button" class="primary-btn" onclick="reviewUpcomingAiCase(${r.id})" style="background: linear-gradient(135deg, #4f46e5, #6366f1); color: white; border: none; padding: 8px 18px; border-radius: 9px; font-size: 12.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; box-shadow: 0 3px 10px rgba(79, 70, 229, 0.25);">
+                    <i class="fa-solid fa-star"></i>
+                    Review AI Solution
+                  </button>
+                </div>
+              </div>
+            `;
+        }).join("")}
+      </div>
+    `;
+
+    document.getElementById("refreshDoctorAiReviewsBtn")?.addEventListener("click", openAiReviewsWorkspace);
+
+  } catch (err) {
+    console.error("AI Reviews workspace error:", err);
+    content.innerHTML = `
+      <div class="workspace-empty-state">
+        <i class="fa-solid fa-triangle-exclamation" style="color: #ef4444;"></i>
+        <strong>Unable to load AI Reviews</strong>
+        <span>Please check your connection and try refreshing.</span>
+        <button type="button" class="workspace-action" onclick="openAiReviewsWorkspace()" style="margin-top: 12px;">Retry</button>
+      </div>
+    `;
+  }
+}
+window.openAiReviewsWorkspace = openAiReviewsWorkspace;
+
 

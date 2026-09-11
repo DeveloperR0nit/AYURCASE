@@ -17,6 +17,7 @@
 
     --cream: #f8f8f4;
     --white: #ffffff;
+    --bg-card: #ffffff;
 
     --text: #1b2923;
     --muted: #7a8780;
@@ -3162,6 +3163,7 @@ body.dark {
     --cream: #101914;
 
     --white: #18231d;
+    --bg-card: #18231d;
 
     --text: #e6eee8;
 
@@ -3186,23 +3188,173 @@ body.dark .panel {
     border-color: #29362f;
 }
 
-body.dark .doctor-notice-preview {
+body.dark .doctor-notice-preview,
+html.dark .doctor-notice-preview {
     background: #18231d !important;
     border-color: #29362f !important;
 }
 
-body.dark .doctor-notice-preview .notice-preview-icon {
+body.dark .doctor-notice-preview .notice-preview-icon,
+html.dark .doctor-notice-preview .notice-preview-icon {
     background: #102619 !important;
+    color: #4ade80 !important;
+    border: 1px solid #1e452c !important;
+}
+
+body.dark .doctor-notice-preview .notice-preview-kicker,
+body.dark .doctor-notice-preview span[style*="text-transform: uppercase"],
+html.dark .doctor-notice-preview .notice-preview-kicker {
     color: #4ade80 !important;
 }
 
-body.dark #doctorNoticeCountTag {
+body.dark #doctorNoticeCountTag,
+html.dark #doctorNoticeCountTag {
     background: #102619 !important;
+    color: #86efac !important;
+    border: 1px solid #1e452c !important;
+}
+
+body.dark #doctorRecentNoticeSnippet,
+html.dark #doctorRecentNoticeSnippet {
+    color: #f1f5f9 !important;
+}
+
+/* Notice Workspace Cards & Text in Dark Mode */
+.doctor-notice-card {
+    background: #ffffff;
+    border-color: var(--border);
+}
+.doctor-notice-title {
+    color: #1e293b;
+}
+.doctor-notice-body {
+    color: #334155;
+}
+.doctor-notice-comment-heading {
+    color: #1e293b;
+}
+.doctor-comment-box {
+    background: #f8fafc;
+}
+.doctor-comment-author {
+    color: #1e293b;
+}
+.doctor-comment-text {
+    color: #334155;
+}
+.doctor-comment-form {
+    background: #f8fafc;
+}
+.doctor-comment-textarea {
+    background: #ffffff;
+    color: #1e293b;
+}
+
+body.dark .doctor-notice-card,
+html.dark .doctor-notice-card {
+    background: #18231d !important;
+    border-color: #29362f !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3) !important;
+}
+
+body.dark .doctor-notice-title,
+body.dark .doctor-notice-card h3,
+html.dark .doctor-notice-title,
+html.dark .doctor-notice-card h3 {
+    color: #f8fafc !important;
+}
+
+body.dark .doctor-notice-meta,
+body.dark .doctor-notice-card .doctor-notice-meta,
+html.dark .doctor-notice-meta,
+html.dark .doctor-notice-card .doctor-notice-meta {
+    color: #94a3b8 !important;
+}
+
+body.dark .doctor-notice-author,
+body.dark .doctor-notice-meta strong,
+html.dark .doctor-notice-author,
+html.dark .doctor-notice-meta strong {
     color: #86efac !important;
 }
 
-body.dark #doctorRecentNoticeSnippet {
-    color: #e8f0e9 !important;
+body.dark .doctor-notice-body,
+body.dark .doctor-notice-card .doctor-notice-body,
+html.dark .doctor-notice-body,
+html.dark .doctor-notice-card .doctor-notice-body {
+    color: #e2e8f0 !important;
+}
+
+body.dark .doctor-notice-comment-heading,
+body.dark .doctor-notice-card .doctor-notice-comment-heading,
+html.dark .doctor-notice-comment-heading,
+html.dark .doctor-notice-card .doctor-notice-comment-heading {
+    color: #f8fafc !important;
+}
+
+body.dark .doctor-notice-comment-heading i,
+html.dark .doctor-notice-comment-heading i {
+    color: #4ade80 !important;
+}
+
+body.dark .doctor-comment-box,
+html.dark .doctor-comment-box {
+    background: #111e17 !important;
+    border-color: #24352b !important;
+}
+
+body.dark .doctor-comment-author,
+body.dark .doctor-comment-box strong,
+html.dark .doctor-comment-author,
+html.dark .doctor-comment-box strong {
+    color: #4ade80 !important;
+}
+
+body.dark .doctor-comment-time,
+body.dark .doctor-comment-box span,
+html.dark .doctor-comment-time,
+html.dark .doctor-comment-box span {
+    color: #94a3b8 !important;
+}
+
+body.dark .doctor-comment-text,
+body.dark .doctor-comment-box p,
+html.dark .doctor-comment-text,
+html.dark .doctor-comment-box p {
+    color: #f1f5f9 !important;
+}
+
+body.dark .doctor-notice-empty-comments,
+html.dark .doctor-notice-empty-comments {
+    color: #94a3b8 !important;
+}
+
+body.dark .doctor-comment-form,
+html.dark .doctor-comment-form {
+    background: #111e17 !important;
+    border-color: #24352b !important;
+}
+
+body.dark .doctor-comment-label,
+html.dark .doctor-comment-label {
+    color: #94a3b8 !important;
+}
+
+body.dark .doctor-comment-self-name,
+html.dark .doctor-comment-self-name {
+    color: #4ade80 !important;
+}
+
+body.dark .doctor-comment-textarea,
+html.dark .doctor-comment-textarea {
+    background: #18231d !important;
+    color: #f8fafc !important;
+    border-color: #2e3e34 !important;
+}
+
+body.dark .doctor-comment-textarea::placeholder,
+html.dark .doctor-comment-textarea::placeholder {
+    color: #64748b !important;
 }
 
 body.dark .doctor-account-menu {
@@ -3217,6 +3369,284 @@ body.dark .doctor-account-menu-header {
 body.dark .doctor-account-menu-header strong,
 body.dark .doctor-profile-details dd {
     color: #e8f0e9;
+}
+
+/* =====================================================
+   CLINICAL AI REVIEWS & DOCTOR EVALUATION CARDS
+   ===================================================== */
+.patient-ai-review-card,
+.patient-ai-card,
+.patient-ai-history-card {
+    background: #ffffff !important;
+    border: 1.5px solid #e2e8f0 !important;
+    border-left: 4px solid #6366f1 !important;
+    border-radius: 14px !important;
+    padding: 18px 20px !important;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04) !important;
+    text-align: left;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.patient-ai-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.patient-ai-patient-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.patient-ai-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.patient-ai-name {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    display: block;
+    line-height: 1.3;
+}
+
+.patient-ai-sub {
+    font-size: 11.5px !important;
+    color: #475569 !important;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 2px;
+}
+
+.patient-ai-pending-badge {
+    background: #fef3c7 !important;
+    color: #92400e !important;
+    border: 1px solid #fde68a !important;
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    padding: 4px 10px !important;
+    border-radius: 12px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+}
+
+.patient-ai-question-box {
+    margin-bottom: 12px !important;
+    background: #f0f4ff !important;
+    border: 1px solid #c7d2fe !important;
+    border-left: 4px solid #4f46e5 !important;
+    padding: 12px 16px !important;
+    border-radius: 0 10px 10px 0 !important;
+}
+
+.patient-ai-question-title {
+    color: #3730a3 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    font-size: 11.5px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    margin-bottom: 5px !important;
+}
+
+.patient-ai-question-text {
+    margin: 0 !important;
+    font-size: 13.5px !important;
+    color: #0f172a !important;
+    font-weight: 600 !important;
+    line-height: 1.55 !important;
+}
+
+.patient-ai-solution-box {
+    margin-bottom: 16px !important;
+    background: #ecfdf5 !important;
+    border: 1px solid #a7f3d0 !important;
+    border-left: 4px solid #059669 !important;
+    padding: 12px 16px !important;
+    border-radius: 0 10px 10px 0 !important;
+}
+
+.patient-ai-solution-title {
+    color: #065f46 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    font-size: 11.5px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    margin-bottom: 5px !important;
+}
+
+.patient-ai-solution-text {
+    margin: 0 !important;
+    font-size: 13.5px !important;
+    color: #0f172a !important;
+    font-weight: 600 !important;
+    line-height: 1.55 !important;
+}
+
+.patient-ai-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-top: 12px;
+    border-top: 1px dashed #e2e8f0;
+}
+
+.patient-ai-footer-text {
+    font-size: 12px !important;
+    color: #334155 !important;
+    font-weight: 600 !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.patient-ai-comment-box {
+    font-size: 12.5px;
+    background: #fffbeb !important;
+    border: 1px solid #fde68a !important;
+    padding: 9px 13px !important;
+    border-radius: 8px !important;
+    color: #78350f !important;
+    margin-top: 8px;
+}
+
+.patient-ai-comment-text {
+    color: #78350f !important;
+    font-weight: 500;
+}
+
+/* Dark Mode Overrides for AI Reviews */
+body.dark .patient-ai-review-card,
+html.dark .patient-ai-review-card,
+body.dark .patient-ai-card,
+html.dark .patient-ai-card,
+body.dark .patient-ai-history-card,
+html.dark .patient-ai-history-card {
+    background: #18231d !important;
+    border-color: #29362f !important;
+    border-left-color: #818cf8 !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35) !important;
+}
+
+body.dark .patient-ai-name,
+html.dark .patient-ai-name {
+    color: #ffffff !important;
+}
+
+body.dark .patient-ai-sub,
+html.dark .patient-ai-sub {
+    color: #94a3b8 !important;
+}
+
+body.dark .patient-ai-pending-badge,
+html.dark .patient-ai-pending-badge {
+    background: rgba(245, 158, 11, 0.18) !important;
+    color: #fbbf24 !important;
+    border-color: rgba(245, 158, 11, 0.35) !important;
+}
+
+body.dark .patient-ai-question-box,
+html.dark .patient-ai-question-box {
+    background: rgba(79, 70, 229, 0.18) !important;
+    border-color: rgba(129, 140, 248, 0.35) !important;
+    border-left-color: #818cf8 !important;
+}
+
+body.dark .patient-ai-question-title,
+html.dark .patient-ai-question-title {
+    color: #c7d2fe !important;
+}
+
+body.dark .patient-ai-question-text,
+html.dark .patient-ai-question-text {
+    color: #ffffff !important;
+    font-weight: 500 !important;
+}
+
+body.dark .patient-ai-solution-box,
+html.dark .patient-ai-solution-box {
+    background: rgba(16, 185, 129, 0.16) !important;
+    border-color: rgba(52, 211, 153, 0.35) !important;
+    border-left-color: #34d399 !important;
+}
+
+body.dark .patient-ai-solution-title,
+html.dark .patient-ai-solution-title {
+    color: #a7f3d0 !important;
+}
+
+body.dark .patient-ai-solution-text,
+html.dark .patient-ai-solution-text {
+    color: #ffffff !important;
+    font-weight: 500 !important;
+}
+
+body.dark .patient-ai-footer,
+html.dark .patient-ai-footer {
+    border-top-color: #29362f !important;
+}
+
+body.dark .patient-ai-footer-text,
+html.dark .patient-ai-footer-text {
+    color: #cbd5e1 !important;
+}
+
+body.dark .patient-ai-comment-box,
+html.dark .patient-ai-comment-box {
+    background: rgba(245, 158, 11, 0.12) !important;
+    border-color: rgba(245, 158, 11, 0.3) !important;
+    color: #fef3c7 !important;
+}
+
+body.dark .patient-ai-comment-text,
+html.dark .patient-ai-comment-text {
+    color: #fef3c7 !important;
+}
+
+/* Modal styling in both light and dark mode */
+#doctorAiReviewModal .modal {
+    background: #ffffff;
+    color: #0f172a;
+}
+
+body.dark #doctorAiReviewModal .modal,
+html.dark #doctorAiReviewModal .modal {
+    background: #16221c !important;
+    color: #f8fafc !important;
+    border-color: #29362f !important;
+}
+
+body.dark #doctorAiReviewModal select,
+body.dark #doctorAiReviewModal textarea,
+body.dark #doctorAiReviewModal input:not([type="hidden"]),
+html.dark #doctorAiReviewModal select,
+html.dark #doctorAiReviewModal textarea,
+html.dark #doctorAiReviewModal input:not([type="hidden"]) {
+    background: #101914 !important;
+    color: #f8fafc !important;
+    border-color: #29362f !important;
 }
 
 body.dark .recent-patient-card,
