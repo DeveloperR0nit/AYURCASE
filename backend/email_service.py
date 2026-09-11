@@ -5,20 +5,115 @@ Supports live SMTP delivery (TLS/SSL) with fallback to local logging and SQLite 
 """
 
 import os
-import ssl
 import json
 import html
-import smtplib
 import threading
+import urllib.request
+import urllib.error
 from datetime import datetime
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+
 
 try:
     from database import get_db_connection
 except ImportError:
     from backend.database import get_db_connection
 
+def send_via_brevo(recipient, recipient_name, subject, body_text, body_html):
+    """
+    Sends a transactional email through Brevo's HTTPS API.
+    Uses HTTPS instead of SMTP so it works on Render Free.
+    """
+    api_key = os.getenv("BREVO_API_KEY", "").strip()
+
+    if not api_key:
+        return {
+            "success": False,
+            "error": "BREVO_API_KEY is not configured"
+        }
+
+    from_email = (
+        os.getenv("BREVO_FROM_EMAIL")
+        or os.getenv("SMTP_FROM_EMAIL")
+        or ""
+    ).strip()
+
+    from_name = (
+        os.getenv("BREVO_FROM_NAME")
+        or os.getenv("SMTP_FROM_NAME")
+        or "AYURCASE Digital Health Portal"
+    ).strip()
+
+    if not from_email:
+        return {
+            "success": False,
+            "error": "BREVO_FROM_EMAIL is not configured"
+        }
+
+    payload = {
+        "sender": {
+            "name": from_name,
+            "email": from_email
+        },
+        "to": [
+            {
+                "email": recipient,
+                "name": recipient_name or ""
+            }
+        ],
+        "subject": subject,
+        "textContent": body_text,
+        "htmlContent": body_html
+    }
+
+    try:
+        data = json.dumps(payload).encode("utf-8")
+
+        request = urllib.request.Request(
+            "https://api.brevo.com/v3/smtp/email",
+            data=data,
+            headers={
+                "accept": "application/json",
+                "api-key": api_key,
+                "content-type": "application/json"
+            },
+            method="POST"
+        )
+
+        with urllib.request.urlopen(request, timeout=15) as response:
+            response_body = response.read().decode("utf-8")
+            result = json.loads(response_body) if response_body else {}
+
+        print(
+            f"[EMAIL SERVICE] Email successfully sent via Brevo API "
+            f"to {recipient}"
+        )
+
+        return {
+            "success": True,
+            "status": "SENT",
+            "recipient": recipient,
+            "message_id": result.get("messageId")
+        }
+
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode("utf-8", errors="replace")
+        print(
+            f"[EMAIL SERVICE] Brevo API HTTP error "
+            f"{e.code}: {error_body}"
+        )
+        return {
+            "success": False,
+            "status": "FAILED",
+            "error": f"Brevo API HTTP {e.code}: {error_body}"
+        }
+
+    except Exception as e:
+        print(f"[EMAIL SERVICE] Brevo API error: {e}")
+        return {
+            "success": False,
+            "status": "FAILED",
+            "error": str(e)
+        }
 
 def get_smtp_config():
     """Retrieves SMTP configuration from environment variables."""
@@ -420,30 +515,17 @@ def send_welcome_email(user_data, user_info=None):
         }
 
         # Case 1: SMTP credentials are configured in .env -> Real delivery
-        if cfg["configured"]:
-            try:
-                msg = MIMEMultipart("alternative")
-                msg["Subject"] = content["subject"]
-                msg["From"] = f'"{cfg["from_name"]}" <{cfg["from_email"]}>'
-                msg["To"] = recipient
+               # Send through Brevo HTTPS API
+        if os.getenv("BREVO_API_KEY"):
+            result = send_via_brevo(
+                recipient=recipient,
+                recipient_name=content["recipient_name"],
+                subject=content["subject"],
+                body_text=content["body_text"],
+                body_html=content["body_html"]
+            )
 
-                msg.attach(MIMEText(content["body_text"], "plain", "utf-8"))
-                msg.attach(MIMEText(content["body_html"], "html", "utf-8"))
-
-                if cfg["use_ssl"]:
-                    context = ssl.create_default_context()
-                    with smtplib.SMTP_SSL(cfg["host"], cfg["port"], context=context, timeout=15) as server:
-                        server.login(cfg["user"], cfg["password"])
-                        server.sendmail(cfg["from_email"], [recipient], msg.as_string())
-                else:
-                    with smtplib.SMTP(cfg["host"], cfg["port"], timeout=15) as server:
-                        if cfg["use_tls"]:
-                            context = ssl.create_default_context()
-                            server.starttls(context=context)
-                        server.login(cfg["user"], cfg["password"])
-                        server.sendmail(cfg["from_email"], [recipient], msg.as_string())
-
-                print(f"[EMAIL SERVICE] Welcome email successfully sent via SMTP to {recipient}")
+            if result["success"]:
                 record_email_log(
                     recipient=recipient,
                     subject=content["subject"],
@@ -453,11 +535,10 @@ def send_welcome_email(user_data, user_info=None):
                     body_text=content["body_text"],
                     body_html=content["body_html"],
                 )
-                return {"success": True, "status": "SENT", "recipient": recipient}
 
-            except Exception as smtp_err:
-                error_str = str(smtp_err)
-                print(f"[EMAIL SERVICE] SMTP delivery failed to {recipient}: {error_str}")
+                return result
+
+            else:
                 record_email_log(
                     recipient=recipient,
                     subject=content["subject"],
@@ -466,10 +547,10 @@ def send_welcome_email(user_data, user_info=None):
                     details_dict=details_summary,
                     body_text=content["body_text"],
                     body_html=content["body_html"],
-                    error_message=error_str,
+                    error_message=result.get("error"),
                 )
-                return {"success": False, "error": error_str, "status": "FAILED"}
 
+                return result
         # Case 2: Local development fallback (no SMTP credentials configured)
         else:
             print("\n" + "=" * 78)
@@ -912,30 +993,17 @@ def send_appointment_confirmation_email(appointment_data, patient_data=None, doc
         }
 
         # Case 1: SMTP credentials are configured -> Real delivery
-        if cfg["configured"]:
-            try:
-                msg = MIMEMultipart("alternative")
-                msg["Subject"] = content["subject"]
-                msg["From"] = f'"{cfg["from_name"]}" <{cfg["from_email"]}>'
-                msg["To"] = recipient
+               # Send through Brevo HTTPS API
+        if os.getenv("BREVO_API_KEY"):
+            result = send_via_brevo(
+                recipient=recipient,
+                recipient_name=content["recipient_name"],
+                subject=content["subject"],
+                body_text=content["body_text"],
+                body_html=content["body_html"]
+            )
 
-                msg.attach(MIMEText(content["body_text"], "plain", "utf-8"))
-                msg.attach(MIMEText(content["body_html"], "html", "utf-8"))
-
-                if cfg["use_ssl"]:
-                    context = ssl.create_default_context()
-                    with smtplib.SMTP_SSL(cfg["host"], cfg["port"], context=context, timeout=15) as server:
-                        server.login(cfg["user"], cfg["password"])
-                        server.sendmail(cfg["from_email"], [recipient], msg.as_string())
-                else:
-                    with smtplib.SMTP(cfg["host"], cfg["port"], timeout=15) as server:
-                        if cfg["use_tls"]:
-                            context = ssl.create_default_context()
-                            server.starttls(context=context)
-                        server.login(cfg["user"], cfg["password"])
-                        server.sendmail(cfg["from_email"], [recipient], msg.as_string())
-
-                print(f"[EMAIL SERVICE] Appointment confirmation email successfully sent to {recipient}")
+            if result["success"]:
                 record_email_log(
                     recipient=recipient,
                     subject=content["subject"],
@@ -945,11 +1013,10 @@ def send_appointment_confirmation_email(appointment_data, patient_data=None, doc
                     body_text=content["body_text"],
                     body_html=content["body_html"],
                 )
-                return {"success": True, "status": "SENT", "recipient": recipient}
 
-            except Exception as smtp_err:
-                error_str = str(smtp_err)
-                print(f"[EMAIL SERVICE] Appointment SMTP delivery failed to {recipient}: {error_str}")
+                return result
+
+            else:
                 record_email_log(
                     recipient=recipient,
                     subject=content["subject"],
@@ -958,10 +1025,10 @@ def send_appointment_confirmation_email(appointment_data, patient_data=None, doc
                     details_dict=details_summary,
                     body_text=content["body_text"],
                     body_html=content["body_html"],
-                    error_message=error_str,
+                    error_message=result.get("error"),
                 )
-                return {"success": False, "error": error_str, "status": "FAILED"}
 
+                return result
         # Case 2: Local development fallback
         else:
             print("\n" + "=" * 78)
@@ -1269,30 +1336,17 @@ def send_account_deletion_email(user_data):
         }
 
         # Case 1: SMTP credentials are configured -> Real delivery
-        if cfg["configured"]:
-            try:
-                msg = MIMEMultipart("alternative")
-                msg["Subject"] = content["subject"]
-                msg["From"] = f'"{cfg["from_name"]}" <{cfg["from_email"]}>'
-                msg["To"] = recipient
+                # Send through Brevo HTTPS API
+        if os.getenv("BREVO_API_KEY"):
+            result = send_via_brevo(
+                recipient=recipient,
+                recipient_name=content["recipient_name"],
+                subject=content["subject"],
+                body_text=content["body_text"],
+                body_html=content["body_html"]
+            )
 
-                msg.attach(MIMEText(content["body_text"], "plain", "utf-8"))
-                msg.attach(MIMEText(content["body_html"], "html", "utf-8"))
-
-                if cfg["use_ssl"]:
-                    context = ssl.create_default_context()
-                    with smtplib.SMTP_SSL(cfg["host"], cfg["port"], context=context, timeout=15) as server:
-                        server.login(cfg["user"], cfg["password"])
-                        server.sendmail(cfg["from_email"], [recipient], msg.as_string())
-                else:
-                    with smtplib.SMTP(cfg["host"], cfg["port"], timeout=15) as server:
-                        if cfg["use_tls"]:
-                            context = ssl.create_default_context()
-                            server.starttls(context=context)
-                        server.login(cfg["user"], cfg["password"])
-                        server.sendmail(cfg["from_email"], [recipient], msg.as_string())
-
-                print(f"[EMAIL SERVICE] Account deletion confirmation email successfully sent to {recipient}")
+            if result["success"]:
                 record_email_log(
                     recipient=recipient,
                     subject=content["subject"],
@@ -1302,11 +1356,10 @@ def send_account_deletion_email(user_data):
                     body_text=content["body_text"],
                     body_html=content["body_html"],
                 )
-                return {"success": True, "status": "SENT", "recipient": recipient}
 
-            except Exception as smtp_err:
-                error_str = str(smtp_err)
-                print(f"[EMAIL SERVICE] Account deletion SMTP delivery failed to {recipient}: {error_str}")
+                return result
+
+            else:
                 record_email_log(
                     recipient=recipient,
                     subject=content["subject"],
@@ -1315,10 +1368,10 @@ def send_account_deletion_email(user_data):
                     details_dict=details_summary,
                     body_text=content["body_text"],
                     body_html=content["body_html"],
-                    error_message=error_str,
+                    error_message=result.get("error"),
                 )
-                return {"success": False, "error": error_str, "status": "FAILED"}
 
+                return result
         # Case 2: Local development fallback
         else:
             print("\n" + "=" * 78)
