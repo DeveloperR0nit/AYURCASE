@@ -799,6 +799,7 @@ html.dark,
 body.dark {
     --cream: #0f1914;
     --white: #17241c;
+    --bg-card: #17241c;
     --sage: #1e2e24;
     --sage-dark: #273d30;
     --text: #e6eee8;

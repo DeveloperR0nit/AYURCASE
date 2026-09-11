@@ -253,12 +253,23 @@
           </div>
 
           <section class="panel" id="patientRegistrySection" style="border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-bottom: 24px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
               <div>
-                <h3 style="font-family: 'Playfair Display', serif; font-size: 18px; color: var(--green-950);">Follow Up Patient Activity</h3>
-                <p style="font-size: 12px; color: var(--muted);">Follow-up appointments, scheduled visits, and patient consultations. Click patient name to reassign practitioner.</p>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <h3 style="font-family: 'Playfair Display', serif; font-size: 18px; color: var(--green-950); margin: 0;">Follow Up Patient Activity &amp; Consultations</h3>
+                  <span id="adminFollowUpCountBadge" style="font-size: 11px; font-weight: 700; color: #166534; background: #dcfce7; padding: 2px 8px; border-radius: 12px;">0 Appointments</span>
+                </div>
+                <p style="font-size: 12px; color: var(--muted); margin: 4px 0 0;">Complete clinical schedule, concerns, and appointed AYUSH doctors. View full details and manage practitioner assignments directly below.</p>
               </div>
-              <button type="button" id="viewAllPatientActivity" class="admin-view-all">View all <i class="fa-solid fa-arrow-right"></i></button>
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <label for="adminHomeDocFilter" style="font-size: 12px; font-weight: 600; color: var(--muted); display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-filter" style="color: var(--green-700);"></i> Doctor:</label>
+                  <select id="adminHomeDocFilter" style="font-size: 12px; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card, #fff); color: var(--text); outline: none;">
+                    <option value="">All AYUSH Doctors</option>
+                  </select>
+                </div>
+                <button type="button" id="viewAllPatientActivity" class="admin-view-all">Full Workspace <i class="fa-solid fa-arrow-right"></i></button>
+              </div>
             </div>
             <div id="patientActivity" class="admin-activity-list" aria-live="polite"><p class="admin-empty">Loading follow-up activity...</p></div>
           </section>
@@ -337,20 +348,31 @@
             <div class="trading-panel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 14px;">
               <div>
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                  <span class="trading-live-indicator"><span class="trading-live-dot"></span> LIVE INFLOW</span>
-                  <h3 style="font-family: 'Playfair Display', serif; font-size: 19px; color: var(--green-950); margin: 0;">Hospital Patient Footfall & Inflow</h3>
+                  <span class="trading-live-indicator"><span class="trading-live-dot"></span> LIVE DATA</span>
+                  <h3 id="chartMainTitle" style="font-family: 'Playfair Display', serif; font-size: 19px; color: var(--green-950); margin: 0;">Patient Registrations from Portal</h3>
                 </div>
-                <p style="font-size: 12px; color: var(--muted); margin: 0;">Real-time hospital consultation volume and traffic analytics (trading format)</p>
+                <p id="chartSubTitle" style="font-size: 12px; color: var(--muted); margin: 0;">Live patient account registrations from patient portal and hospital volume according to actual data added</p>
               </div>
 
               <!-- TRADING INPUT CONTROLS -->
               <div class="trading-controls" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <!-- METRIC SELECTOR -->
+                <div class="trading-timeframe-group" role="group" aria-label="Footfall metric selector">
+                  <button type="button" class="trading-btn active" id="tradingMetricRegistrationsBtn" data-metric="registrations" title="View live patient registrations from portal">
+                    <i class="fa-solid fa-user-plus"></i> Patient Registrations
+                  </button>
+                  <button type="button" class="trading-btn" id="tradingMetricInflowBtn" data-metric="inflow" title="View total hospital inflow (registrations, appointments, consultations)">
+                    <i class="fa-solid fa-chart-line"></i> Total Inflow
+                  </button>
+                </div>
+
+                <!-- TIMEFRAME SELECTOR -->
                 <div class="trading-timeframe-group" role="group" aria-label="Footfall period timeframe">
                   <button type="button" class="trading-btn active" id="tradingPeriodDailyBtn" data-period="daily">
                     <i class="fa-solid fa-chart-simple"></i> Daily
                   </button>
                   <button type="button" class="trading-btn" id="tradingPeriodWeeklyBtn" data-period="weekly">
-                    <i class="fa-solid fa-chart-line"></i> Weekly
+                    <i class="fa-solid fa-calendar-week"></i> Weekly
                   </button>
                 </div>
 
@@ -362,6 +384,10 @@
                     <option value="30">Past 30 Days</option>
                   </select>
                 </div>
+
+                <button type="button" id="refreshChartBtn" class="trading-btn" title="Refresh Live Data" style="border: 1px solid var(--border); padding: 6px 11px; background: #fff;">
+                  <i class="fa-solid fa-rotate"></i>
+                </button>
               </div>
             </div>
 
@@ -703,7 +729,7 @@
     </div>
 
     <!-- CHANGE DOCTOR MODAL (FOR FOLLOW-UP PATIENTS) -->
-    <div id="changeDoctorModal" class="admin-directory-modal" hidden role="dialog" aria-modal="true" aria-label="Change Appointed Doctor">
+    <div id="changeDoctorModal" class="admin-directory-modal" hidden role="dialog" aria-modal="true" aria-label="Change Appointed Doctor" style="z-index: 2500;">
       <section class="admin-directory-dialog" style="max-width: 580px; padding: 28px;">
         <button type="button" id="closeChangeDoctorModal" class="admin-modal-close" aria-label="Close modal"><i class="fa-solid fa-xmark"></i></button>
         <div style="margin-bottom: 18px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
@@ -1913,8 +1939,9 @@
         const workspaceModal = document.getElementById("adminWorkspaceModal");
         const workspaceContent = document.getElementById("adminWorkspaceContent");
         let adminSummary = null;
+        let currentViewingDoctorId = null;
         const directoryModal = document.getElementById("doctorDirectoryModal");
-        const closeDirectory = () => { directoryModal.hidden = true; };
+        const closeDirectory = () => { directoryModal.hidden = true; currentViewingDoctorId = null; };
         document.getElementById("closeDoctorDirectory").addEventListener("click", closeDirectory);
         directoryModal.addEventListener("click", event => { if (event.target === directoryModal) closeDirectory(); });
         const setText = (id, value) => { const element = document.getElementById(id); if (element) element.textContent = value; };
@@ -1940,6 +1967,21 @@
         const showEmpty = (message, container = historyFeed) => {
           if (container) container.replaceChildren(make("p", "admin-empty", message));
         };
+
+        const showToast = (message, type = "success") => {
+          if (typeof showToastNotice === "function") {
+            showToastNotice(message, type);
+            return;
+          }
+          const toast = document.getElementById("toast");
+          const toastMsg = document.getElementById("toastMessage");
+          if (toast && toastMsg) {
+            toastMsg.textContent = message;
+            toast.classList.add("visible");
+            setTimeout(() => toast.classList.remove("visible"), 3500);
+          }
+        };
+        window.showToast = showToast;
 
         const patientFullModal = document.getElementById("patientFullDataModal");
         const patientFullContent = document.getElementById("patientFullDataContent");
@@ -2525,7 +2567,11 @@
 
         const changeDoctorModal = document.getElementById("changeDoctorModal");
         const closeChangeDoctorModal = () => {
-          if (changeDoctorModal) changeDoctorModal.hidden = true;
+          if (changeDoctorModal) {
+            changeDoctorModal.setAttribute("hidden", "true");
+            changeDoctorModal.hidden = true;
+            changeDoctorModal.style.display = "none";
+          }
         };
 
         function openChangeDoctorModal(item) {
@@ -2545,13 +2591,21 @@
 
           const docSelect = document.getElementById("changeDocNewDoctorSelect");
           docSelect.innerHTML = '<option value="">-- Choose New Appointed Doctor --</option>';
-          const doctors = (adminSummary && adminSummary.doctors) ? adminSummary.doctors : [];
+          let doctors = (adminSummary && Array.isArray(adminSummary.doctors) && adminSummary.doctors.length) ? adminSummary.doctors : [];
+          if (!doctors.length && typeof DEFAULT_DOCTORS !== "undefined") {
+            doctors = DEFAULT_DOCTORS;
+          }
+          const curClean = (curDocName || "").toLowerCase().replace(/^dr\.\s*/i, "").trim();
           doctors.forEach(doc => {
             const isPast = (doc.status || "").toLowerCase().includes("past");
             if (!isPast) {
               const opt = document.createElement("option");
-              opt.value = doc.doctor_id || doc.id;
-              const isCur = (doc.doctor_id === item.doctor_id || doc.full_name === curDocName);
+              opt.value = doc.id || doc.doctor_id || doc.user_id;
+              const docClean = (doc.full_name || "").toLowerCase().replace(/^dr\.\s*/i, "").trim();
+              const isCur = Boolean(
+                (item.doctor_id && (String(doc.id) === String(item.doctor_id) || String(doc.user_id) === String(item.doctor_id) || String(doc.doctor_id) === String(item.doctor_id))) ||
+                (curClean && docClean && (docClean === curClean || docClean.includes(curClean) || curClean.includes(docClean)))
+              );
               opt.textContent = `${doc.full_name} — ${doc.specialization || 'Specialist'}${isCur ? ' (Current)' : ''}`;
               if (isCur) opt.disabled = true;
               docSelect.appendChild(opt);
@@ -2559,7 +2613,9 @@
           });
 
           document.getElementById("changeDocReason").value = "";
+          changeDoctorModal.removeAttribute("hidden");
           changeDoctorModal.hidden = false;
+          changeDoctorModal.style.display = "grid";
         }
 
         function createDoctorCard(doctor) {
@@ -3565,17 +3621,26 @@
                   openChangeDoctorModal(item);
                 });
 
-                if (item.appointment_id) {
+                if (item.appointment_id || item.patient_name) {
                   const cancelBtn = make("button", "ayush-btn-cancel-appt", '<i class="fa-solid fa-calendar-xmark"></i> Cancel');
                   cancelBtn.type = "button";
-                  cancelBtn.title = `Cancel scheduled appointment for ${item.patient_name}`;
+                  cancelBtn.title = `Cancel scheduled appointment for ${item.patient_name || 'this patient'}`;
                   cancelBtn.addEventListener("click", async (e) => {
                     e.stopPropagation();
                     if (!confirm(`Cancel this follow-up appointment for ${item.patient_name || 'this patient'}?`)) return;
                     cancelBtn.disabled = true;
                     cancelBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
                     try {
-                      const res = await fetch(`${getApiHost()}/api/appointments/${item.appointment_id}`, { method: "DELETE" });
+                      let res;
+                      if (item.appointment_id) {
+                        res = await fetch(`${getApiHost()}/api/appointments/${item.appointment_id}`, { method: "DELETE" });
+                      } else {
+                        res = await fetch(`${getApiHost()}/api/appointments/cancel`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ patient_name: item.patient_name })
+                        });
+                      }
                       const d = await safeResJson(res);
                       if (res.ok && d.success) {
                         row.remove();
@@ -3584,8 +3649,8 @@
                         if (!content.children.length) {
                           content.append(make("p", "admin-empty", "No follow-up patient appointments recorded yet."));
                         }
-                        showToast(`Follow-up appointment for ${item.patient_name} cancelled.`);
-                        if (typeof loadAdminDashboard === "function") loadAdminDashboard();
+                        showToast(d.message || `Follow-up appointment for ${item.patient_name} cancelled.`);
+                        await renderSummary();
                       } else {
                         alert(d.error || "Failed to cancel appointment.");
                         cancelBtn.disabled = false;
@@ -3636,53 +3701,196 @@
           workspaceContent.append(content);
         }
         const renderActivity = activity => {
-          // Each booking is a distinct clinical event, even if the same
-          // patient books another time for a different condition.
-          const latestActivity = activity.filter(item => item.activity_type === "Appointment booked").slice(0, 3);
-          activityList.replaceChildren();
-          if (!latestActivity.length) {
-            showEmpty("No patient activity yet. New registrations and bookings will appear here.", activityList);
-            return;
-          }
-          latestActivity.forEach(item => {
-            const row = make("article", "admin-activity-item");
-            row.style.cssText = "display: flex; align-items: center; gap: 12px; padding: 12px 14px; flex-wrap: wrap;";
-            const icon = make("div", "admin-activity-icon");
-            const iconElement = document.createElement("i");
-            iconElement.className = "fa-solid fa-calendar-check";
-            icon.append(iconElement);
+          const allFollowUps = (activity || []).filter(item => item.activity_type === "Appointment booked");
+          const rawList = allFollowUps.length ? allFollowUps : (activity || []);
 
-            const text = make("div");
-            text.style.cssText = "flex: 1; min-width: 160px;";
-
-            const patientBtn = make("button", "followup-patient-link", "");
-            patientBtn.type = "button";
-            patientBtn.title = "Click patient name to Change Appointed Doctor";
-            patientBtn.innerHTML = `${item.patient_name || "Patient"} <i class="fa-solid fa-user-pen" style="font-size: 11px; opacity: 0.65; margin-left: 3px;"></i>`;
-            patientBtn.addEventListener("click", (e) => {
-              e.preventDefault();
-              openChangeDoctorModal(item);
-            });
-            text.append(patientBtn);
-
-            const age = item.patient_age ?? "Not provided";
-            const docNote = item.doctor_name ? ` • Dr: <strong style="color:var(--green-800);">${item.doctor_name}</strong>` : "";
-            const subP = make("p", "");
-            subP.innerHTML = `${age} years • ${item.condition || "Condition not recorded"}${docNote}`;
-            text.append(subP);
-
-            const changeBtn = make("button", "ayush-btn-sm ayush-btn-change-doc", '<i class="fa-solid fa-user-doctor"></i> Change Doctor');
-            changeBtn.type = "button";
-            changeBtn.title = `Reassign doctor for ${item.patient_name}`;
-            changeBtn.addEventListener("click", (e) => {
-              e.stopPropagation();
-              openChangeDoctorModal(item);
-            });
-
-            const badge = make("span", "admin-activity-type", item.activity_type || "Follow-up");
-            row.append(icon, text, changeBtn, badge);
-            activityList.append(row);
+          // Deduplicate exact duplicate appointment entries
+          const seenKeys = new Set();
+          const baseList = [];
+          rawList.forEach(item => {
+            const key = item.appointment_id 
+              ? `id_${item.appointment_id}` 
+              : `${(item.patient_name || '').toLowerCase()}_${(item.doctor_name || '').toLowerCase()}_${item.occurred_at || item.detail}`;
+            if (!seenKeys.has(key)) {
+              seenKeys.add(key);
+              baseList.push(item);
+            }
           });
+
+          const countBadge = document.getElementById("adminFollowUpCountBadge");
+          if (countBadge) {
+            countBadge.textContent = `${baseList.length} Scheduled Follow-Up${baseList.length === 1 ? "" : "s"}`;
+          }
+
+          // Populate the doctor filter options if not populated yet
+          const docFilter = document.getElementById("adminHomeDocFilter");
+          if (docFilter && adminSummary && adminSummary.doctors) {
+            const curVal = docFilter.value;
+            const docs = adminSummary.doctors || [];
+            docFilter.innerHTML = `<option value="">All AYUSH Doctors (${baseList.length})</option>` +
+              docs.map(d => `<option value="${escapeHtml(d.full_name)}">${escapeHtml(d.full_name)} (${escapeHtml(d.specialization || 'Ayurveda')})</option>`).join("");
+            docFilter.value = curVal;
+          }
+
+          function drawFollowUps(filterDoc = "") {
+            activityList.replaceChildren();
+            const listToRender = filterDoc 
+              ? baseList.filter(item => item.doctor_name && item.doctor_name.toLowerCase().includes(filterDoc.toLowerCase()))
+              : baseList;
+
+            if (!listToRender.length) {
+              showEmpty(filterDoc ? `No scheduled follow-up visits found for ${filterDoc}.` : "No follow-up patient appointments recorded yet.", activityList);
+              return;
+            }
+
+            listToRender.forEach(item => {
+              const card = make("article", "admin-followup-detail-card");
+              card.style.cssText = "border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 12px; background: var(--bg-card, #ffffff); box-shadow: 0 2px 6px rgba(0,0,0,0.03); transition: all 0.2s ease;";
+
+              // Top Header: Patient identity, Age/Gender, Status badge
+              const headerRow = make("div", "admin-followup-header");
+              headerRow.style.cssText = "display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 10px;";
+
+              const patLeft = make("div");
+              patLeft.style.cssText = "display: flex; align-items: center; gap: 12px;";
+
+              const avatar = make("div", "admin-activity-icon");
+              avatar.style.cssText = "width: 40px; height: 40px; border-radius: 10px; background: #e8f5e9; color: var(--green-800); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; flex-shrink: 0;";
+              avatar.innerHTML = `<i class="fa-solid fa-hospital-user"></i>`;
+
+              const patInfo = make("div");
+              const nameRow = make("div");
+              nameRow.style.cssText = "display: flex; align-items: center; gap: 8px;";
+              const nameStrong = make("strong", "", item.patient_name || "Patient");
+              nameStrong.style.cssText = "font-size: 15px; color: var(--green-950); font-weight: 700;";
+              
+              const patAge = item.patient_age ? `${item.patient_age} yrs` : "Age not recorded";
+              const patSub = make("span", "", `${patAge}${item.gender ? ' • ' + item.gender : ''} • Patient ID: #${item.patient_id || 'PAT'}`);
+              patSub.style.cssText = "font-size: 11.5px; color: var(--muted);";
+
+              nameRow.append(nameStrong);
+              patInfo.append(nameRow, patSub);
+              patLeft.append(avatar, patInfo);
+
+              const statusBadge = make("span", "admin-activity-type");
+              statusBadge.style.cssText = "background: #e8f5e9; color: #166534; border: 1px solid #bbf7d0; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;";
+              statusBadge.innerHTML = `<i class="fa-solid fa-circle-check" style="color: #16a34a; font-size: 9px;"></i> Confirmed Follow-Up`;
+
+              headerRow.append(patLeft, statusBadge);
+
+              // Body Grid: Schedule details, Clinical condition, Appointed doctor
+              const detailsGrid = make("div", "admin-followup-grid");
+              detailsGrid.style.cssText = "display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 14px; background: var(--cream, #f9fafb); padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border);";
+
+              // 1. Schedule details
+              const schedBox = make("div");
+              schedBox.innerHTML = `
+                <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #0284c7; margin-bottom: 3px; display: flex; align-items: center; gap: 5px;">
+                  <i class="fa-regular fa-clock"></i> Consultation Schedule
+                </div>
+                <div style="font-size: 13px; font-weight: 600; color: var(--text);">
+                  ${escapeHtml(item.detail || "Consultation scheduled")}
+                </div>
+              `;
+
+              // 2. Clinical condition / Concern
+              const condBox = make("div");
+              condBox.innerHTML = `
+                <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #b45309; margin-bottom: 3px; display: flex; align-items: center; gap: 5px;">
+                  <i class="fa-solid fa-notes-medical"></i> Clinical Condition / Concern
+                </div>
+                <div style="font-size: 13px; font-weight: 600; color: var(--green-950);">
+                  ${escapeHtml(item.condition || "Routine Ayurvedic follow-up")}
+                </div>
+              `;
+
+              // 3. Appointed doctor
+              const docBox = make("div");
+              docBox.innerHTML = `
+                <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--green-700); margin-bottom: 3px; display: flex; align-items: center; gap: 5px;">
+                  <i class="fa-solid fa-user-doctor"></i> Appointed Practitioner
+                </div>
+                <div style="font-size: 13px; font-weight: 600; color: var(--green-900);">
+                  ${escapeHtml(item.doctor_name || "Assigned Practitioner")}
+                </div>
+              `;
+
+              detailsGrid.append(schedBox, condBox, docBox);
+
+              // Actions row: Reassign Doctor, Cancel Appointment
+              const actionRow = make("div");
+              actionRow.style.cssText = "display: flex; justify-content: flex-end; align-items: center; gap: 10px; flex-wrap: wrap;";
+
+              const changeBtn = make("button", "ayush-btn-sm ayush-btn-change-doc", '<i class="fa-solid fa-user-pen"></i> Change Appointed Doctor');
+              changeBtn.type = "button";
+              changeBtn.style.cssText = "padding: 7px 14px; font-size: 12px; font-weight: 600; border-radius: 8px; cursor: pointer; border: 1px solid rgba(40,98,71,0.25); background: #f0fdf4; color: #166534; display: inline-flex; align-items: center; gap: 6px;";
+              changeBtn.title = `Change appointed practitioner for ${item.patient_name}`;
+              changeBtn.addEventListener("click", e => {
+                e.stopPropagation();
+                openChangeDoctorModal(item);
+              });
+              actionRow.append(changeBtn);
+
+              if (item.appointment_id || item.patient_name) {
+                const cancelBtn = make("button", "ayush-btn-cancel-appt", '<i class="fa-solid fa-calendar-xmark"></i> Cancel Appointment');
+                cancelBtn.type = "button";
+                cancelBtn.style.cssText = "padding: 7px 14px; font-size: 12px; font-weight: 600; border-radius: 8px; cursor: pointer; border: 1px solid #fecaca; background: #fef2f2; color: #dc2626; display: inline-flex; align-items: center; gap: 6px;";
+                cancelBtn.title = `Cancel scheduled appointment for ${item.patient_name || 'this patient'}`;
+                cancelBtn.addEventListener("click", async e => {
+                  e.stopPropagation();
+                  if (!confirm(`Cancel scheduled follow-up appointment for ${item.patient_name || 'this patient'}?`)) return;
+                  cancelBtn.disabled = true;
+                  cancelBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Cancelling...';
+                  try {
+                    let res;
+                    if (item.appointment_id) {
+                      res = await fetch(`${getApiHost()}/api/appointments/${item.appointment_id}`, { method: "DELETE" });
+                    } else {
+                      res = await fetch(`${getApiHost()}/api/appointments/cancel`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ patient_name: item.patient_name })
+                      });
+                    }
+                    const d = await safeResJson(res);
+                    if (res.ok && d.success) {
+                      card.remove();
+                      const bIdx = baseList.indexOf(item);
+                      if (bIdx !== -1) baseList.splice(bIdx, 1);
+                      if (countBadge) countBadge.textContent = `${baseList.length} Scheduled Follow-Up${baseList.length === 1 ? "" : "s"}`;
+                      if (!activityList.children.length) {
+                        showEmpty("No follow-up patient appointments recorded yet.", activityList);
+                      }
+                      showToast(d.message || `Follow-up appointment for ${item.patient_name || 'patient'} cancelled.`);
+                      await renderSummary();
+                    } else {
+                      alert(d.error || "Failed to cancel appointment.");
+                      cancelBtn.disabled = false;
+                      cancelBtn.innerHTML = '<i class="fa-solid fa-calendar-xmark"></i> Cancel Appointment';
+                    }
+                  } catch (err) {
+                    alert("Error cancelling appointment: " + err.message);
+                    cancelBtn.disabled = false;
+                    cancelBtn.innerHTML = '<i class="fa-solid fa-calendar-xmark"></i> Cancel Appointment';
+                  }
+                });
+                actionRow.append(cancelBtn);
+              }
+
+              card.append(headerRow, detailsGrid, actionRow);
+              activityList.append(card);
+            });
+          }
+
+          // Hook up filter dropdown change listener once
+          if (docFilter && !docFilter.dataset.bound) {
+            docFilter.dataset.bound = "true";
+            docFilter.addEventListener("change", () => {
+              drawFollowUps(docFilter.value);
+            });
+          }
+
+          drawFollowUps(docFilter ? docFilter.value : "");
         };
 
         function showPatientProfile(patient, doctor) {
@@ -3702,7 +3910,6 @@
             ["ABHA ID", patient.abha_id || "Not recorded"],
             ["Phone", patient.phone || "Not recorded"],
             ["Blood group", patient.blood_group || "Not recorded"],
-            ["Prakriti", [patient.prakriti_primary, patient.prakriti_secondary].filter(Boolean).join("-") || "Not recorded"],
             ["Case records", `${number(patient.case_count)} case${patient.case_count === 1 ? "" : "s"}`],
             ["Registered on", formatDate(patient.created_at)],
           ];
@@ -3724,6 +3931,7 @@
         }
 
         async function showDoctorPatients(doctorId) {
+          currentViewingDoctorId = doctorId;
           directoryModal.hidden = false;
           details.replaceChildren(make("p", "admin-empty", "Loading follow-up visits and registered patients..."));
           try {
@@ -3825,53 +4033,65 @@
           }
         }
 
-        try {
-          const response = await fetch(`${getApiHost()}/api/admin/summary`, { cache: "no-store" });
-          const data = await response.json();
-          if (!response.ok || !data.success) throw new Error(data.error || "Unable to load administrator data.");
+        async function renderSummary() {
+          try {
+            const response = await fetch(`${getApiHost()}/api/admin/summary`, { cache: "no-store" });
+            const data = await response.json();
+            if (!response.ok || !data.success || !data.summary) throw new Error(data.error || "Unable to load administrator data.");
 
-          const summary = data.summary;
-          adminSummary = summary;
-          const doctors = Array.isArray(summary.doctors) ? summary.doctors : [];
-          setText("doctorCount", number(summary.doctor_count));
-          setText("patientCount", number(summary.patient_count));
-          updateRegisteredPatientsBadge(summary.patient_count);
-          setText("appointmentCount", number(summary.appointment_count));
-          const emergencyTotal = summary.emergency_count ?? (Array.isArray(summary.emergency_cases) ? summary.emergency_cases.length : 0);
-          setText("emergencyCount", number(emergencyTotal));
-          setText("doctorCountNote", `${number(doctors.length)} practitioner${doctors.length === 1 ? "" : "s"} in directory`);
-          setText("adminOverviewText", `Monitoring ${number(summary.doctor_count)} registered practitioner${summary.doctor_count === 1 ? "" : "s"} and ${number(summary.patient_count)} patient account${summary.patient_count === 1 ? "" : "s"}.`);
-          renderActivity(Array.isArray(summary.patient_activity) ? summary.patient_activity : []);
-          ayushContent.replaceChildren();
-          doctors.forEach(doctor => {
-            ayushContent.append(createDoctorCard(doctor));
-          });
-          auditContent.replaceChildren();
-          (summary.audit_logs || []).slice(0, 8).forEach(log => {
-            const line = make("article", "admin-simple-row");
-            line.append(make("strong", "", log.action || "System event"), make("span", "", log.details || "No further details"));
-            auditContent.append(line);
-          });
+            const summary = data.summary;
+            adminSummary = summary;
+            const doctors = Array.isArray(summary.doctors) ? summary.doctors : [];
+            const regPatientsCount = summary.portal_patient_count != null ? summary.portal_patient_count : summary.patient_count;
+            setText("doctorCount", number(summary.doctor_count));
+            setText("patientCount", number(regPatientsCount));
+            updateRegisteredPatientsBadge(regPatientsCount);
+            setText("appointmentCount", number(summary.appointment_count));
+            const emergencyTotal = summary.emergency_count ?? (Array.isArray(summary.emergency_cases) ? summary.emergency_cases.length : 0);
+            setText("emergencyCount", number(emergencyTotal));
+            setText("doctorCountNote", `${number(doctors.length)} practitioner${doctors.length === 1 ? "" : "s"} in directory`);
+            setText("adminOverviewText", `Monitoring ${number(summary.doctor_count)} registered practitioner${summary.doctor_count === 1 ? "" : "s"} and ${number(regPatientsCount)} registered patient account${regPatientsCount === 1 ? "" : "s"} from patient portal.`);
+            if (typeof renderActivity === "function") {
+              renderActivity(Array.isArray(summary.patient_activity) ? summary.patient_activity : []);
+            }
+            if (ayushContent) {
+              ayushContent.replaceChildren();
+              doctors.forEach(doctor => {
+                ayushContent.append(createDoctorCard(doctor));
+              });
+            }
+            if (auditContent) {
+              auditContent.replaceChildren();
+              (summary.audit_logs || []).slice(0, 8).forEach(log => {
+                const line = make("article", "admin-simple-row");
+                line.append(make("strong", "", log.action || "System event"), make("span", "", log.details || "No further details"));
+                auditContent.append(line);
+              });
+            }
 
-          if (Array.isArray(summary.recent_history) && summary.recent_history.length > 0) {
-            renderRecentHistory(historyFeed, summary.recent_history, true);
-          } else {
-            loadAndRenderHistory(historyFeed, true);
+            if (Array.isArray(summary.recent_history) && summary.recent_history.length > 0) {
+              renderRecentHistory(historyFeed, summary.recent_history, true);
+            } else if (typeof loadAndRenderHistory === "function") {
+              loadAndRenderHistory(historyFeed, true);
+            }
+
+            if (summary.inflow_daily && typeof drawTradingChart === "function") {
+              tradingInflowData = summary.inflow_daily;
+              drawTradingChart(summary.inflow_daily);
+            }
+            return adminSummary;
+          } catch (error) {
+            setText("adminOverviewText", "Clinic registration data could not be loaded. Please refresh the page.");
+            showEmpty("Unable to load recent history.", historyFeed);
+            showEmpty("Patient activity could not be loaded.", activityList);
+            console.error("Admin dashboard load failed:", error);
+            return null;
           }
-
-          // Initial render of Trading Inflow Chart
-          if (summary.inflow_daily) {
-            tradingInflowData = summary.inflow_daily;
-            drawTradingChart(summary.inflow_daily);
-          } else {
-            fetchAndRenderTradingChart("daily", 14);
-          }
-        } catch (error) {
-          setText("adminOverviewText", "Clinic registration data could not be loaded. Please refresh the page.");
-          showEmpty("Unable to load recent history.", historyFeed);
-          showEmpty("Patient activity could not be loaded.", activityList);
-          console.error("Admin dashboard load failed:", error);
         }
+        window.renderSummary = renderSummary;
+        window.loadAdminDashboard = renderSummary;
+
+        await renderSummary();
 
         const refreshHistoryBtn = document.getElementById("refreshRecentHistoryBtn");
         if (refreshHistoryBtn) {
@@ -3905,13 +4125,17 @@
         // =====================================================
         let tradingPeriod = "daily";
         let tradingHorizon = 14;
+        let tradingMetric = "registrations";
         let tradingInflowData = null;
 
         const tradingCanvas = document.getElementById("patientInflowTradingCanvas");
         const tradingTooltip = document.getElementById("tradingCanvasTooltip");
+        const tradingMetricRegistrationsBtn = document.getElementById("tradingMetricRegistrationsBtn");
+        const tradingMetricInflowBtn = document.getElementById("tradingMetricInflowBtn");
         const tradingPeriodDailyBtn = document.getElementById("tradingPeriodDailyBtn");
         const tradingPeriodWeeklyBtn = document.getElementById("tradingPeriodWeeklyBtn");
         const tradingHorizonSelect = document.getElementById("tradingHorizonSelect");
+        const refreshChartBtn = document.getElementById("refreshChartBtn");
 
         function updateTradingHorizonOptions(period) {
           if (!tradingHorizonSelect) return;
@@ -3943,12 +4167,25 @@
           }
         }
 
-        async function fetchAndRenderTradingChart(period = tradingPeriod, horizon = tradingHorizon) {
+        async function fetchAndRenderTradingChart(period = tradingPeriod, horizon = tradingHorizon, metric = tradingMetric) {
           tradingPeriod = period;
           tradingHorizon = horizon;
+          tradingMetric = metric;
+
+          const mainTitle = document.getElementById("chartMainTitle");
+          const subTitle = document.getElementById("chartSubTitle");
+          if (mainTitle && subTitle) {
+            if (metric === "registrations") {
+              mainTitle.textContent = "Patient Registrations from Portal";
+              subTitle.textContent = "Live patient accounts registered through patient portal according to actual records added";
+            } else {
+              mainTitle.textContent = "Hospital Patient Footfall & Inflow";
+              subTitle.textContent = "Real-time hospital consultation volume, registrations, and appointments according to actual records added";
+            }
+          }
 
           try {
-            const res = await fetch(`${getApiHost()}/api/admin/inflow?period=${period}&count=${horizon}`, { cache: "no-store" });
+            const res = await fetch(`${getApiHost()}/api/admin/inflow?period=${period}&count=${horizon}&metric=${metric}`, { cache: "no-store" });
             const json = await res.json();
             if (res.ok && json.success && json.data) {
               tradingInflowData = json.data;
@@ -3963,14 +4200,17 @@
           if (!tradingCanvas || !data || !Array.isArray(data.items) || !data.items.length) return;
           const ctx = tradingCanvas.getContext("2d");
           const items = data.items;
+          const isRegMetric = (data.metric || tradingMetric) === "registrations";
 
           // Update Ticker Metrics
-          setText("tradingMetricLabel", data.period === "weekly" ? "Weekly Footfall" : "Daily Footfall");
-          setText("tradingCurrentValue", `${number(data.latest)} Patients`);
+          const periodName = data.period === "weekly" ? "Weekly" : "Today's";
+          setText("tradingMetricLabel", isRegMetric ? `${periodName} Registrations` : `${periodName} Footfall`);
+          const unitWord = isRegMetric ? "New Registrations" : "Total Patients";
+          setText("tradingCurrentValue", `${number(data.latest)} ${unitWord}`);
           setText("tradingHighValue", number(data.high));
           setText("tradingLowValue", number(data.low));
           setText("tradingAvgValue", `${data.average} / ${data.period === "weekly" ? 'wk' : 'day'}`);
-          setText("tradingTotalValue", number(data.total));
+          setText("tradingTotalValue", `${number(data.total)} Total`);
 
           const trendBadge = document.getElementById("tradingTrendBadge");
           if (trendBadge) {
@@ -4002,12 +4242,12 @@
           const chartW = width - padLeft - padRight;
           const chartH = height - padTop - padBottom;
 
-          // Value scale (with breathing room)
-          const maxVal = Math.max(data.high * 1.15, 10);
+          // Value scale (with dynamic integer steps suitable for actual data)
+          const maxVal = data.high <= 0 ? 4 : (data.high <= 3 ? data.high + 2 : Math.max(Math.ceil(data.high * 1.25), data.high + 1));
           const minVal = 0;
 
           // 1. Draw Trading Gridlines (Horizontal)
-          const gridSteps = 3;
+          const gridSteps = maxVal <= 4 ? maxVal : 4;
           ctx.lineWidth = 1;
           ctx.setLineDash([4, 4]);
           ctx.font = "10.5px 'DM Sans', sans-serif";
@@ -4024,7 +4264,7 @@
             ctx.lineTo(width - padRight, yPos);
             ctx.stroke();
 
-            // Right Axis Label (Price/Volume style)
+            // Right Axis Label (Integer scale)
             ctx.fillText(`${Math.round(yVal)}`, width - padRight + 8, yPos + 3.5);
           }
           ctx.setLineDash([]); // reset
@@ -4038,20 +4278,7 @@
             return { x, y, item, idx };
           });
 
-          // 2. Draw Pure Line Graph Nodes (Circles on points)
-          points.forEach((pt, idx) => {
-            ctx.save();
-            ctx.fillStyle = idx === activeHoverIndex ? "#047857" : "#10b981";
-            ctx.beginPath();
-            ctx.arc(pt.x, pt.y, idx === activeHoverIndex ? 5.5 : 3.5, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = "#ffffff";
-            ctx.lineWidth = 1.6;
-            ctx.stroke();
-            ctx.restore();
-          });
-
-          // 3. Draw Area Gradient under Line
+          // 2. Draw Area Gradient under Line
           if (points.length > 1) {
             const grad = ctx.createLinearGradient(0, padTop, 0, padTop + chartH);
             grad.addColorStop(0, isDark ? "rgba(16, 185, 129, 0.38)" : "rgba(16, 185, 129, 0.28)");
@@ -4075,7 +4302,7 @@
             ctx.fill();
           }
 
-          // 4. Draw Neon Trading Line
+          // 3. Draw Neon Trading Line
           if (points.length > 1) {
             ctx.save();
             ctx.beginPath();
@@ -4097,6 +4324,19 @@
             ctx.stroke();
             ctx.restore();
           }
+
+          // 4. Draw Pure Line Graph Nodes (Circles on points)
+          points.forEach((pt, idx) => {
+            ctx.save();
+            ctx.fillStyle = idx === activeHoverIndex ? "#047857" : "#10b981";
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, idx === activeHoverIndex ? 5.5 : 3.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 1.6;
+            ctx.stroke();
+            ctx.restore();
+          });
 
           // 5. Draw Date Labels on X-axis
           ctx.fillStyle = isDark ? "#8fa89b" : "#64748b";
@@ -4161,18 +4401,24 @@
 
             // Tooltip Content & Position
             if (tradingTooltip) {
-              const prevPatients = activeHoverIndex > 0 ? items[activeHoverIndex - 1].patients : activePt.item.patients;
-              const diff = activePt.item.patients - prevPatients;
-              const diffPct = prevPatients > 0 ? ((diff / prevPatients) * 100).toFixed(1) : "0.0";
+              const prevVal = activeHoverIndex > 0 ? items[activeHoverIndex - 1].patients : activePt.item.patients;
+              const diff = activePt.item.patients - prevVal;
+              const diffPct = prevVal > 0 ? ((diff / prevVal) * 100).toFixed(1) : (activePt.item.patients > 0 ? "100.0" : "0.0");
               const diffBadge = activeHoverIndex > 0
                 ? `<span style="color:${diff >= 0 ? '#72e09b' : '#f87171'}; font-weight:700;">${diff >= 0 ? '▲ +' : '▼ '}${diff} (${diffPct}%)</span>`
                 : '';
 
               tradingTooltip.innerHTML = `
                 <div style="font-size: 11px; opacity: 0.85; margin-bottom: 2px;">${activePt.item.label}</div>
-                <strong>${activePt.item.patients} Total Patients</strong>
-                <div style="font-size: 11px; opacity: 0.9; margin-top: 3px;">OPD: ${activePt.item.opd || Math.round(activePt.item.patients * 0.65)} • Follow-up: ${activePt.item.followup || Math.round(activePt.item.patients * 0.35)}</div>
-                ${diffBadge ? `<div style="font-size: 10.5px; margin-top: 3px;">${diffBadge} vs prev</div>` : ''}
+                <strong style="color: #72e09b; font-size: 13px; display: block; margin-bottom: 4px;">
+                  ${activePt.item.patients} ${isRegMetric ? "Patient Registrations" : "Total Inflow"}
+                </strong>
+                <div style="font-size: 11px; opacity: 0.92; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 4px; display: flex; flex-direction: column; gap: 2px;">
+                  <span><i class="fa-solid fa-user-plus" style="color:#72e09b; width:14px;"></i> Portal Registrations: <strong>${activePt.item.registrations || 0}</strong></span>
+                  <span><i class="fa-solid fa-calendar-check" style="color:#60a5fa; width:14px;"></i> Appointments: <strong>${activePt.item.appointments || 0}</strong></span>
+                  <span><i class="fa-solid fa-notes-medical" style="color:#f59e0b; width:14px;"></i> Consultations: <strong>${activePt.item.cases || 0}</strong></span>
+                </div>
+                ${diffBadge ? `<div style="font-size: 10.5px; margin-top: 4px;">${diffBadge} vs prev period</div>` : ''}
               `;
               tradingTooltip.style.left = `${activePt.x}px`;
               tradingTooltip.style.top = `${activePt.y}px`;
@@ -4214,14 +4460,33 @@
           }
         });
 
+        // Toggle Metric Buttons (Patient Registrations vs Total Inflow)
+        if (tradingMetricRegistrationsBtn) {
+          tradingMetricRegistrationsBtn.addEventListener("click", () => {
+            if (tradingMetric === "registrations") return;
+            tradingMetricRegistrationsBtn.classList.add("active");
+            tradingMetricInflowBtn?.classList.remove("active");
+            fetchAndRenderTradingChart(tradingPeriod, tradingHorizon, "registrations");
+          });
+        }
+
+        if (tradingMetricInflowBtn) {
+          tradingMetricInflowBtn.addEventListener("click", () => {
+            if (tradingMetric === "inflow") return;
+            tradingMetricInflowBtn.classList.add("active");
+            tradingMetricRegistrationsBtn?.classList.remove("active");
+            fetchAndRenderTradingChart(tradingPeriod, tradingHorizon, "inflow");
+          });
+        }
+
         // Toggle Period Buttons
         if (tradingPeriodDailyBtn) {
           tradingPeriodDailyBtn.addEventListener("click", () => {
             if (tradingPeriod === "daily") return;
             tradingPeriodDailyBtn.classList.add("active");
-            tradingPeriodWeeklyBtn.classList.remove("active");
+            tradingPeriodWeeklyBtn?.classList.remove("active");
             updateTradingHorizonOptions("daily");
-            fetchAndRenderTradingChart("daily", 14);
+            fetchAndRenderTradingChart("daily", 14, tradingMetric);
           });
         }
 
@@ -4229,9 +4494,9 @@
           tradingPeriodWeeklyBtn.addEventListener("click", () => {
             if (tradingPeriod === "weekly") return;
             tradingPeriodWeeklyBtn.classList.add("active");
-            tradingPeriodDailyBtn.classList.remove("active");
+            tradingPeriodDailyBtn?.classList.remove("active");
             updateTradingHorizonOptions("weekly");
-            fetchAndRenderTradingChart("weekly", 8);
+            fetchAndRenderTradingChart("weekly", 8, tradingMetric);
           });
         }
 
@@ -4239,9 +4504,42 @@
         if (tradingHorizonSelect) {
           tradingHorizonSelect.addEventListener("change", e => {
             const val = parseInt(e.target.value, 10) || (tradingPeriod === "daily" ? 14 : 8);
-            fetchAndRenderTradingChart(tradingPeriod, val);
+            fetchAndRenderTradingChart(tradingPeriod, val, tradingMetric);
           });
         }
+
+        // Refresh Button
+        if (refreshChartBtn) {
+          refreshChartBtn.addEventListener("click", () => {
+            refreshChartBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
+            fetchAndRenderTradingChart(tradingPeriod, tradingHorizon, tradingMetric).finally(() => {
+              refreshChartBtn.innerHTML = '<i class="fa-solid fa-rotate"></i>';
+            });
+          });
+        }
+
+        // Auto-refresh interval (every 10 seconds) and on window focus
+        async function refreshAdminSummaryLive() {
+          try {
+            const res = await fetch(`${getApiHost()}/api/admin/summary`, { cache: "no-store" });
+            const d = await res.json();
+            if (res.ok && d.success && d.summary) {
+              const regCount = d.summary.portal_patient_count != null ? d.summary.portal_patient_count : d.summary.patient_count;
+              setText("patientCount", number(regCount));
+              updateRegisteredPatientsBadge(regCount);
+              setText("doctorCount", number(d.summary.doctor_count));
+              setText("appointmentCount", number(d.summary.appointment_count));
+              const emergencyTot = d.summary.emergency_count ?? (Array.isArray(d.summary.emergency_cases) ? d.summary.emergency_cases.length : 0);
+              setText("emergencyCount", number(emergencyTot));
+              
+              // Refresh chart silently with latest data
+              fetchAndRenderTradingChart(tradingPeriod, tradingHorizon, tradingMetric);
+            }
+          } catch (_) {}
+        }
+
+        setInterval(refreshAdminSummaryLive, 10000);
+        window.addEventListener("focus", refreshAdminSummaryLive);
 
         // Inflow Graph Visibility Toggle on Dashboard
         const toggleGraphOptionBtn = document.getElementById("toggleGraphOptionBtn");
@@ -4413,10 +4711,14 @@
               saveBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Reassigning...';
             }
 
+            const apptIdVal = document.getElementById("changeDocAppointmentId").value;
+            const patIdVal = document.getElementById("changeDocPatientId").value;
+            const patNameVal = document.getElementById("changeDocPatientName").value.trim();
+
             const payload = {
-              appointment_id: document.getElementById("changeDocAppointmentId").value ? parseInt(document.getElementById("changeDocAppointmentId").value, 10) : undefined,
-              patient_id: document.getElementById("changeDocPatientId").value ? parseInt(document.getElementById("changeDocPatientId").value, 10) : undefined,
-              patient_name: document.getElementById("changeDocPatientName").value,
+              appointment_id: apptIdVal ? parseInt(apptIdVal, 10) : undefined,
+              patient_id: patIdVal ? parseInt(patIdVal, 10) : undefined,
+              patient_name: patNameVal,
               new_doctor_id: parseInt(newDocId, 10),
               reason: document.getElementById("changeDocReason").value.trim()
             };
@@ -4427,13 +4729,16 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
               });
-              const data = await res.json();
+              const data = await safeResJson(res);
               if (!res.ok || !data.success) throw new Error(data.error || "Failed to reassign practitioner.");
-              alert(data.message || "Appointed doctor reassigned successfully!");
               closeChangeDoctorModal();
+              showToast(data.message || "Appointed doctor reassigned successfully!");
               await renderSummary();
               if (currentAdminWorkspaceView === "patients") {
                 openWorkspace("patients");
+              }
+              if (typeof currentViewingDoctorId !== "undefined" && currentViewingDoctorId && !document.getElementById("doctorDirectoryModal")?.hidden) {
+                showDoctorPatients(currentViewingDoctorId);
               }
             } catch (err) {
               alert("Error reassigning practitioner: " + err.message);

@@ -32,6 +32,7 @@ try:
         create_appointment,
         get_appointments,
         delete_appointment,
+        cancel_appointment_by_patient_name,
         save_storage_key,
         get_storage_key,
         get_all_storage,
@@ -59,6 +60,18 @@ try:
         remove_doctor_record,
         get_emergency_cases,
         get_all_registered_patients,
+        save_followup_prescription,
+        get_patient_prescriptions,
+        add_emergency_case,
+        add_article,
+        get_all_articles,
+        add_lab_report,
+        get_patient_lab_reports,
+        get_all_lab_reports,
+        add_ai_review,
+        get_all_ai_reviews,
+        add_upcoming_patient_ai_query,
+        update_patient_name_everywhere,
     )
 except ImportError:
     from database import (
@@ -79,6 +92,7 @@ except ImportError:
         create_appointment,
         get_appointments,
         delete_appointment,
+        cancel_appointment_by_patient_name,
         save_storage_key,
         get_storage_key,
         get_all_storage,
@@ -106,7 +120,20 @@ except ImportError:
         remove_doctor_record,
         get_emergency_cases,
         get_all_registered_patients,
+        save_followup_prescription,
+        get_patient_prescriptions,
+        add_emergency_case,
+        add_article,
+        get_all_articles,
+        add_lab_report,
+        get_patient_lab_reports,
+        get_all_lab_reports,
+        add_ai_review,
+        get_all_ai_reviews,
+        add_upcoming_patient_ai_query,
+        update_patient_name_everywhere,
     )
+
 
 load_dotenv()
 
@@ -515,6 +542,20 @@ def api_update_patient_profile():
     })
 
 
+@app.route("/api/doctor/update-patient-name", methods=["POST", "PUT"])
+@app.route("/api/patient/update-name", methods=["POST", "PUT"])
+def api_update_patient_name():
+    """Updates patient name across clinical records, cases, appointments, and reviews."""
+    data = request.get_json(silent=True) or {}
+    old_name = data.get("old_name") or data.get("current_name")
+    new_name = data.get("new_name") or data.get("name")
+    patient_id = data.get("patient_id") or data.get("id")
+    if not old_name or not new_name:
+        return jsonify({"success": False, "error": "Both old_name and new_name are required."}), 400
+    res = update_patient_name_everywhere(old_name, new_name, patient_id)
+    return jsonify(res), (200 if res.get("success") else 400)
+
+
 @app.route("/api/patient/delete-account", methods=["POST", "DELETE"])
 def api_delete_patient_account():
     """Endpoint to permanently delete patient account and send confirmation email."""
@@ -553,8 +594,8 @@ def api_admin_summary():
     history = get_recent_history()
     summary["recent_history"] = history
     summary["history"] = history
-    summary["inflow_daily"] = get_hospital_patient_inflow("daily", 14)
-    summary["inflow_weekly"] = get_hospital_patient_inflow("weekly", 8)
+    summary["inflow_daily"] = get_hospital_patient_inflow("daily", 14, metric="registrations")
+    summary["inflow_weekly"] = get_hospital_patient_inflow("weekly", 8, metric="registrations")
     return jsonify({
         "success": True,
         "summary": summary
@@ -604,16 +645,404 @@ def api_admin_history():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+# =====================================================
+# CLINICAL FOLLOW-UPS, PRESCRIPTIONS & EMERGENCY CASES
+# =====================================================
+
+@app.route("/api/doctor/followup-prescription", methods=["POST"])
+@app.route("/api/followup-prescription", methods=["POST"])
+def api_followup_prescription():
+    """Saves a follow-up consultation outcome, prescription, suggestions, and attendance status."""
+    try:
+        data = request.get_json(silent=True) or {}
+        patient_name = (data.get("patient_name") or "").strip()
+        doctor_id = data.get("doctor_id") or 1
+        prescription = (data.get("prescription") or "").strip()
+        suggestion = (data.get("suggestion") or "").strip()
+        absent = bool(data.get("absent", False))
+
+        if not patient_name:
+            return jsonify({"success": False, "error": "Patient name is required."}), 400
+
+        if not absent and not prescription:
+            return jsonify({"success": False, "error": "Prescription details are required when patient is present."}), 400
+
+        result = save_followup_prescription(
+            patient_name=patient_name,
+            doctor_id=doctor_id,
+            prescription=prescription,
+            suggestion=suggestion,
+            absent=absent,
+        )
+        status_code = 200 if result.get("success") else 400
+        return jsonify(result), status_code
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/patient/prescriptions", methods=["GET"])
+def api_patient_prescriptions():
+    """Returns all clinical prescriptions for a patient across all consultations."""
+    identifier = (
+        request.args.get("identifier")
+        or request.args.get("patient_id")
+        or request.args.get("abha_id")
+        or request.args.get("name")
+        or ""
+    ).strip()
+    if not identifier:
+        return jsonify({"success": False, "error": "Patient identifier is required."}), 400
+    try:
+        prescriptions = get_patient_prescriptions(identifier)
+        return jsonify({
+            "success": True,
+            "prescriptions": prescriptions,
+            "count": len(prescriptions),
+        })
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/doctor/emergency", methods=["POST"])
+@app.route("/api/emergency", methods=["POST"])
+def api_add_emergency():
+    """Registers an acute emergency triage case for immediate clinical and administrative care."""
+    try:
+        data = request.get_json(silent=True) or {}
+        patient_name = (data.get("patient_name") or "").strip()
+        if not patient_name:
+            return jsonify({"success": False, "error": "Patient name is required."}), 400
+
+        issue = (data.get("issue") or "").strip()
+        if not issue:
+            return jsonify({"success": False, "error": "Emergency clinical issue is required."}), 400
+
+        age = data.get("age")
+        gender = data.get("gender") or "Not Specified"
+        doctor_id = data.get("doctor_id") or 1
+        doctor_name = (data.get("doctor_name") or "On-Duty Emergency Clinician").strip()
+        triage_level = data.get("triage_level") or "Emergency"
+        bed_number = data.get("bed_number") or "Triage Bay"
+        status = data.get("status") or "Under Immediate Care"
+
+        result = add_emergency_case(
+            patient_name=patient_name,
+            age=age,
+            gender=gender,
+            doctor_id=doctor_id,
+            doctor_name=doctor_name,
+            issue=issue,
+            triage_level=triage_level,
+            bed_number=bed_number,
+            status=status,
+        )
+        status_code = 201 if result.get("success") else 400
+        return jsonify(result), status_code
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/articles", methods=["GET", "POST"])
+def api_articles():
+    """Retrieves or publishes clinical research and Ayurvedic articles."""
+    try:
+        if request.method == "POST":
+            data = request.get_json(silent=True) or {}
+            title = (data.get("title") or "").strip()
+            author = (data.get("author") or "Hospital Clinician").strip()
+            category = (data.get("category") or "Clinical Research").strip()
+            minutes = data.get("minutes", 15)
+            source = (data.get("source") or "AYURCASE Clinical Faculty").strip()
+            excerpt = (data.get("excerpt") or "").strip()
+            content = (data.get("content") or "").strip()
+            icon = (data.get("icon") or "fa-solid fa-file-lines").strip()
+
+            if not title:
+                return jsonify({"success": False, "error": "Article title is required."}), 400
+
+            image_url = (data.get("image_url") or data.get("image") or "").strip()
+            result = add_article(
+                title=title,
+                author=author,
+                category=category,
+                minutes=minutes,
+                source=source,
+                excerpt=excerpt,
+                content=content,
+                icon=icon,
+                image_url=image_url,
+            )
+            return jsonify(result), 201 if result.get("success") else 400
+
+        articles = get_all_articles()
+        return jsonify({"success": True, "articles": articles, "count": len(articles)})
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/doctor/lab-report", methods=["POST"])
+@app.route("/api/lab-report", methods=["POST"])
+def api_add_lab_report():
+    """Records a clinical laboratory report (Sugar, Pressure, Hemoglobin) and emails it to the patient."""
+    try:
+        data = request.get_json(silent=True) or {}
+        patient_name = (data.get("patient_name") or "").strip()
+        if not patient_name:
+            return jsonify({"success": False, "error": "Patient name is required."}), 400
+
+        sugar = (data.get("sugar") or "").strip()
+        pressure = (data.get("pressure") or "").strip()
+        hemoglobin = (data.get("hemoglobin") or "").strip()
+
+        if not sugar and not pressure and not hemoglobin:
+            return jsonify({"success": False, "error": "At least one lab parameter (Sugar, Pressure, or Hemoglobin) is required."}), 400
+
+        notes = (data.get("notes") or "").strip()
+        doctor_id = data.get("doctor_id") or 1
+        doctor_name = (data.get("doctor_name") or "Dr. Arindam Sen").strip()
+        patient_email = (data.get("patient_email") or data.get("email") or "").strip()
+
+        result = add_lab_report(
+            patient_name=patient_name,
+            sugar=sugar,
+            pressure=pressure,
+            hemoglobin=hemoglobin,
+            notes=notes,
+            doctor_id=doctor_id,
+            doctor_name=doctor_name,
+            patient_email=patient_email,
+        )
+        status_code = 201 if result.get("success") else 400
+        return jsonify(result), status_code
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/patient/lab-reports", methods=["GET"])
+@app.route("/api/lab-reports", methods=["GET"])
+def api_patient_lab_reports():
+    """Returns clinical laboratory reports for a patient by identifier (name, email, or ABHA ID)."""
+    identifier = (
+        request.args.get("identifier")
+        or request.args.get("patient_name")
+        or request.args.get("name")
+        or request.args.get("email")
+        or request.args.get("patient_id")
+        or request.args.get("abha_id")
+        or ""
+    ).strip()
+    try:
+        if identifier:
+            reports = get_patient_lab_reports(identifier)
+        else:
+            reports = get_all_lab_reports()
+        return jsonify({
+            "success": True,
+            "lab_reports": reports,
+            "count": len(reports),
+        })
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+# =====================================================
+# CLINICAL AI EVALUATION & REVIEW (Doctor 1-5 Star & Comments)
+# =====================================================
+
+@app.route("/api/doctor/ai-review", methods=["POST"])
+@app.route("/api/ai-review", methods=["POST"])
+def api_add_ai_review():
+    """Saves a doctor's clinical review and 1-5 rating of an AI response and patient question."""
+    try:
+        data = request.get_json(silent=True) or {}
+        review_id = data.get("review_id") or data.get("id")
+        patient_name = (data.get("patient_name") or data.get("patient") or "").strip()
+        patient_question = (data.get("patient_question") or data.get("question") or "").strip()
+        ai_answer = (data.get("ai_answer") or data.get("answer") or "").strip()
+        rating = data.get("rating")
+        comment = (data.get("comment") or data.get("comments") or "").strip()
+        doctor_id = data.get("doctor_id") or 1
+        doctor_name = (data.get("doctor_name") or "Dr. Arindam Sen").strip()
+
+        if not patient_question and not review_id:
+            return jsonify({"success": False, "error": "Patient question is required."}), 400
+        if not ai_answer and not review_id:
+            return jsonify({"success": False, "error": "AI answer is required."}), 400
+        if rating is None or rating == "":
+            return jsonify({"success": False, "error": "Rating (1 to 5 stars) is required."}), 400
+
+        try:
+            int_rating = int(rating)
+            if int_rating < 1 or int_rating > 5:
+                raise ValueError()
+        except (ValueError, TypeError):
+            return jsonify({"success": False, "error": "Rating must be an integer between 1 and 5."}), 400
+
+        result = add_ai_review(
+            patient_question=patient_question,
+            ai_answer=ai_answer,
+            rating=int_rating,
+            comment=comment,
+            doctor_id=doctor_id,
+            doctor_name=doctor_name,
+            review_id=review_id,
+            patient_name=patient_name
+        )
+        status_code = 201 if result.get("success") else 400
+        return jsonify(result), status_code
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/doctor/ai-reviews", methods=["GET"])
+@app.route("/api/ai-reviews", methods=["GET"])
+def api_get_ai_reviews():
+    """Returns clinical AI reviews, optionally filtered by ?status=Upcoming or ?status=Reviewed."""
+    try:
+        limit = int(request.args.get("limit", 50))
+        status = request.args.get("status")
+        reviews = get_all_ai_reviews(status=status, limit=limit)
+        upcoming_list = get_all_ai_reviews(status="Upcoming", limit=100)
+        return jsonify({
+            "success": True,
+            "reviews": reviews,
+            "count": len(reviews),
+            "upcoming_count": len(upcoming_list)
+        })
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/doctor/ai-review", methods=["POST"])
+@app.route("/api/doctor/ai-reviews", methods=["POST"])
+@app.route("/api/doctor/ai-reviews/<int:review_id>", methods=["POST", "PUT"])
+def api_submit_doctor_ai_review(review_id=None):
+    """Submits doctor's rating and feedback for an AI solution."""
+    try:
+        data = request.get_json(silent=True) or {}
+        r_id = review_id or data.get("review_id") or data.get("id")
+        res = add_ai_review(
+            doctor_id=data.get("doctor_id"),
+            doctor_name=data.get("doctor_name"),
+            patient_name=data.get("patient_name"),
+            patient_question=data.get("patient_question"),
+            ai_answer=data.get("ai_answer"),
+            rating=data.get("rating", 5),
+            comment=data.get("comment", ""),
+            review_id=r_id
+        )
+        if not res.get("success"):
+            return jsonify(res), 400
+        return jsonify(res), 200
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+@app.route("/api/doctor/ai-reviews/history", methods=["GET"])
+@app.route("/api/ai-reviews/history", methods=["GET"])
+def api_get_ai_reviews_history():
+    """Returns past evaluated and rated AI reviews."""
+    try:
+        limit = int(request.args.get("limit", 50))
+        history = get_all_ai_reviews(status="Reviewed", limit=limit)
+        return jsonify({
+            "success": True,
+            "history": history,
+            "reviews": history,
+            "count": len(history)
+        })
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+
+@app.route("/api/patient/ask-ai", methods=["POST"])
+@app.route("/api/patient/ai-query", methods=["POST"])
+def api_patient_ask_ai():
+    """
+    Allows a patient to submit their health or symptom inquiry.
+    Generates an immediate AI Ayurvedic assessment and queues it into ai_reviews
+    for doctor clinical evaluation and verification.
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        question = (data.get("question") or data.get("problem") or "").strip()
+        patient_name = (data.get("patient_name") or data.get("name") or "Rohit Sharma").strip()
+
+        if not question:
+            return jsonify({"success": False, "error": "Health question or symptoms are required."}), 400
+
+        recommendation = ""
+        api_key = (os.getenv("GEMINI_API_KEY") or "").strip()
+        if api_key:
+            try:
+                client = genai.Client(api_key=api_key)
+                prompt = f"""
+You are an expert Ayurvedic clinical assistant on AYURCASE.
+A patient named {patient_name} reports the following health question or symptoms:
+"{question}"
+
+Provide a concise, practical, and authentic Ayurvedic assessment:
+1. Probable Ayurvedic pathology and Dosha imbalance (e.g. Pitta Prakopa, Vata Vriddhi, Kapha Sanchaya).
+2. Primary traditional formulations (herbal churnas, rasayanas, decoctions with safe standard adult dosage guidelines).
+3. Pathya and Apathya (Dietary and lifestyle dos & don'ts).
+4. Note that this protocol has been submitted to your AYURCASE doctor for clinical review.
+Keep the answer authoritative, safe, and helpful (under 120 words).
+"""
+                resp = client.models.generate_content(
+                    model=get_gemini_model(),
+                    contents=prompt
+                )
+                recommendation = str(getattr(resp, "text", "") or "").strip()
+            except Exception as gemini_err:
+                app.logger.warning(f"Gemini error for patient query: {gemini_err}")
+
+        if not recommendation:
+            q_lower = question.lower()
+            if any(w in q_lower for w in ["burn", "acid", "reflux", "heartburn", "gerd", "amlapitta"]):
+                recommendation = "Assessment: Urdhwaga Amlapitta (Pitta aggravation with sour reflux). Recommended Protocol: Avipattikar Churna 3g twice daily before food with lukewarm water; Kamadudha Rasa (Mukta Yukta) 250mg morning & night. Pathya: Tender coconut water, coriander seed infusion, avoid oily, sour, and fermented foods. Submitted for doctor verification."
+            elif any(w in q_lower for w in ["joint", "knee", "stiff", "arthritis", "crepitus", "pain", "swelling"]):
+                recommendation = "Assessment: Sandhigata Vata (Osteoarthritic Vata aggravation in Majja Dhatu). Recommended Protocol: Yogaraj Guggulu 2 tablets twice daily after meals with warm water; Dashamoola Kashayam 15ml with 45ml boiled water BD. External: Gentle application of Mahanarayana Taila. Avoid exposure to cold air. Submitted for doctor verification."
+            elif any(w in q_lower for w in ["sleep", "insomnia", "stress", "anxiety", "anidra"]):
+                recommendation = "Assessment: Anidra & Vata-Manovaha Srotas disturbance. Recommended Protocol: Ashwagandha Churna 3g at bedtime with warm cow's milk; Brahmi Vati 1 tablet twice daily; apply warm sesame oil or Ksheerabala Taila on soles of feet (Padabhyanga). Submitted for doctor verification."
+            elif any(w in q_lower for w in ["bloat", "gas", "indigestion", "constipat", "stomach"]):
+                recommendation = "Assessment: Agnimandya with Adhmana (Sluggish digestive fire with trapped gas). Recommended Protocol: Hingwashtak Churna 2g with first morsel of food with warm ghee; Triphala Churna 3g at bedtime with warm water. Drink warm water throughout the day. Submitted for doctor verification."
+            else:
+                recommendation = f"Assessment: Tridosha assessment required for '{question[:50]}...'. Recommended Protocol: Panchakola Phanta or Trikatu Churna 1g before meals to balance Agni. Stay adequately hydrated with lukewarm water and avoid heavy, cold, or processed meals. Submitted for doctor verification."
+
+        # Save to database as a pending review query for doctors
+        save_res = add_upcoming_patient_ai_query(
+            patient_name=patient_name,
+            patient_question=question,
+            ai_answer=recommendation,
+            doctor_id=1,
+            doctor_name="Dr. Arindam Sen"
+        )
+
+        return jsonify({
+            "success": True,
+            "patient_name": patient_name,
+            "question": question,
+            "recommendation": recommendation,
+            "review_id": save_res.get("id"),
+            "message": "AI solution generated and submitted to doctor for clinical review."
+        }), 201
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
 @app.route("/api/admin/inflow", methods=["GET"])
+
 def api_admin_inflow():
-    """Returns patient footfall / inflow analytics (daily or weekly) for trading-style chart."""
+    """Returns patient footfall / registration analytics (daily or weekly) for trading-style chart."""
     period = request.args.get("period", "daily").lower()
+    metric = request.args.get("metric", "registrations").lower()
     try:
         count = int(request.args.get("count", 14 if period == "daily" else 8))
     except (TypeError, ValueError):
         count = 14 if period == "daily" else 8
     try:
-        inflow = get_hospital_patient_inflow(period=period, count=count)
+        inflow = get_hospital_patient_inflow(period=period, count=count, metric=metric)
         return jsonify({
             "success": True,
             "data": inflow
@@ -840,10 +1269,7 @@ def api_test_appointment_email():
 @app.route("/api/doctor-dashboard", methods=["GET"])
 def api_doctor_dashboard():
     """Returns current dashboard data for one authenticated practitioner."""
-    doctor_id = request.args.get("doctor_id")
-    if not doctor_id:
-        return jsonify({"success": False, "error": "doctor_id is required."}), 400
-
+    doctor_id = request.args.get("doctor_id") or "1"
     dashboard = get_doctor_dashboard(doctor_id)
     if not dashboard:
         return jsonify({"success": False, "error": "Practitioner account not found."}), 404
@@ -944,6 +1370,26 @@ def api_delete_appointment(appointment_id):
         return jsonify({"success": True, "message": f"Appointment #{appointment_id} successfully cancelled and removed."})
     except Exception as e:
         print(f"Error deleting appointment #{appointment_id}:", e)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/appointments/cancel", methods=["POST", "DELETE"])
+def api_cancel_appointment():
+    """Cancels appointment by appointment_id or patient_name."""
+    data = request.get_json(silent=True) or {}
+    appointment_id = data.get("appointment_id") or request.args.get("appointment_id")
+    patient_name = data.get("patient_name") or request.args.get("patient_name")
+    try:
+        if appointment_id:
+            success = delete_appointment(int(appointment_id))
+            if success:
+                return jsonify({"success": True, "message": f"Appointment #{appointment_id} cancelled successfully."})
+        if patient_name:
+            success = cancel_appointment_by_patient_name(patient_name)
+            if success:
+                return jsonify({"success": True, "message": f"Follow-up appointment for '{patient_name}' cancelled successfully."})
+        return jsonify({"success": False, "error": "Appointment not found or already cancelled."}), 404
+    except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
 

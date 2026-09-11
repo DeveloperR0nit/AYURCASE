@@ -82,11 +82,6 @@
             <span>Case History</span>
           </a>
 
-          <a href="#" class="nav-item" data-page="prakriti">
-            <i class="fa-solid fa-spa"></i>
-            <span>Prakriti</span>
-          </a>
-
           <a href="#" class="nav-item" data-page="learn">
             <i class="fa-solid fa-book-open-reader"></i>
             <span>Learn</span>
@@ -98,16 +93,10 @@
             <span id="doctorNoticeNavBadge" style="margin-left:auto; background:#286247; color:#fff; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px; display:none;">0</span>
           </a>
 
-          <div class="menu-title second">MANAGEMENT</div>
-
-          <a href="#" class="nav-item">
-            <i class="fa-solid fa-chart-line"></i>
-            <span>Analytics</span>
-          </a>
-
-          <a href="#" class="nav-item">
-            <i class="fa-solid fa-gear"></i>
-            <span>Settings</span>
+          <a href="#" class="nav-item" data-page="ai-reviews" id="doctorNavAiReviews" onclick="event.preventDefault(); if (typeof showToast === 'function') showToast('AI Reviews is an upcoming feature in development.');">
+            <i class="fa-solid fa-wand-magic-sparkles" style="color: #6366f1;"></i>
+            <span>AI Reviews</span>
+            <span id="doctorAiReviewNavBadge" style="margin-left:auto; background:rgba(99, 102, 241, 0.15); color:#4338ca; border:1px solid rgba(99, 102, 241, 0.3); font-size:10px; font-weight:700; padding:2px 8px; border-radius:12px; text-transform:uppercase; letter-spacing:0.5px;">Upcoming</span>
           </a>
         </nav>
 
@@ -208,40 +197,50 @@
         <section class="content" id="content">
           <!-- HERO -->
 
-          <div class="hero">
-            <div>
+          <div class="hero" style="display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 24px;">
+            <div style="min-width: 260px;">
               <div class="welcome">
                 <span class="status-dot"></span>
                 SYSTEM ONLINE
               </div>
 
-              <h1 id="doctorGreeting">Hello, <span>Doctor.</span></h1>
+              <h1 id="doctorGreeting" style="margin: 0; font-size: 26px;">Hello, <span>Doctor.</span></h1>
 
-              <p>
+              <p style="margin: 4px 0 0; color: var(--muted); font-size: 13px;">
                 Here's your clinical overview for today. Let's make every
                 patient interaction meaningful.
               </p>
             </div>
 
-            <button class="primary-btn new-case-btn">
-              <i class="fa-solid fa-plus"></i>
-              Start New Case
-            </button>
+            <div class="hero-actions" style="display: flex; gap: 8px; flex-wrap: nowrap; align-items: center; overflow-x: auto; padding-bottom: 2px;">
+              <button type="button" class="primary-btn new-case-btn" style="background: var(--green-700); color: white; border: none; padding: 7px 12px; border-radius: 9px; font-weight: 600; font-size: 12px; height: 36px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0; box-shadow: 0 3px 10px rgba(45, 115, 80, 0.25);">
+                <i class="fa-solid fa-plus"></i>
+                Start New Case
+              </button>
+              <button type="button" class="primary-btn add-article-btn" id="doctorAddArticleBtn" onclick="openDoctorAddArticleModal()" style="background: linear-gradient(135deg, #0d9488, #059669); color: white; border: none; padding: 7px 12px; border-radius: 9px; font-weight: 600; font-size: 12px; height: 36px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0; box-shadow: 0 3px 10px rgba(13, 148, 136, 0.25);">
+                <i class="fa-solid fa-feather-pointed"></i>
+                Add Article
+              </button>
+              <button type="button" class="primary-btn emergency-btn" id="doctorAddEmergencyBtn" onclick="openDoctorAddEmergencyModal()" style="background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; border: none; padding: 7px 12px; border-radius: 9px; font-weight: 600; font-size: 12px; height: 36px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0; box-shadow: 0 3px 10px rgba(220, 38, 38, 0.25);">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                Add Emergency Case
+              </button>
+            </div>
           </div>
 
           <section class="practice-snapshot" aria-label="Practice snapshot">
             <article class="practice-snapshot-card green">
               <span class="snapshot-label"><i class="fa-solid fa-address-book" aria-hidden="true"></i> PATIENT DIRECTORY</span>
-              <strong id="doctorPracticePatients" class="snapshot-value">Loading...</strong>
+              <strong id="doctorPracticePatients" class="snapshot-value">0 patients in your care</strong>
             </article>
             <article class="practice-snapshot-card blue">
               <span class="snapshot-label"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i> NEXT CONSULTATION</span>
-              <strong id="doctorNextVisit" class="snapshot-value">Loading...</strong>
-              <small id="doctorNextVisitMeta" class="snapshot-meta"></small>
+              <strong id="doctorNextVisit" class="snapshot-value">0 upcoming visits</strong>
+              <small id="doctorNextVisitMeta" class="snapshot-meta">No scheduled consultations on file.</small>
             </article>
             <article class="practice-snapshot-card amber">
               <span class="snapshot-label"><i class="fa-solid fa-clipboard-list" aria-hidden="true"></i> CARE OVERVIEW</span>
-              <strong id="doctorCareOverview" class="snapshot-value">Loading...</strong>
+              <strong id="doctorCareOverview" class="snapshot-value">0 upcoming visits scheduled</strong>
             </article>
           </section>
 
@@ -261,9 +260,9 @@
 
               <span class="stat-label">TOTAL PATIENTS</span>
 
-              <h2 id="doctorTotalPatients">—</h2>
+              <h2 id="doctorTotalPatients">0</h2>
 
-              <p id="doctorTotalPatientsSub">Loading patient records</p>
+              <p id="doctorTotalPatientsSub">0 unique patients in your care</p>
             </button>
 
             <button type="button" class="stat-card dashboard-stat-action" data-dashboard-action="today" aria-label="View today's activity">
@@ -279,9 +278,9 @@
 
               <span class="stat-label">TODAY'S CASES</span>
 
-              <h2 id="doctorTodayCases">—</h2>
+              <h2 id="doctorTodayCases">0</h2>
 
-              <p id="doctorTodayCasesSub">Loading today's activity</p>
+              <p id="doctorTodayCasesSub">0 appointments or cases today</p>
             </button>
 
             <button type="button" class="stat-card dashboard-stat-action" data-dashboard-action="follow-ups" aria-label="View all follow-up visits">
@@ -297,25 +296,25 @@
 
               <span class="stat-label">FOLLOW-UPS</span>
 
-              <h2 id="doctorFollowUpsStat">—</h2>
+              <h2 id="doctorFollowUpsStat">0</h2>
 
-              <p id="doctorFollowUpsSub">Loading confirmed consultations</p>
+              <p id="doctorFollowUpsSub">0 upcoming confirmed consultations</p>
             </button>
 
-            <button type="button" class="stat-card dashboard-stat-action" data-dashboard-action="history" aria-label="View case history">
+            <button type="button" class="stat-card dashboard-stat-action" data-dashboard-action="ai-reviews" onclick="event.preventDefault(); if (typeof showToast === 'function') showToast('AI Reviews is an upcoming feature in development.');" aria-label="AI Reviews (Upcoming feature)" style="cursor: pointer;">
               <div class="stat-top">
                 <div class="stat-icon purple">
                   <i class="fa-solid fa-brain"></i>
                 </div>
 
-                <span class="ai-pill"> AI </span>
+                <span class="ai-pill" style="background:rgba(99, 102, 241, 0.15); color:#4338ca; border:1px solid rgba(99, 102, 241, 0.3); font-size:10px; font-weight:700; padding:2px 8px; border-radius:12px; text-transform:uppercase; letter-spacing:0.5px;">Upcoming</span>
               </div>
 
               <span class="stat-label">AI CASES ANALYZED</span>
 
-              <h2 id="doctorAiCases">—</h2>
+              <h2 id="doctorAiCases">0</h2>
 
-              <p id="doctorAiCasesSub">Loading clinical records</p>
+              <p id="doctorAiCasesSub">0 clinical records available</p>
             </button>
           </div>
 
@@ -328,7 +327,7 @@
                 </div>
                 <div>
                   <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 10px; text-transform: uppercase; letter-spacing: .7px; color: var(--green-700); font-weight: 700;">ADMINISTRATION NOTICES</span>
+                    <span class="notice-preview-kicker" style="font-size: 10px; text-transform: uppercase; letter-spacing: .7px; color: var(--green-700); font-weight: 700;">ADMINISTRATION NOTICES</span>
                     <span id="doctorNoticeCountTag" style="font-size: 10px; background: #edf6ef; color: var(--green-800); font-weight: 700; padding: 2px 7px; border-radius: 10px;">Loading…</span>
                   </div>
                   <strong id="doctorRecentNoticeSnippet" style="display: block; font-size: 14px; color: var(--green-950); margin-top: 2px;">Loading recent orders &amp; meetings…</strong>
@@ -340,6 +339,7 @@
               </button>
             </div>
           </div>
+
 
           <!-- ================= GRID ================= -->
 
@@ -407,29 +407,54 @@
                   <i class="fa-solid fa-arrow-up-right-from-square"></i>
                 </button>
 
-                <button class="quick-card">
-                  <div class="quick-icon purple-icon">
-                    <i class="fa-solid fa-spa"></i>
+                <button type="button" class="quick-card" onclick="openDoctorAddArticleModal()">
+                  <div class="quick-icon teal-icon" style="background: rgba(13, 148, 136, 0.15); color: #0d9488;">
+                    <i class="fa-solid fa-feather-pointed"></i>
                   </div>
 
                   <div>
-                    <strong>Prakriti Test</strong>
-                    <span>Start assessment</span>
+                    <strong>Add Article</strong>
+                    <span>Publish clinical insight</span>
                   </div>
 
                   <i class="fa-solid fa-arrow-up-right-from-square"></i>
                 </button>
+
+                <button type="button" class="quick-card" onclick="openDoctorAddEmergencyModal()">
+                  <div class="quick-icon red-icon" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                  </div>
+
+                  <div>
+                    <strong>Emergency Case</strong>
+                    <span>Acute triage admission</span>
+                  </div>
+
+                  <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </button>
+
               </div>
             </div>
 
             <!-- RECENT PATIENTS -->
 
             <div class="panel recent-patients-panel">
-              <div class="panel-header">
+              <div class="panel-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
                 <div>
                   <span class="section-kicker"> PATIENT ACTIVITY </span>
-
                   <h3>Recent Patients</h3>
+                </div>
+
+                <!-- Recent Patient Search Bar -->
+                <div class="recent-patients-search-box" style="display: flex; align-items: center; gap: 8px;">
+                  <div style="position: relative; display: flex; align-items: center;">
+                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 11px; color: var(--muted); font-size: 12px; pointer-events: none;"></i>
+                    <input type="text" id="recentPatientsSearchInput" placeholder="Search recent patients..." oninput="handleRecentPatientsSearch(this.value)" style="padding: 7px 12px 7px 32px; font-size: 12.5px; border: 1.5px solid var(--border); border-radius: 9px; background: var(--bg-card, #fff); color: var(--text); outline: none; width: 195px; transition: all 0.2s ease;">
+                  </div>
+                  <button type="button" id="recentPatientsSearchBtn" onclick="handleRecentPatientsSearch(document.getElementById('recentPatientsSearchInput').value)" class="icon-btn" style="height: 33px; padding: 0 13px; font-size: 11.5px; font-weight: 700; border-radius: 9px; border: 1px solid var(--border); background: var(--cream, #f7faf8); color: var(--green-800); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <i class="fa-solid fa-filter"></i>
+                    <span>Search</span>
+                  </button>
                 </div>
               </div>
               <div class="patient-list recent-patient-list" id="doctorRecentPatientsList">
@@ -482,33 +507,31 @@
         <form id="caseForm">
           <div class="form-grid">
             <div class="form-group full">
-              <label>Patient Full Name</label>
-              <input type="text" placeholder="Enter patient's name" required />
+              <label for="casePatientName">Patient Full Name <span style="color: #dc2626;">*</span></label>
+              <input type="text" id="casePatientName" placeholder="Enter patient's name" required />
             </div>
 
             <div class="form-group">
-              <label>Age</label>
-              <input type="number" placeholder="Age" required />
+              <label for="casePatientAge">Age</label>
+              <input type="number" id="casePatientAge" placeholder="Age" min="0" max="130" />
             </div>
 
             <div class="form-group">
-              <label>Gender</label>
-
-              <select required>
+              <label for="casePatientGender">Gender</label>
+              <select id="casePatientGender">
                 <option value="">Select gender</option>
-                <option>Male</option>
-                <option>Female</option>
-                <option>Other</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
               </select>
             </div>
 
             <div class="form-group full">
-              <label>Chief Complaint</label>
-
+              <label for="casePatientComplaint">Chief Complaint</label>
               <textarea
+                id="casePatientComplaint"
                 placeholder="Describe the patient's primary complaint..."
                 rows="4"
-                required
               ></textarea>
             </div>
           </div>
@@ -518,7 +541,7 @@
               Cancel
             </button>
 
-            <button type="submit" class="primary-btn">
+            <button type="submit" class="primary-btn" id="caseContinueBtn">
               Continue
               <i class="fa-solid fa-arrow-right"></i>
             </button>
@@ -571,6 +594,543 @@
 
         <div class="doctor-patient-modal-content" id="doctorPatientModalContent">
           <!-- Populated dynamically by openDoctorPatientProfile -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= FOLLOW-UP PRESCRIPTION & OUTCOME MODAL ================= -->
+    <div class="modal-overlay" id="doctorFollowupPrescriptionModal" aria-hidden="true">
+      <div class="case-modal" style="max-width: 600px;" role="dialog" aria-modal="true" aria-labelledby="followupModalTitle">
+        <button type="button" class="close-modal" id="closeDoctorFollowupPrescriptionModal" onclick="closeDoctorFollowupPrescriptionModal()" aria-label="Close modal">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <div class="modal-header">
+          <div class="modal-icon" style="background: rgba(45, 115, 80, 0.15); color: var(--green-700);">
+            <i class="fa-solid fa-prescription-bottle-medical"></i>
+          </div>
+          <div>
+            <span>CLINICAL FOLLOW-UP CONSULTATION</span>
+            <h2 id="followupModalTitle">Follow-up Outcome</h2>
+          </div>
+        </div>
+
+        <div id="followupPatientBanner" style="display: flex; align-items: center; gap: 14px; background: rgba(45, 115, 80, 0.08); border: 1px solid rgba(45, 115, 80, 0.18); border-radius: 12px; padding: 12px 16px; margin-bottom: 20px;">
+          <div id="followupPatientAvatar" class="patient-avatar avatar-1" style="width: 44px; height: 44px; font-size: 16px;">PT</div>
+          <div style="flex: 1;">
+            <strong id="followupPatientName" style="font-size: 15px; color: var(--text-color); display: block;">Patient Name</strong>
+            <span id="followupAppointmentMeta" style="font-size: 12px; color: var(--muted);">Follow-up Consultation</span>
+          </div>
+          <span class="status Active-status" id="followupCurrentStatus">Confirmed</span>
+        </div>
+
+        <form id="doctorFollowupForm" onsubmit="submitDoctorFollowupForm(event)">
+          <input type="hidden" id="followupHiddenPatientName" value="">
+          <input type="hidden" id="followupHiddenAppointmentId" value="">
+
+          <!-- Attendance Option -->
+          <div style="margin-bottom: 18px; padding: 12px 16px; border-radius: 10px; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <strong style="font-size: 13px; color: #dc2626; display: flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-user-xmark"></i> Mark as Absent
+              </strong>
+              <small style="font-size: 11.5px; color: var(--muted); display: block; margin-top: 2px;">Check if the patient did not attend the scheduled follow-up</small>
+            </div>
+            <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="followupAbsentCheckbox" onchange="toggleFollowupAbsentState(this.checked)" style="width: 18px; height: 18px; cursor: pointer; accent-color: #dc2626;">
+              <span style="font-size: 12.5px; font-weight: 600; color: #dc2626;">Absent</span>
+            </label>
+          </div>
+
+          <!-- Add Prescription Section -->
+          <div class="form-group" id="followupPrescriptionGroup" style="margin-bottom: 14px;">
+            <label for="followupPrescriptionInput" style="display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 13px; margin-bottom: 6px;">
+              <span><i class="fa-solid fa-capsules" style="color: var(--green-700); margin-right: 6px;"></i>Add Prescription <span style="color: #dc2626;">*</span></span>
+              <small style="font-weight: 400; color: var(--muted); font-size: 11px;">Medicine, Dosage &amp; Timing (one per line)</small>
+            </label>
+            <textarea id="followupPrescriptionInput" rows="4" placeholder="e.g. Ashwagandha Churna - 3g with warm milk, twice daily after meals
+Triphala Churna - 5g at bedtime with warm water
+Brahmi Vati - 1 tablet morning with water" style="width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 13px; background: var(--bg-card); color: var(--text-color); resize: vertical;"></textarea>
+            <small style="font-size: 11px; color: var(--muted); margin-top: 4px; display: block;">
+              <i class="fa-solid fa-circle-info"></i> Automatically syncs to Patient &quot;My Prescriptions&quot; and Admin &quot;Recent History&quot;.
+            </small>
+          </div>
+
+          <!-- Doctor Suggestion (Optional) -->
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label for="followupSuggestionInput" style="display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 13px; margin-bottom: 6px;">
+              <span><i class="fa-solid fa-notes-medical" style="color: #2563eb; margin-right: 6px;"></i>Clinical Suggestion &amp; Lifestyle Advice <small style="color: var(--muted); font-weight: normal;">(Optional)</small></span>
+            </label>
+            <textarea id="followupSuggestionInput" rows="3" placeholder="e.g. Follow light Pathya diet (Mung Yusha), avoid curd at night, practice 15 mins Pranayama daily, follow-up after 14 days." style="width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 13px; background: var(--bg-card); color: var(--text-color); resize: vertical;"></textarea>
+          </div>
+
+          <!-- Actions -->
+          <div class="modal-actions" style="margin-top: 22px; display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" class="text-btn" onclick="closeDoctorFollowupPrescriptionModal()" style="padding: 10px 18px;">Cancel</button>
+            <button type="submit" class="primary-btn" id="followupDoneBtn" style="background: linear-gradient(135deg, #2d7350, #15803d); border: none; padding: 10px 24px; border-radius: 10px; font-weight: 700; color: #fff; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(45, 115, 80, 0.28);">
+              <i class="fa-solid fa-check"></i>
+              Done
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ================= ADD ARTICLE MODAL ================= -->
+    <div class="modal-overlay" id="doctorAddArticleModal" aria-hidden="true">
+      <div class="case-modal" style="max-width: 620px;" role="dialog" aria-modal="true" aria-labelledby="doctorAddArticleTitle">
+        <button type="button" class="close-modal" id="closeDoctorAddArticleModal" onclick="closeDoctorAddArticleModal()" aria-label="Close modal">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <div class="modal-header">
+          <div class="modal-icon" style="background: rgba(13, 148, 136, 0.15); color: #0d9488;">
+            <i class="fa-solid fa-feather-pointed"></i>
+          </div>
+          <div>
+            <span>CLINICAL KNOWLEDGE &amp; RESEARCH</span>
+            <h2 id="doctorAddArticleTitle">Publish Clinical Article</h2>
+          </div>
+        </div>
+
+        <form id="doctorAddArticleForm" onsubmit="submitDoctorAddArticle(event)">
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label for="articleTitleInput" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 5px;">Article Title <span style="color: #dc2626;">*</span></label>
+            <input type="text" id="articleTitleInput" required placeholder="e.g. Managing Amavata with Shodhana &amp; Shamana Therapy" style="width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 13px; background: var(--bg-card); color: var(--text-color);">
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+            <div class="form-group">
+              <label for="articleCategorySelect" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 5px;">Category</label>
+              <select id="articleCategorySelect" style="width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 13px; background: var(--bg-card); color: var(--text-color);">
+                <option value="Research">Research &amp; Case Study</option>
+                <option value="Mental Wellness">Mental Wellness</option>
+                <option value="Nutrition">Nutrition &amp; Pathya</option>
+                <option value="Sleep">Sleep Health</option>
+                <option value="Fitness">Fitness &amp; Vyayama</option>
+                <option value="Cancer">Cancer &amp; Chronic Care</option>
+                <option value="Prevention">Prevention &amp; Rasayana</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="articleMinutesInput" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 5px;">Estimated Read Time (min)</label>
+              <input type="number" id="articleMinutesInput" min="1" max="120" value="15" style="width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 13px; background: var(--bg-card); color: var(--text-color);">
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label for="articleExcerptInput" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 5px;">Summary / Abstract</label>
+            <textarea id="articleExcerptInput" rows="2" placeholder="Brief 1-2 sentence overview for the clinical library card..." style="width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 13px; background: var(--bg-card); color: var(--text-color); resize: vertical;"></textarea>
+          </div>
+
+          <!-- Add Picture in Learn / Article Option -->
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label style="font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 6px; margin-bottom: 6px; color: var(--text);">
+              <i class="fa-solid fa-image" style="color: #0d9488;"></i>
+              <span>Article Image / Illustration</span>
+            </label>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+              <label for="articlePictureInput" class="btn btn-secondary" style="background: rgba(13, 148, 136, 0.12); color: #0d9488; border: 1.5px dashed rgba(13, 148, 136, 0.5); padding: 9px 18px; border-radius: 9px; font-size: 12.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; transition: all 0.2s ease;">
+                <i class="fa-solid fa-camera"></i>
+                <span>Choose Photo</span>
+              </label>
+              <input type="file" id="articlePictureInput" accept="image/*" style="display: none;" onchange="previewArticlePicture(event)">
+              <input type="url" id="articlePictureUrl" placeholder="Or paste image URL (https://...)" oninput="previewArticlePictureUrl(this.value)" style="flex: 1; min-width: 220px; border: 1px solid var(--border); border-radius: 9px; padding: 9px 12px; font-size: 12.5px; background: var(--bg-card); color: var(--text-color); outline: none;">
+            </div>
+
+            <!-- Quick Preset Clinical Sample Photos -->
+            <div style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; align-items: center;">
+              <span style="font-size: 11px; color: var(--muted); font-weight: 600;">Sample Photos:</span>
+              <button type="button" onclick="selectPresetArticlePicture('herbs')" style="background: #eef8f4; color: #166534; border: 1px solid #bbf7d0; border-radius: 6px; padding: 3px 8px; font-size: 11px; cursor: pointer; font-weight: 600;">🌿 Herbs</button>
+              <button type="button" onclick="selectPresetArticlePicture('yoga')" style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; border-radius: 6px; padding: 3px 8px; font-size: 11px; cursor: pointer; font-weight: 600;">🧘 Yoga</button>
+              <button type="button" onclick="selectPresetArticlePicture('diet')" style="background: #fefce8; color: #854d0e; border: 1px solid #fef08a; border-radius: 6px; padding: 3px 8px; font-size: 11px; cursor: pointer; font-weight: 600;">🍲 Ahara</button>
+              <button type="button" onclick="selectPresetArticlePicture('clinical')" style="background: #f0f9ff; color: #0369a1; border: 1px solid #bae6fd; border-radius: 6px; padding: 3px 8px; font-size: 11px; cursor: pointer; font-weight: 600;">🩺 Clinical</button>
+            </div>
+
+            <!-- Image Preview Box -->
+            <div id="articlePicturePreviewContainer" style="display: none; margin-top: 10px; position: relative; width: fit-content; background: var(--bg-card, #fff); padding: 6px; border: 1.5px solid var(--border); border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.06);">
+              <img id="articlePicturePreviewImg" src="" alt="Article image preview" style="max-height: 140px; border-radius: 8px; display: block; object-fit: cover;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding: 0 4px; gap: 10px;">
+                <span id="articlePictureFileName" style="font-size: 11px; color: var(--muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Selected Photo</span>
+                <button type="button" onclick="removeArticlePicture()" title="Remove picture" style="background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; border-radius: 6px; padding: 2px 8px; font-size: 11px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                  <i class="fa-solid fa-trash-can"></i> Remove
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 18px;">
+            <label for="articleContentInput" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 5px;">Full Article Content / Clinical Insights</label>
+            <textarea id="articleContentInput" rows="5" placeholder="Detailed clinical observations, dosage guidelines, diagnostic markers, or herbal pharmacology..." style="width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 13px; background: var(--bg-card); color: var(--text-color); resize: vertical;"></textarea>
+          </div>
+
+          <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" class="text-btn" onclick="closeDoctorAddArticleModal()" style="padding: 10px 18px;">Cancel</button>
+            <button type="submit" class="primary-btn" style="background: linear-gradient(135deg, #0d9488, #059669); border: none; padding: 10px 24px; border-radius: 10px; font-weight: 700; color: #fff; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-paper-plane"></i>
+              Publish Article
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ================= ADD EMERGENCY CASE MODAL ================= -->
+    <div class="modal-overlay" id="doctorAddEmergencyModal" aria-hidden="true">
+      <div class="case-modal" style="max-width: 620px;" role="dialog" aria-modal="true" aria-labelledby="doctorAddEmergencyTitle">
+        <button type="button" class="close-modal" id="closeDoctorAddEmergencyModal" onclick="closeDoctorAddEmergencyModal()" aria-label="Close modal">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <div class="modal-header">
+          <div class="modal-icon" style="background: rgba(239, 68, 68, 0.15); color: #dc2626;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div>
+            <span>ATYAYIKA CHIKITSA / EMERGENCY TRIAGE</span>
+            <h2 id="doctorAddEmergencyTitle">Register Emergency Case</h2>
+          </div>
+        </div>
+
+        <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 10px; padding: 12px 14px; margin-bottom: 18px; display: flex; align-items: center; gap: 10px;">
+          <i class="fa-solid fa-bell" style="color: #dc2626; font-size: 18px;"></i>
+          <span style="font-size: 12.5px; color: #991b1b; line-height: 1.4;">
+            <strong>Immediate Clinical Alert:</strong> This case will immediately trigger active alerts in the Admin Console and allocate triage priority.
+          </span>
+        </div>
+
+        <form id="doctorEmergencyForm" onsubmit="submitDoctorEmergencyCase(event)">
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label for="emergencyPatientNameInput" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 5px;">Patient Name <span style="color: #dc2626;">*</span></label>
+            <input type="text" id="emergencyPatientNameInput" required placeholder="e.g. Vikram Malhotra" style="width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 13px; background: var(--bg-card); color: var(--text-color);">
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+            <div class="form-group">
+              <label for="emergencyAgeInput" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 5px;">Age</label>
+              <input type="number" id="emergencyAgeInput" min="1" max="120" placeholder="e.g. 48" style="width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 13px; background: var(--bg-card); color: var(--text-color);">
+            </div>
+
+            <div class="form-group">
+              <label for="emergencyGenderSelect" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 5px;">Gender</label>
+              <select id="emergencyGenderSelect" style="width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 13px; background: var(--bg-card); color: var(--text-color);">
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label for="emergencyIssueInput" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 5px;">Emergency Issue / Critical Symptoms <span style="color: #dc2626;">*</span></label>
+            <input type="text" id="emergencyIssueInput" required placeholder="e.g. Acute Dyspnea (Teevra Tamaka Shwasa), Severe Chest Discomfort" style="width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 13px; background: var(--bg-card); color: var(--text-color);">
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px;">
+            <div class="form-group">
+              <label for="emergencyTriageSelect" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 5px;">Triage Level</label>
+              <select id="emergencyTriageSelect" style="width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 13px; background: var(--bg-card); color: var(--text-color);">
+                <option value="Level 1 - Critical (Red)">Level 1 - Critical (Red)</option>
+                <option value="Level 2 - Urgent (Orange)">Level 2 - Urgent (Orange)</option>
+                <option value="Level 3 - Immediate (Yellow)">Level 3 - Immediate (Yellow)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="emergencyBedInput" style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 5px;">Bay / Bed Number</label>
+              <input type="text" id="emergencyBedInput" value="ER-Bay 01" placeholder="e.g. ER-Bay 01" style="width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 13px; background: var(--bg-card); color: var(--text-color);">
+            </div>
+          </div>
+
+          <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" class="text-btn" onclick="closeDoctorAddEmergencyModal()" style="padding: 10px 18px;">Cancel</button>
+            <button type="submit" class="primary-btn" style="background: linear-gradient(135deg, #dc2626, #b91c1c); border: none; padding: 10px 24px; border-radius: 10px; font-weight: 700; color: #fff; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              Register Emergency Case
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ================= ADD LAB REPORT MODAL ================= -->
+    <div class="modal-overlay" id="doctorAddLabReportModal" aria-hidden="true">
+      <div class="case-modal" style="max-width: 580px;" role="dialog" aria-modal="true" aria-labelledby="labReportModalTitle">
+        <button type="button" class="close-modal" id="closeDoctorAddLabReportModal" onclick="closeDoctorAddLabReportModal()" aria-label="Close modal">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <div class="modal-header">
+          <div class="modal-icon" style="background: rgba(2, 132, 199, 0.15); color: #0284c7;">
+            <i class="fa-solid fa-flask-vial"></i>
+          </div>
+          <div>
+            <span>PATHOLOGY &amp; DIAGNOSTIC INVESTIGATION</span>
+            <h2 id="labReportModalTitle">Add Patient Lab Report</h2>
+          </div>
+        </div>
+
+        <!-- Patient Info Banner -->
+        <div style="display: flex; align-items: center; gap: 14px; background: rgba(2, 132, 199, 0.08); border: 1px solid rgba(2, 132, 199, 0.2); border-radius: 12px; padding: 12px 16px; margin-bottom: 20px;">
+          <div id="labReportPatientAvatar" class="patient-avatar avatar-1" style="width: 44px; height: 44px; font-size: 16px;">PT</div>
+          <div style="flex: 1;">
+            <strong id="labReportPatientName" style="font-size: 15px; color: var(--text-color); display: block;">Patient Name</strong>
+            <span id="labReportPatientEmailText" style="font-size: 12px; color: var(--muted);"><i class="fa-solid fa-envelope"></i> Email: patient@example.com</span>
+          </div>
+          <span class="status Active-status" style="background: rgba(2, 132, 199, 0.12); color: #0284c7; border: 1px solid rgba(2, 132, 199, 0.3);">Diagnostic</span>
+        </div>
+
+        <form id="doctorLabReportForm" onsubmit="submitDoctorLabReportForm(event)">
+          <input type="hidden" id="labReportHiddenPatientName" value="">
+          
+          <!-- Confirm / Edit Registered Email -->
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label for="labReportPatientEmail" style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; margin-bottom: 6px;">
+              <i class="fa-solid fa-paper-plane" style="color: #0284c7;"></i>
+              <span>Patient Registered Email (Lab Report will be dispatched here)</span>
+            </label>
+            <input type="email" id="labReportPatientEmail" placeholder="patient@example.com" required style="width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 13px; background: var(--bg-card, #fff); color: var(--text); outline: none;">
+          </div>
+
+          <!-- Lab Values Grid: Sugar, Pressure, Hemoglobin -->
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px;">
+            <!-- Blood Sugar -->
+            <div class="form-group">
+              <label for="labReportSugar" style="display: flex; align-items: center; gap: 5px; font-weight: 700; font-size: 12px; margin-bottom: 6px; color: #b91c1c;">
+                <i class="fa-solid fa-droplet"></i> Sugar (mg/dL)
+              </label>
+              <input type="text" id="labReportSugar" placeholder="e.g. 95 mg/dL" required style="width: 100%; padding: 10px 12px; border: 1.5px solid rgba(185, 28, 28, 0.3); border-radius: 10px; font-size: 13px; font-weight: 600; background: var(--bg-card, #fff); color: var(--text); outline: none;">
+              <span style="font-size: 10px; color: var(--muted); margin-top: 3px; display: block;">Ref: 70-99 Fasting</span>
+            </div>
+
+            <!-- Blood Pressure -->
+            <div class="form-group">
+              <label for="labReportPressure" style="display: flex; align-items: center; gap: 5px; font-weight: 700; font-size: 12px; margin-bottom: 6px; color: #0284c7;">
+                <i class="fa-solid fa-heart-pulse"></i> Pressure (mmHg)
+              </label>
+              <input type="text" id="labReportPressure" placeholder="e.g. 120/80" required style="width: 100%; padding: 10px 12px; border: 1.5px solid rgba(2, 132, 199, 0.3); border-radius: 10px; font-size: 13px; font-weight: 600; background: var(--bg-card, #fff); color: var(--text); outline: none;">
+              <span style="font-size: 10px; color: var(--muted); margin-top: 3px; display: block;">Ref: 120/80 Normal</span>
+            </div>
+
+            <!-- Hemoglobin -->
+            <div class="form-group">
+              <label for="labReportHemoglobin" style="display: flex; align-items: center; gap: 5px; font-weight: 700; font-size: 12px; margin-bottom: 6px; color: #be185d;">
+                <i class="fa-solid fa-vial"></i> Hb (g/dL)
+              </label>
+              <input type="text" id="labReportHemoglobin" placeholder="e.g. 14.2 g/dL" required style="width: 100%; padding: 10px 12px; border: 1.5px solid rgba(190, 24, 93, 0.3); border-radius: 10px; font-size: 13px; font-weight: 600; background: var(--bg-card, #fff); color: var(--text); outline: none;">
+              <span style="font-size: 10px; color: var(--muted); margin-top: 3px; display: block;">Ref: 12.0-17.0</span>
+            </div>
+          </div>
+
+          <!-- Clinical Observations / Suggestions (Optional) -->
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label for="labReportNotes" style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; margin-bottom: 6px;">
+              <i class="fa-solid fa-notes-medical" style="color: var(--green-700);"></i>
+              <span>Clinical Observations &amp; Pathya Regimen</span>
+              <span style="font-size: 11px; color: var(--muted); font-weight: 400;">(Optional)</span>
+            </label>
+            <textarea id="labReportNotes" rows="3" placeholder="Enter clinical observations, dietary instructions, or next lab checkup recommendation..." style="width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 13px; background: var(--bg-card, #fff); color: var(--text); resize: vertical; outline: none;"></textarea>
+          </div>
+
+          <!-- Actions -->
+          <div style="display: flex; justify-content: flex-end; gap: 12px; padding-top: 14px; border-top: 1px solid var(--border);">
+            <button type="button" class="btn btn-secondary" onclick="closeDoctorAddLabReportModal()" style="padding: 10px 18px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--text); cursor: pointer; font-weight: 600;">
+              Cancel
+            </button>
+            <button type="submit" class="primary-btn" id="submitLabReportBtn" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: white; border: none; padding: 10px 24px; border-radius: 10px; font-weight: 700; font-size: 13.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);">
+              <i class="fa-solid fa-paper-plane"></i>
+              <span>Submit &amp; Email Lab Report</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ================= EDIT PATIENT NAME MODAL ================= -->
+    <div class="modal-overlay" id="doctorEditPatientNameModal" style="position: fixed; inset: 0; z-index: 100000 !important; display: none; align-items: center; justify-content: center; background: rgba(9, 27, 19, 0.75); backdrop-filter: blur(8px); padding: 20px;">
+      <div class="modal" style="max-width: 460px; width: 92%; border-radius: 18px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); border: 1px solid var(--border); background: var(--bg-card, #ffffff); overflow: hidden;">
+        <div class="modal-header" style="background: linear-gradient(135deg, #1e4d36, #2d7350); color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(255,255,255,0.2); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+              <i class="fa-solid fa-user-pen"></i>
+            </div>
+            <div>
+              <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #fff; font-family: 'DM Sans', sans-serif;">Edit Patient Name</h3>
+              <p style="margin: 2px 0 0; font-size: 11px; color: #d1fae5;">Update patient clinical records and profile</p>
+            </div>
+          </div>
+          <button type="button" onclick="closeEditPatientNameModal()" style="background: rgba(255,255,255,0.2); border: none; width: 30px; height: 30px; border-radius: 8px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px;">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <form id="editPatientNameForm" onsubmit="submitEditPatientName(event)" style="padding: 20px;">
+          <input type="hidden" id="editPatientOldName" value="">
+          <input type="hidden" id="editPatientId" value="">
+
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label for="editPatientNewNameInput" style="display: block; font-weight: 600; font-size: 12.5px; margin-bottom: 6px; color: var(--text);">
+              Patient Full Name <span style="color: #dc2626;">*</span>
+            </label>
+            <input type="text" id="editPatientNewNameInput" required placeholder="Enter updated patient name" style="width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 13.5px; background: var(--bg-card, #fff); color: var(--text); outline: none;">
+            <span style="display: block; font-size: 11px; color: var(--muted); margin-top: 5px;">
+              <i class="fa-solid fa-circle-info"></i> This will update clinical cases, appointments, and recent patient records.
+            </span>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 10px; padding-top: 14px; border-top: 1px solid var(--border);">
+            <button type="button" onclick="closeEditPatientNameModal()" class="btn btn-secondary" style="padding: 9px 16px; border-radius: 9px; border: 1px solid var(--border); background: transparent; color: var(--text); cursor: pointer; font-weight: 600; font-size: 13px;">
+              Cancel
+            </button>
+            <button type="submit" id="submitEditPatientNameBtn" class="primary-btn" style="background: linear-gradient(135deg, #1e4d36, #2d7350); color: white; border: none; padding: 9px 20px; border-radius: 9px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+              <i class="fa-solid fa-floppy-disk"></i> Save Name
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ================= DOCTOR AI REVIEW MODAL ================= -->
+    <div class="modal-overlay" id="doctorAiReviewModal" style="position: fixed; inset: 0; z-index: 100000 !important; display: none; align-items: center; justify-content: center; background: rgba(9, 27, 19, 0.75); backdrop-filter: blur(8px); padding: 20px;">
+      <div class="modal" style="max-width: 680px; width: 92%; max-height: 90vh; overflow-y: auto; border-radius: 18px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); border: 1px solid var(--border);">
+        <div class="modal-header" style="background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; padding: 18px 24px; border-radius: 18px 18px 0 0; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 42px; height: 42px; border-radius: 12px; background: rgba(255,255,255,0.2); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </div>
+            <div>
+              <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: #fff; font-family: 'DM Sans', sans-serif;">Clinical AI Review &amp; Evaluation</h3>
+              <p style="margin: 3px 0 0; font-size: 12px; color: #e0e7ff; font-weight: 500;">Review AI diagnostic answers, rate out of 5 stars, and write clinical feedback</p>
+            </div>
+          </div>
+          <button type="button" class="close-modal-btn" onclick="closeDoctorAiReviewModal()" style="background: rgba(255,255,255,0.2); border: none; width: 32px; height: 32px; border-radius: 8px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div style="padding: 20px 24px;">
+          <!-- Tabs: Evaluate / Write Review | Review History -->
+          <div style="display: flex; gap: 10px; margin-bottom: 18px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+            <button type="button" class="btn active" id="aiReviewTabWrite" onclick="switchAiReviewView('write')" style="padding: 8px 16px; border-radius: 8px; font-size: 12.5px; font-weight: 700; cursor: pointer; background: rgba(79, 70, 229, 0.1); color: #4f46e5; border: 1px solid rgba(79, 70, 229, 0.2);">
+              <i class="fa-solid fa-pen-to-square"></i> Rate &amp; Review AI Answer
+            </button>
+            <button type="button" class="btn" id="aiReviewTabHistory" onclick="switchAiReviewView('history')" style="padding: 8px 16px; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; background: transparent; color: var(--muted); border: 1px solid transparent;">
+              <i class="fa-solid fa-clock-rotate-left"></i> Review History (<span id="aiReviewHistoryCount">0</span>)
+            </button>
+          </div>
+
+          <!-- TAB 1: FORM -->
+          <div id="aiReviewFormContainer">
+            <form id="doctorAiReviewForm" onsubmit="submitDoctorAiReview(event)">
+              <input type="hidden" id="aiReviewReviewId" value="" />
+              <input type="hidden" id="aiReviewPatientName" value="" />
+
+              <!-- Active Patient Banner (when reviewing patient query) -->
+              <div id="aiReviewActivePatientBanner" style="display: none; background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(79, 70, 229, 0.04)); border: 1.5px solid rgba(99, 102, 241, 0.25); border-radius: 10px; padding: 10px 14px; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 28px; height: 28px; border-radius: 50%; background: #4f46e5; color: white; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;" id="aiReviewPatientAvatar">PT</div>
+                    <div>
+                      <strong id="aiReviewPatientNameText" style="font-size: 13px; color: var(--text);">Patient Name</strong>
+                      <span style="font-size: 11px; color: var(--muted); margin-left: 6px;">• Patient AI Solution Review</span>
+                    </div>
+                  </div>
+                  <button type="button" onclick="clearAiReviewPatientContext()" style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 11.5px; text-decoration: underline;">Switch to Custom</button>
+                </div>
+              </div>
+
+              <!-- Preset Patient Case Quick Selector -->
+              <div class="form-group" id="aiReviewPresetGroup" style="margin-bottom: 16px;">
+                <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; font-weight: 700; margin-bottom: 6px; color: var(--text);">
+                  <span><i class="fa-solid fa-layer-group" style="color: #4f46e5; margin-right: 5px;"></i> Select Patient Case / Question to Review:</span>
+                  <span style="font-size: 11px; color: var(--muted); font-weight: 500;">Or type custom below</span>
+                </label>
+                <select id="aiReviewCasePreset" onchange="selectAiReviewPreset(this.value)" style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 13px; background: var(--bg-card, #fff); color: var(--text); outline: none;">
+                  <option value="acidity">Case 1: Hyperacidity &amp; Burning Reflux (Amlapitta)</option>
+                  <option value="joints">Case 2: Knee Joint Pain &amp; Morning Stiffness (Sandhigata Vata)</option>
+                  <option value="insomnia">Case 3: Stress-Induced Chronic Insomnia &amp; Racing Thoughts (Anidra)</option>
+                  <option value="digestion">Case 4: Post-meal Bloating &amp; Sluggish Digestion (Mandagni)</option>
+                  <option value="custom">✏️ Enter Custom Patient Question &amp; AI Answer</option>
+                </select>
+              </div>
+
+              <!-- Patient Question -->
+              <div class="form-group" style="margin-bottom: 16px;">
+                <label for="aiReviewPatientQuestion" style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; margin-bottom: 6px; color: var(--text);">
+                  <i class="fa-solid fa-circle-question" style="color: #4f46e5;"></i>
+                  <span>Patient's Question / Symptom Inquiry</span>
+                  <span style="color: #dc2626;">*</span>
+                </label>
+                <textarea id="aiReviewPatientQuestion" rows="3" required placeholder="Patient inquiry or clinical question addressed to AI..." style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 13px; background: var(--bg-card, #fff); color: var(--text); resize: vertical; outline: none; line-height: 1.45;"></textarea>
+              </div>
+
+              <!-- AI Answer -->
+              <div class="form-group" style="margin-bottom: 18px;">
+                <label for="aiReviewAiAnswer" style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; margin-bottom: 6px; color: var(--text);">
+                  <i class="fa-solid fa-robot" style="color: #059669;"></i>
+                  <span>AI Generated Answer / Ayurvedic Clinical Protocol</span>
+                  <span style="color: #dc2626;">*</span>
+                </label>
+                <textarea id="aiReviewAiAnswer" rows="4" required placeholder="AI recommended diagnosis, herbs, and diet advice to review..." style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 13px; background: var(--bg-card, #fff); color: var(--text); resize: vertical; outline: none; line-height: 1.45;"></textarea>
+              </div>
+
+              <!-- 5-STAR RATING WIDGET -->
+              <div class="form-group" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(217, 119, 6, 0.04)); border: 1.5px solid rgba(245, 158, 11, 0.25); border-radius: 12px; padding: 14px 16px; margin-bottom: 18px;">
+                <label style="display: block; font-size: 13px; font-weight: 700; color: #92400e; margin-bottom: 6px;">
+                  <i class="fa-solid fa-star" style="color: #f59e0b; margin-right: 4px;"></i> Doctor's Rating out of 5 Stars:
+                </label>
+                <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+                  <div class="star-rating-box" id="aiStarRatingContainer" style="display: flex; gap: 6px; font-size: 26px; cursor: pointer;">
+                    <i class="fa-solid fa-star star-item" data-val="1" onclick="setAiStarRating(1)" onmouseover="previewAiStarRating(1)" onmouseout="resetAiStarRatingPreview()" style="color: #f59e0b; transition: transform 0.15s ease;"></i>
+                    <i class="fa-solid fa-star star-item" data-val="2" onclick="setAiStarRating(2)" onmouseover="previewAiStarRating(2)" onmouseout="resetAiStarRatingPreview()" style="color: #f59e0b; transition: transform 0.15s ease;"></i>
+                    <i class="fa-solid fa-star star-item" data-val="3" onclick="setAiStarRating(3)" onmouseover="previewAiStarRating(3)" onmouseout="resetAiStarRatingPreview()" style="color: #f59e0b; transition: transform 0.15s ease;"></i>
+                    <i class="fa-solid fa-star star-item" data-val="4" onclick="setAiStarRating(4)" onmouseover="previewAiStarRating(4)" onmouseout="resetAiStarRatingPreview()" style="color: #f59e0b; transition: transform 0.15s ease;"></i>
+                    <i class="fa-solid fa-star star-item" data-val="5" onclick="setAiStarRating(5)" onmouseover="previewAiStarRating(5)" onmouseout="resetAiStarRatingPreview()" style="color: #f59e0b; transition: transform 0.15s ease;"></i>
+                  </div>
+                  <input type="hidden" id="aiReviewRating" value="5" />
+                  <span id="aiRatingDescriptor" style="font-weight: 700; font-size: 13px; color: #b45309;">
+                    ⭐⭐⭐⭐⭐ 5 / 5 — Excellent &amp; Clinically Sound
+                  </span>
+                </div>
+              </div>
+
+              <!-- Doctor's Comment -->
+              <div class="form-group" style="margin-bottom: 20px;">
+                <label for="aiReviewComment" style="display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; font-weight: 700; margin-bottom: 6px; color: var(--text);">
+                  <span><i class="fa-solid fa-comment-medical" style="color: #2563eb; margin-right: 5px;"></i> Doctor's Clinical Review &amp; Comments:</span>
+                  <span style="font-size: 11px; color: var(--muted); font-weight: 400;">(Advice, dosage correction, or affirmation)</span>
+                </label>
+                <textarea id="aiReviewComment" rows="3" required placeholder="Write your clinical critique, corrections to the formulation, contraindications, or safety suggestions..." style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 13px; background: var(--bg-card, #fff); color: var(--text); resize: vertical; outline: none; line-height: 1.45;"></textarea>
+
+                <!-- Quick tags for comments -->
+                <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;">
+                  <button type="button" onclick="appendAiReviewTag('Accurate formulation ✅ ')" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); color: #047857; padding: 3px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: 600;">+ Accurate formulation ✅</button>
+                  <button type="button" onclick="appendAiReviewTag('Dosage verified 💊 ')" style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.25); color: #1d4ed8; padding: 3px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: 600;">+ Dosage verified 💊</button>
+                  <button type="button" onclick="appendAiReviewTag('Dietary regimen appropriate 🥗 ')" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); color: #047857; padding: 3px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: 600;">+ Dietary regimen appropriate 🥗</button>
+                  <button type="button" onclick="appendAiReviewTag('Recommend in-person consultation 🩺 ')" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.25); color: #b45309; padding: 3px 8px; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: 600;">+ Recommend in-person consultation 🩺</button>
+                </div>
+              </div>
+
+              <!-- Action buttons -->
+              <div style="display: flex; justify-content: flex-end; gap: 12px; padding-top: 14px; border-top: 1px solid var(--border);">
+                <button type="button" class="btn btn-secondary" onclick="closeDoctorAiReviewModal()" style="padding: 10px 18px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--text); cursor: pointer; font-weight: 600;">
+                  Cancel
+                </button>
+                <button type="submit" class="primary-btn" id="submitAiReviewBtn" style="background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; border: none; padding: 10px 24px; border-radius: 10px; font-weight: 700; font-size: 13.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);">
+                  <i class="fa-solid fa-paper-plane"></i>
+                  <span>Submit AI Review</span>
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- TAB 2: REVIEW HISTORY -->
+          <div id="aiReviewHistoryContainer" style="display: none;">
+            <div id="aiReviewHistoryList" style="display: flex; flex-direction: column; gap: 12px;">
+              <!-- Populated dynamically via loadDoctorAiReviewsHistory() -->
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -643,7 +1203,7 @@
 
     <script src="learn-data.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="auth.js?v=4.6"></script>
-    <script src="script.js?v=4.6"></script>
+    <script src="auth.js?v=4.7"></script>
+    <script src="script.js?v=4.7"></script>
 </body>
 </html>
